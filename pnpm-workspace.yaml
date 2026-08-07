@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 blocks dependency postinstall/build scripts by default. esbuild
+# (via vite/tsx) and @tailwindcss/oxide (Tailwind v4's native engine) need
+# theirs to fetch a platform binary — without this, install silently skips
+# those scripts and vite/tailwind fail at runtime with a missing-binary error.
+onlyBuiltDependencies:
+  - esbuild
+  - '@tailwindcss/oxide'
