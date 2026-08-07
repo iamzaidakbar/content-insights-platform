@@ -4,6 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // Vite defaults to reading .env files only from this app's own root
+  // (apps/web/.env, which doesn't exist). The real .env/.env.example live at
+  // the monorepo root alongside every other service's env vars — point Vite
+  // there instead of introducing a second, app-local .env convention.
+  envDir: searchForWorkspaceRoot(process.cwd()),
   server: {
     host: true, // bind 0.0.0.0 so the container is reachable from the host
     port: Number(process.env.WEB_PORT ?? 5173),

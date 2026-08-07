@@ -1,9 +1,13 @@
 import 'dotenv/config';
 
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
+import { errorHandler } from './middleware/errorHandler.js';
+import { authRouter } from './routes/auth.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -17,10 +21,15 @@ export function createApp(): Express {
   );
   app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
   app.use(express.json());
+  app.use(cookieParser());
 
   app.get('/health', (_req: Request, res: Response) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  app.use('/api/auth', authRouter);
+
+  app.use(errorHandler);
 
   return app;
 }

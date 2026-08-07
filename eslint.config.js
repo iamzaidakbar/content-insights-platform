@@ -19,6 +19,18 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended, // non-type-checked variant on purpose — kept simple, no parserOptions.project
 
+  // Underscore-prefixed args/vars/catch-bindings are the standard way to satisfy
+  // required signatures (e.g. Express's 4-arg error-handler arity) without using
+  // an unused identifier — recognize that convention instead of flagging it.
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
+  },
+
   // packages/shared and apps/api — Node-ish tooling globals, no DOM/JSX.
   {
     files: ['packages/shared/**/*.ts', 'apps/api/**/*.ts'],

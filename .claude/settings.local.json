@@ -3,7 +3,12 @@
     "allow": [
       "PowerShell(corepack prepare pnpm@10.30.2 --activate 2>&1)",
       "PowerShell(pnpm --version 2>&1)",
-      "PowerShell(pnpm install 2>&1)"
+      "PowerShell(pnpm install 2>&1)",
+      "PowerShell(docker compose logs api --tail 30 2>&1)",
+      "PowerShell(pnpm --filter @content-insights/api build 2>&1)",
+      "PowerShell(pnpm --filter @content-insights/api lint 2>&1)",
+      "PowerShell(docker compose restart api 2>&1)",
+      "PowerShell(docker compose logs api --tail 10 2>&1)"
     ]
   }
 }
