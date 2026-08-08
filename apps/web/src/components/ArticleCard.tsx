@@ -4,6 +4,7 @@ import {
   Camera,
   Edit,
   Eye,
+  FileText,
   Globe,
   Tag as TagIcon,
   Upload,
@@ -13,13 +14,17 @@ import {
 import type { CardDensity } from '@content-insights/shared';
 
 import { useSettings } from '../settings/SettingsContext';
+import { CARD_HEIGHT } from '../lib/article-layout';
 import { formatDate } from '../lib/format';
 
 export interface ArticleCardProps {
   id: string;
   title: string;
-  url?: string;
-  source?: string;
+  // Genuinely optional (not just "present but undefined") — widened explicitly so
+  // exactOptionalPropertyTypes allows passing through an already-optional source field
+  // (e.g. item.url from ArticleGridItem) without an intermediate conditional-spread.
+  url?: string | undefined;
+  source?: string | undefined;
   publishDate: string;
   snippet: string;
   tags: string[];
@@ -69,6 +74,77 @@ function ActionIcon({
   );
 }
 
+function TagChips({
+  tags,
+  maxTags,
+  size = 'normal',
+}: {
+  tags: string[];
+  maxTags: number;
+  size?: 'normal' | 'small';
+}) {
+  const [showAll, setShowAll] = useState(false);
+  if (tags.length === 0) {
+    return null;
+  }
+  const visible = showAll ? tags : tags.slice(0, maxTags);
+  const overflow = tags.length - visible.length;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {visible.map((tag) => (
+        <span
+          key={tag}
+          className={`rounded-[var(--radius-tag)] ${size === 'small' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-[13px]'}`}
+          style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+        >
+          {tag}
+        </span>
+      ))}
+      {!showAll && overflow > 0 ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="text-[13px] text-[var(--accent)] hover:underline"
+        >
+          View More ({overflow})
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function SourceAndDate({
+  url,
+  source,
+  publishDate,
+}: {
+  url?: string | undefined;
+  source?: string | undefined;
+  publishDate: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      {url ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(event) => event.stopPropagation()}
+          className="flex min-w-0 items-center gap-1.5 text-sm text-[var(--accent)] hover:underline"
+        >
+          <Globe size={14} className="shrink-0" />
+          <span className="truncate">{source ?? url}</span>
+        </a>
+      ) : null}
+      <div className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
+        <Calendar size={14} className="shrink-0" />
+        <span>{formatDate(publishDate)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticleCard({
   id,
   title,
@@ -86,15 +162,12 @@ export default function ArticleCard({
 }: ArticleCardProps) {
   const { settings } = useSettings();
   const { cardDensity } = settings.appearance;
-  const { openArticleIn } = settings.search;
+  const { defaultLayout: layout, openArticleIn } = settings.search;
 
   const [isHovered, setIsHovered] = useState(false);
-  const [showAllTags, setShowAllTags] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const maxTags = MAX_VISIBLE_TAGS[cardDensity];
-  const visibleTags = showAllTags ? tags : tags.slice(0, maxTags);
-  const overflowCount = tags.length - visibleTags.length;
 
   function handleViewFullArticle() {
     if (!url) {
@@ -109,145 +182,204 @@ export default function ArticleCard({
     }
   }
 
-  return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`relative rounded-[var(--radius-card)] border p-4 transition-[box-shadow,background-color] duration-150 ${
-        isSelected ? 'bg-[var(--accent-soft)]' : 'bg-[var(--bg-card)]'
-      } ${isHovered ? 'shadow-[0_4px_20px_rgba(0,0,0,0.3)]' : ''}`}
-      style={{
-        borderColor: isHovered ? 'var(--accent)' : 'var(--border)',
-        borderLeftWidth: '3px',
-        borderLeftColor: isSelected || isHovered ? 'var(--accent)' : 'transparent',
-      }}
-    >
-      {/* Top: title + checkbox, source, date */}
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="line-clamp-2 text-base font-semibold text-[var(--text-primary)]">
-          {title}
-        </h3>
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={(event) => onSelect(id, event.target.checked)}
-          aria-label={isSelected ? 'Deselect article' : 'Select article'}
-          className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
-        />
-      </div>
+  const containerClassName = `relative overflow-hidden rounded-[var(--radius-card)] border transition-[box-shadow,background-color] duration-150 ${
+    isSelected ? 'bg-[var(--accent-soft)]' : 'bg-[var(--bg-card)]'
+  } ${isHovered ? 'shadow-[0_4px_20px_rgba(0,0,0,0.3)]' : ''}`;
+  const containerStyle = {
+    height: CARD_HEIGHT[layout],
+    borderColor: isHovered ? 'var(--accent)' : 'var(--border)',
+    borderLeftWidth: '3px',
+    borderLeftColor: isSelected || isHovered ? 'var(--accent)' : 'transparent',
+  };
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+  const previewPanel = isPreviewOpen ? (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 px-4"
+      onClick={() => setIsPreviewOpen(false)}
+    >
+      <div
+        className="h-full w-full max-w-md overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-surface)] p-6"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
+          <button
+            type="button"
+            onClick={() => setIsPreviewOpen(false)}
+            aria-label="Close preview"
+            className="shrink-0 rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        {source ? <p className="mt-1 text-sm text-[var(--accent)]">{source}</p> : null}
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatDate(publishDate)}</p>
+        <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">{snippet}</p>
         {url ? (
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-w-0 items-center gap-1.5 text-sm text-[var(--accent)] hover:underline"
+            className="mt-4 inline-block text-sm text-[var(--accent)] hover:underline"
           >
-            <Globe size={14} className="shrink-0" />
-            <span className="truncate">{source ?? url}</span>
+            Open original source
           </a>
         ) : null}
-        <div className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
-          <Calendar size={14} className="shrink-0" />
-          <span>{formatDate(publishDate)}</span>
-        </div>
       </div>
+    </div>
+  ) : null;
 
-      {/* Action icons */}
-      <div className="mt-3 flex items-center gap-1">
-        <ActionIcon icon={TagIcon} label="Tag" onClick={() => onTag(id)} />
-        <ActionIcon icon={Camera} label="Media" onClick={() => onBookmark(id)} />
-        <ActionIcon icon={Upload} label="Share" onClick={() => onShare(id)} />
-        <ActionIcon icon={Eye} label="Preview" onClick={() => setIsPreviewOpen(true)} />
-        <ActionIcon icon={Edit} label="Edit" onClick={() => onEdit(id)} />
-      </div>
-
-      {/* Content */}
-      <p
-        className={`mt-3 text-sm text-[var(--text-secondary)] ${SNIPPET_LINE_CLAMP[cardDensity]}`}
-        style={{ lineHeight: 1.6 }}
+  // Dense: compact single row — title + source + date + tags only, no snippet, no
+  // action-icon row (56px doesn't have room for either).
+  if (layout === 'dense') {
+    return (
+      <div
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={containerClassName}
+        style={containerStyle}
       >
-        {snippet}
-      </p>
-
-      {url ? (
-        <div className="mt-2 text-right">
-          <button
-            type="button"
-            onClick={handleViewFullArticle}
-            className="text-sm text-[var(--accent)] hover:underline"
-          >
-            View Full Article
-          </button>
-        </div>
-      ) : null}
-
-      {/* Tags */}
-      {tags.length > 0 ? (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {visibleTags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-[var(--radius-tag)] px-2 py-1 text-[13px]"
-              style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-            >
-              {tag}
-            </span>
-          ))}
-          {!showAllTags && overflowCount > 0 ? (
-            <button
-              type="button"
-              onClick={() => setShowAllTags(true)}
-              className="text-[13px] text-[var(--accent)] hover:underline"
-            >
-              View More ({overflowCount})
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {/* Minimal in-place preview for openArticleIn: 'sidePanel' — a full slide-out reader
-          isn't part of this component's scope; this gives a working, self-contained
-          preview without requiring a parent-managed panel. */}
-      {isPreviewOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 px-4"
-          onClick={() => setIsPreviewOpen(false)}
-        >
-          <div
-            className="h-full w-full max-w-md overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-surface)] p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
-              <button
-                type="button"
-                onClick={() => setIsPreviewOpen(false)}
-                aria-label="Close preview"
-                className="shrink-0 rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            {source ? (
-              <p className="mt-1 text-sm text-[var(--accent)]">{source}</p>
-            ) : null}
-            <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatDate(publishDate)}</p>
-            <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">{snippet}</p>
-            {url ? (
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 inline-block text-sm text-[var(--accent)] hover:underline"
-              >
-                Open original source
-              </a>
-            ) : null}
+        <div className="flex h-full items-center gap-3 px-3">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(event) => onSelect(id, event.target.checked)}
+            aria-label={isSelected ? 'Deselect article' : 'Select article'}
+            className="h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+          />
+          <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">
+            {title}
+          </h3>
+          <div className="hidden shrink-0 items-center gap-3 sm:flex">
+            <SourceAndDate url={url} source={source} publishDate={publishDate} />
+          </div>
+          <div className="hidden shrink-0 md:block">
+            <TagChips tags={tags} maxTags={maxTags} size="small" />
           </div>
         </div>
-      ) : null}
+        {previewPanel}
+      </div>
+    );
+  }
+
+  // 1-col: horizontal card — thumbnail on the left, content on the right. No real
+  // thumbnail image exists for any current content source (uploaded documents aren't
+  // web-sourced), so this is a generic file-type placeholder box, not a fabricated image.
+  if (layout === '1col') {
+    return (
+      <div
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={containerClassName}
+        style={containerStyle}
+      >
+        <div className="flex h-full gap-4 p-3">
+          <div
+            className="flex h-full w-28 shrink-0 items-center justify-center rounded-[var(--radius-button)]"
+            style={{ backgroundColor: 'var(--bg-hover)' }}
+          >
+            <FileText size={28} className="text-[var(--text-muted)]" />
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="line-clamp-1 text-base font-semibold text-[var(--text-primary)]">
+                  {title}
+                </h3>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(event) => onSelect(id, event.target.checked)}
+                  aria-label={isSelected ? 'Deselect article' : 'Select article'}
+                  className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+                />
+              </div>
+              <div className="mt-1">
+                <SourceAndDate url={url} source={source} publishDate={publishDate} />
+              </div>
+            </div>
+
+            <p className="line-clamp-1 text-sm text-[var(--text-secondary)]">{snippet}</p>
+
+            <div className="flex items-center justify-between gap-3">
+              <TagChips tags={tags} maxTags={maxTags} size="small" />
+              {url ? (
+                <button
+                  type="button"
+                  onClick={handleViewFullArticle}
+                  className="shrink-0 text-sm text-[var(--accent)] hover:underline"
+                >
+                  View Full Article
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        {previewPanel}
+      </div>
+    );
+  }
+
+  // 2col / 3col: standard vertical card — full title, source/date, action icons,
+  // density-clamped snippet, tags.
+  return (
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={containerClassName}
+      style={containerStyle}
+    >
+      <div className="flex h-full flex-col p-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="line-clamp-2 text-base font-semibold text-[var(--text-primary)]">
+            {title}
+          </h3>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(event) => onSelect(id, event.target.checked)}
+            aria-label={isSelected ? 'Deselect article' : 'Select article'}
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+          />
+        </div>
+
+        <div className="mt-2">
+          <SourceAndDate url={url} source={source} publishDate={publishDate} />
+        </div>
+
+        <div className="mt-3 flex items-center gap-1">
+          <ActionIcon icon={TagIcon} label="Tag" onClick={() => onTag(id)} />
+          <ActionIcon icon={Camera} label="Media" onClick={() => onBookmark(id)} />
+          <ActionIcon icon={Upload} label="Share" onClick={() => onShare(id)} />
+          <ActionIcon icon={Eye} label="Preview" onClick={() => setIsPreviewOpen(true)} />
+          <ActionIcon icon={Edit} label="Edit" onClick={() => onEdit(id)} />
+        </div>
+
+        <p
+          className={`mt-3 min-h-0 flex-1 text-sm text-[var(--text-secondary)] ${SNIPPET_LINE_CLAMP[cardDensity]}`}
+          style={{ lineHeight: 1.6 }}
+        >
+          {snippet}
+        </p>
+
+        {url ? (
+          <div className="mt-2 text-right">
+            <button
+              type="button"
+              onClick={handleViewFullArticle}
+              className="text-sm text-[var(--accent)] hover:underline"
+            >
+              View Full Article
+            </button>
+          </div>
+        ) : null}
+
+        <div className="mt-3">
+          <TagChips tags={tags} maxTags={maxTags} />
+        </div>
+      </div>
+      {previewPanel}
     </div>
   );
 }

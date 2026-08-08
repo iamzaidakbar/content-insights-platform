@@ -28,5 +28,8 @@
     "prettier": "^3.4.2",
     "typescript": "6.0.2",
     "typescript-eslint": "^8.19.1"
+  },
+  "dependencies": {
+    "react-window": "1.8.11"
   }
 }

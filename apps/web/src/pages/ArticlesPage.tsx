@@ -1,5 +1,5 @@
 import { useRef, useState, type ComponentType } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -14,7 +14,7 @@ import {
   Tag as TagIcon,
 } from 'lucide-react';
 
-import type { DocumentFileType, SearchLayout, SearchSort } from '@content-insights/shared';
+import type { DocumentFileType, SearchLayout, SearchPageSize, SearchSort } from '@content-insights/shared';
 
 import { useAuth } from '../auth/AuthContext';
 import { useSettings } from '../settings/SettingsContext';
@@ -24,12 +24,9 @@ import { getApiErrorMessage } from '../lib/api-client';
 import { fetchDocuments } from '../lib/documents-api';
 import { searchDocuments } from '../lib/search-api';
 import ArticleTabs, { type ArticleTabKey } from '../components/ArticleTabs';
-import ArticleCard from '../components/ArticleCard';
-import ArticleCardSkeleton from '../components/ArticleCardSkeleton';
-import Pagination from '../components/Pagination';
+import ArticlesGrid, { type ArticleGridItem } from '../components/ArticlesGrid';
 
 const FILE_TYPE_OPTIONS: DocumentFileType[] = ['pdf', 'docx', 'txt'];
-const SKELETON_COUNT = 6;
 
 // ES highlight fragments carry literal <mark>/</mark> markers (see lib/search.ts on the
 // API side); ArticleCard's snippet prop is plain text, so strip them here rather than
@@ -44,6 +41,7 @@ const SORT_LABELS: Record<SearchSort, string> = {
   source: 'Source',
 };
 const SORT_OPTIONS: SearchSort[] = ['publishDate', 'relevance', 'source'];
+const PAGE_SIZE_OPTIONS: SearchPageSize[] = [12, 24, 48];
 
 interface LayoutOption {
   value: SearchLayout;
@@ -60,32 +58,6 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
 // (below) exposes all 4 — both read/write the same settings.search.defaultLayout, so
 // they always agree on which one is active.
 const TOOLBAR_LAYOUT_OPTIONS = LAYOUT_OPTIONS.filter((option) => option.value !== 'dense');
-
-// Neither current data source (plain document listing, ES search) has a real url/source
-// (uploaded documents aren't web-sourced) or tags (no tagging system exists yet) — those
-// props are left undefined/empty, which ArticleCard already handles gracefully (hides the
-// source row and "View Full Article" link, hides the tags section). publishDate and
-// snippet are real: createdAt from the document/hit, and either the ES highlight
-// (marks stripped) or a metadata-derived fallback for the plain-listing case.
-interface ArticleItem {
-  id: string;
-  title: string;
-  publishDate: string;
-  snippet: string;
-}
-
-function layoutGridClassName(layout: SearchLayout): string {
-  switch (layout) {
-    case '1col':
-      return 'grid grid-cols-1 gap-3';
-    case '2col':
-      return 'grid grid-cols-1 gap-3 sm:grid-cols-2';
-    case '3col':
-      return 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
-    case 'dense':
-      return 'flex flex-col gap-1.5';
-  }
-}
 
 function SortByDropdown({ value, onChange }: { value: SearchSort; onChange: (v: SearchSort) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -119,6 +91,52 @@ function SortByDropdown({ value, onChange }: { value: SearchSort; onChange: (v: 
               }`}
             >
               {SORT_LABELS[option]}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PerPageDropdown({
+  value,
+  onChange,
+}: {
+  value: SearchPageSize;
+  onChange: (v: SearchPageSize) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => setIsOpen(false));
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex h-9 items-center gap-2 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+      >
+        <span>Per page: {value}</span>
+        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen ? (
+        <div className="absolute right-0 z-20 mt-1 w-28 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-lg">
+          {PAGE_SIZE_OPTIONS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => {
+                onChange(option);
+                setIsOpen(false);
+              }}
+              className={`block w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm transition-colors ${
+                option === value
+                  ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {option}
             </button>
           ))}
         </div>
@@ -168,6 +186,8 @@ export default function ArticlesPage() {
   const { settings, updateSetting } = useSettings();
   const { defaultLayout: layout, defaultSort: sortBy, defaultPageSize: pageSize } = settings.search;
 
+  const resultsTopRef = useRef<HTMLDivElement>(null);
+
   const [activeTab, setActiveTab] = useState<ArticleTabKey>('all');
   const [page, setPage] = useState(1);
   const [rawQuery, setRawQuery] = useState('');
@@ -179,6 +199,7 @@ export default function ArticlesPage() {
   const filterRef = useRef<HTMLDivElement>(null);
   useClickOutside(filterRef, () => setIsFilterOpen(false));
   const [selectedFileTypes, setSelectedFileTypes] = useState<DocumentFileType[]>([]);
+  const hasActiveFilters = hasQuery || selectedFileTypes.length > 0;
 
   const [isChannelsOpen, setIsChannelsOpen] = useState(false);
   const [areArticlesHidden, setAreArticlesHidden] = useState(false);
@@ -197,9 +218,22 @@ export default function ArticlesPage() {
     setPage(1);
   }
 
+  function handleClearFilters() {
+    setRawQuery('');
+    setSelectedFileTypes([]);
+    setPage(1);
+  }
+
   function changeTab(tab: ArticleTabKey) {
     setActiveTab(tab);
     setPage(1);
+  }
+
+  function handlePageChange(nextPage: number) {
+    setPage(nextPage);
+    // Explicit UX requirement: scroll back to the top of the results on page change (the
+    // toolbar/tabs above stay put) rather than leaving the user scrolled mid-list.
+    resultsTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function handleLayoutChange(value: SearchLayout) {
@@ -207,6 +241,10 @@ export default function ArticlesPage() {
   }
   function handleSortChange(value: SearchSort) {
     updateSetting('search.defaultSort', value);
+  }
+  function handlePageSizeChange(value: SearchPageSize) {
+    updateSetting('search.defaultPageSize', value);
+    setPage(1);
   }
 
   function handleSelect(id: string, selected: boolean) {
@@ -216,6 +254,20 @@ export default function ArticlesPage() {
         next.add(id);
       } else {
         next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  function handleSelectAll(selected: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const item of items) {
+        if (selected) {
+          next.add(item.id);
+        } else {
+          next.delete(item.id);
+        }
       }
       return next;
     });
@@ -265,7 +317,8 @@ export default function ArticlesPage() {
     queryKey: ['documents-list', page, pageSize],
     queryFn: () => fetchDocuments(page, pageSize),
     enabled: !isNewsTab && !hasQuery,
-    placeholderData: keepPreviousData,
+    // Deliberately no keepPreviousData — the spec calls for skeleton cards on every page
+    // change, not the old page's cards lingering while the next one loads.
   });
 
   const searchQuery = useQuery({
@@ -279,19 +332,19 @@ export default function ArticlesPage() {
         size: pageSize,
       }),
     enabled: !isNewsTab && hasQuery,
-    placeholderData: keepPreviousData,
   });
 
   const activeQuery = hasQuery ? searchQuery : listQuery;
   const isLoading = !isNewsTab && activeQuery.isLoading;
   const isError = !isNewsTab && activeQuery.isError;
 
-  const items: ArticleItem[] = hasQuery
+  const items: ArticleGridItem[] = hasQuery
     ? (searchQuery.data?.hits ?? []).map((hit) => ({
         id: hit.docId,
         title: hit.title,
         publishDate: hit.createdAt,
         snippet: stripHighlightMarks(hit.highlight),
+        tags: [],
       }))
     : (listQuery.data?.items ?? []).map((doc) => {
         const wordCount = typeof doc.metadata.wordCount === 'number' ? doc.metadata.wordCount : undefined;
@@ -303,6 +356,7 @@ export default function ArticlesPage() {
             wordCount !== undefined
               ? `${doc.originalFilename} · ${wordCount.toLocaleString()} words`
               : doc.originalFilename,
+          tags: [],
         };
       });
 
@@ -390,6 +444,7 @@ export default function ArticlesPage() {
           </button>
 
           <SortByDropdown value={sortBy} onChange={handleSortChange} />
+          <PerPageDropdown value={pageSize} onChange={handlePageSizeChange} />
 
           <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
             {TOOLBAR_LAYOUT_OPTIONS.map((option) => {
@@ -430,7 +485,7 @@ export default function ArticlesPage() {
       </div>
 
       <div className="mt-6 flex gap-6">
-        <div className="min-w-0 flex-1">
+        <div ref={resultsTopRef} className="min-w-0 flex-1 scroll-mt-4">
           {/* Results meta row */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
             <p className="text-sm text-[var(--text-secondary)]">
@@ -468,11 +523,23 @@ export default function ArticlesPage() {
                   type="button"
                   onClick={handleTagSelected}
                   disabled={selectedIds.size === 0}
-                  className="flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                  className={`flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] px-3 transition-colors disabled:cursor-not-allowed ${
+                    selectedIds.size > 0
+                      ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
+                      : 'text-[var(--text-secondary)] opacity-40'
+                  }`}
                 >
                   <TagIcon size={14} />
-                  Tag Selected{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                  Tag Selected
                 </button>
+                {selectedIds.size > 0 ? (
+                  <span
+                    className="rounded-[var(--radius-tag)] px-2 py-1 text-xs font-medium"
+                    style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                  >
+                    {selectedIds.size} selected
+                  </span>
+                ) : null}
                 <Link
                   to="/tags"
                   className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
@@ -506,47 +573,27 @@ export default function ArticlesPage() {
               <p className="py-12 text-center text-sm text-[var(--text-muted)]">
                 Results hidden. Click &quot;Show Articles&quot; to bring them back.
               </p>
-            ) : isError ? (
-              <p className="py-6 text-sm text-[var(--red)]">
-                {getApiErrorMessage(activeQuery.error, 'Unable to load articles.')}
-              </p>
             ) : (
-              <>
-                <div className={layoutGridClassName(layout)}>
-                  {isLoading
-                    ? Array.from({ length: SKELETON_COUNT }, (_, index) => (
-                        <ArticleCardSkeleton key={index} />
-                      ))
-                    : items.map((item) => (
-                        <ArticleCard
-                          key={item.id}
-                          id={item.id}
-                          title={item.title}
-                          publishDate={item.publishDate}
-                          snippet={item.snippet}
-                          tags={[]}
-                          isSelected={selectedIds.has(item.id)}
-                          onSelect={handleSelect}
-                          onTag={handleTag}
-                          onShare={(id) => void handleShare(id)}
-                          onBookmark={handleBookmark}
-                          onEdit={handleEdit}
-                        />
-                      ))}
-                </div>
-
-                {!isLoading && items.length === 0 ? (
-                  <p className="py-12 text-center text-[var(--text-secondary)]">
-                    {hasQuery ? `No results for "${trimmedQuery}".` : 'No documents yet.'}
-                  </p>
-                ) : null}
-
-                {!isLoading && items.length > 0 ? (
-                  <div className="mt-6 flex justify-end">
-                    <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-                  </div>
-                ) : null}
-              </>
+              <ArticlesGrid
+                items={items}
+                isLoading={isLoading}
+                isError={isError}
+                errorMessage={getApiErrorMessage(activeQuery.error, 'Unable to load articles.')}
+                onRetry={() => void activeQuery.refetch()}
+                onClearFilters={handleClearFilters}
+                hasActiveFilters={hasActiveFilters}
+                selectedIds={selectedIds}
+                onSelect={handleSelect}
+                onSelectAll={handleSelectAll}
+                onTag={handleTag}
+                onShare={(id) => void handleShare(id)}
+                onBookmark={handleBookmark}
+                onEdit={handleEdit}
+                page={page}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                skeletonCount={Math.min(pageSize, 12)}
+              />
             )}
           </div>
         </div>

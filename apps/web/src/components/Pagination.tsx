@@ -8,33 +8,29 @@ interface PaginationProps {
 
 type PageToken = number | 'ellipsis';
 
-// Always surfaces page 1 and the last page, plus a window of up to 3 pages around the
-// current one — e.g. on page 1 of a large result set this renders 1 2 3 4 5 … N; deeper
-// in, it shifts to keep the current page visible: 1 … 8 9 10 … N.
+const MAX_VISIBLE_NUMBERS = 5;
+
+// A sliding window of at most 5 consecutive numbers, centered on the current page where
+// possible (clamped at the ends), plus the last page always pinned separately once the
+// window doesn't already reach it — e.g. page 1 of 50,883 renders 1 2 3 4 5 … 50883; deep
+// in, it slides to keep the current page centered: … 8 9 10 11 12 … 50883.
 function getPageTokens(current: number, total: number): PageToken[] {
-  if (total <= 7) {
+  if (total <= MAX_VISIBLE_NUMBERS) {
     return Array.from({ length: total }, (_, index) => index + 1);
   }
 
-  const pages = new Set<number>([1, 2, 3, 4, 5, total]);
-  if (current > 3 && current < total - 2) {
-    pages.add(current - 1);
-    pages.add(current);
-    pages.add(current + 1);
+  const half = Math.floor(MAX_VISIBLE_NUMBERS / 2);
+  let start = Math.max(1, current - half);
+  let end = start + MAX_VISIBLE_NUMBERS - 1;
+  if (end > total) {
+    end = total;
+    start = end - MAX_VISIBLE_NUMBERS + 1;
   }
 
-  const sorted = Array.from(pages)
-    .filter((p) => p >= 1 && p <= total)
-    .sort((a, b) => a - b);
-
-  const tokens: PageToken[] = [];
-  let previous = 0;
-  for (const p of sorted) {
-    if (p - previous > 1) {
-      tokens.push('ellipsis');
-    }
-    tokens.push(p);
-    previous = p;
+  const tokens: PageToken[] = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  if (end < total) {
+    tokens.push('ellipsis');
+    tokens.push(total);
   }
   return tokens;
 }
