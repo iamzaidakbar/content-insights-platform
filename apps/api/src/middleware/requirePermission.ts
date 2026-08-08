@@ -1,6 +1,6 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
-import { AppError } from '../lib/errors.js';
+import { ForbiddenError } from '../lib/errors.js';
 
 export function requirePermission(permissionKey: string): RequestHandler {
   return function requirePermissionMiddleware(
@@ -14,6 +14,6 @@ export function requirePermission(permissionKey: string): RequestHandler {
       return;
     }
 
-    next(new AppError(403, 'FORBIDDEN', `Missing required permission: ${permissionKey}`));
+    next(new ForbiddenError(`Missing required permission: ${permissionKey}`));
   };
 }

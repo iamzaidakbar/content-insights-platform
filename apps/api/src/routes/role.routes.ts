@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { createRoleSchema, type Permission } from '@content-insights/shared';
+import { createRoleSchema, type CreateRoleInput, type Permission } from '@content-insights/shared';
 
 import { asyncHandler } from '../lib/async-handler.js';
 import { AppError, isDuplicateKeyError } from '../lib/errors.js';
@@ -9,6 +9,7 @@ import { toRoleDTO } from '../lib/serializers.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { orgContext } from '../middleware/orgContext.js';
 import { requirePermission } from '../middleware/requirePermission.js';
+import { validate } from '../middleware/validate.js';
 import { RoleModel } from '../models/role.model.js';
 
 export const roleRouter = express.Router();
@@ -32,16 +33,13 @@ roleRouter.post(
   authenticate,
   orgContext,
   requirePermission('org:admin' satisfies Permission),
+  validate({ body: createRoleSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const parsed = createRoleSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid request body');
-    }
-    const { name, permissions } = parsed.data;
+    const { name, permissions } = req.body as CreateRoleInput;
 
     try {
       const role = await RoleModel.create({ orgId: req.user.orgId, name, permissions });

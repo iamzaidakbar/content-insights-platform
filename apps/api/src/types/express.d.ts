@@ -1,3 +1,5 @@
+import type { Logger } from 'pino';
+
 import type { OrgId, Organization, UserId } from '@content-insights/shared';
 
 export interface AuthenticatedUser {
@@ -13,6 +15,10 @@ declare global {
       user?: AuthenticatedUser;
       orgId?: OrgId;
       org?: Organization;
+      /** UUID assigned by the requestId middleware — set before any route handler runs. */
+      id: string;
+      /** pino child logger pre-tagged with this request's id. */
+      log: Logger;
     }
   }
 }

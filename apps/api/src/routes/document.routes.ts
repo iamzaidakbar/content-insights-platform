@@ -1,5 +1,4 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
-import mongoose from 'mongoose';
 import multer from 'multer';
 
 import {
@@ -8,10 +7,13 @@ import {
   type DocumentFileType,
   type PaginatedResult,
   type Permission,
+  type UploadDocumentInput,
 } from '@content-insights/shared';
 
 import { asyncHandler } from '../lib/async-handler.js';
 import { AppError } from '../lib/errors.js';
+import { parseObjectIdParam } from '../lib/objectId.js';
+import { pageQuerySchema, type PageQuery } from '../lib/pagination.js';
 import { documentIngestQueue } from '../lib/queue.js';
 import { success } from '../lib/response.js';
 import { toDocumentDTO } from '../lib/serializers.js';
@@ -19,6 +21,7 @@ import { buildFileKey, saveFile } from '../lib/storage.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { orgContext } from '../middleware/orgContext.js';
 import { requirePermission } from '../middleware/requirePermission.js';
+import { validate } from '../middleware/validate.js';
 import { DocumentModel } from '../models/document.model.js';
 
 export const documentRouter = express.Router();
@@ -74,6 +77,9 @@ documentRouter.post(
   orgContext,
   requirePermission('documents:write' satisfies Permission),
   handleUpload,
+  // multipart text fields aren't populated on req.body until multer (handleUpload) has
+  // run, so this can't be validated any earlier in the chain.
+  validate({ body: uploadDocumentSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
@@ -82,15 +88,7 @@ documentRouter.post(
       throw new AppError(400, 'VALIDATION_ERROR', 'A file is required');
     }
 
-    const parsed = uploadDocumentSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(
-        400,
-        'VALIDATION_ERROR',
-        parsed.error.issues[0]?.message ?? 'Invalid request body',
-      );
-    }
-    const { title, projectId } = parsed.data;
+    const { title, projectId } = req.body as UploadDocumentInput;
 
     const fileType = ACCEPTED_MIME_TYPES[req.file.mimetype];
     if (!fileType) {
@@ -167,10 +165,7 @@ documentRouter.get(
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { id } = req.params;
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new AppError(404, 'DOCUMENT_NOT_FOUND', 'Document not found');
-    }
+    const id = parseObjectIdParam(req.params.id, 'Document not found', 'DOCUMENT_NOT_FOUND');
 
     // Scoped to the caller's org in the query itself — a wrong-org id 404s (not 403s),
     // so cross-tenant existence is never confirmed.
@@ -188,14 +183,13 @@ documentRouter.get(
   authenticate,
   orgContext,
   requirePermission('documents:read' satisfies Permission),
+  validate({ query: pageQuerySchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    // Hand-clamped, not zod-validated: garbage/out-of-range input silently falls back to page 1.
-    const rawPage = Number(req.query.page ?? 1);
-    const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+    const { page = 1 } = req.query as unknown as PageQuery;
 
     const [items, total] = await Promise.all([
       DocumentModel.find({ orgId: req.user.orgId })

@@ -5,19 +5,25 @@ import {
   addProjectMemberSchema,
   createProjectSchema,
   updateProjectSchema,
+  type AddProjectMemberInput,
+  type CreateProjectInput,
   type PaginatedResult,
   type Permission,
   type Project,
   type ProjectMember,
+  type UpdateProjectInput,
 } from '@content-insights/shared';
 
 import { asyncHandler } from '../lib/async-handler.js';
-import { AppError } from '../lib/errors.js';
+import { AppError, ValidationError } from '../lib/errors.js';
+import { parseObjectIdParam } from '../lib/objectId.js';
+import { pageQuerySchema, type PageQuery } from '../lib/pagination.js';
 import { success } from '../lib/response.js';
 import { toProjectDTO, toProjectMemberDTO } from '../lib/serializers.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { orgContext } from '../middleware/orgContext.js';
 import { requirePermission } from '../middleware/requirePermission.js';
+import { validate } from '../middleware/validate.js';
 import { ProjectModel } from '../models/project.model.js';
 import { RoleModel, type RoleDocument } from '../models/role.model.js';
 import { UserModel, type UserDocument } from '../models/user.model.js';
@@ -46,13 +52,13 @@ projectRouter.get(
   '/',
   authenticate,
   orgContext,
+  validate({ query: pageQuerySchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const rawPage = Number(req.query.page ?? 1);
-    const page = Number.isFinite(rawPage) && rawPage >= 1 ? Math.floor(rawPage) : 1;
+    const { page = 1 } = req.query as unknown as PageQuery;
 
     const [docs, total] = await Promise.all([
       ProjectModel.find({ orgId: req.user.orgId })
@@ -80,16 +86,13 @@ projectRouter.post(
   authenticate,
   orgContext,
   requirePermission('projects:manage' satisfies Permission),
+  validate({ body: createProjectSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const parsed = createProjectSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid request body');
-    }
-    const { name, description } = parsed.data;
+    const { name, description } = req.body as CreateProjectInput;
 
     const doc = await ProjectModel.create({
       orgId: req.user.orgId,
@@ -110,10 +113,7 @@ projectRouter.get(
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { id } = req.params;
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new AppError(404, 'PROJECT_NOT_FOUND', 'Project not found');
-    }
+    const id = parseObjectIdParam(req.params.id, 'Project not found', 'PROJECT_NOT_FOUND');
 
     const doc = await ProjectModel.findOne({ _id: id, orgId: req.user.orgId }).populate<{
       members: PopulatedMember[];
@@ -131,23 +131,17 @@ projectRouter.put(
   authenticate,
   orgContext,
   requirePermission('projects:manage' satisfies Permission),
+  validate({ body: updateProjectSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { id } = req.params;
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new AppError(404, 'PROJECT_NOT_FOUND', 'Project not found');
-    }
-
-    const parsed = updateProjectSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid request body');
-    }
+    const id = parseObjectIdParam(req.params.id, 'Project not found', 'PROJECT_NOT_FOUND');
+    const body = req.body as UpdateProjectInput;
 
     const doc = await ProjectModel.findOneAndUpdate(
       { _id: id, orgId: req.user.orgId },
-      { $set: parsed.data },
+      { $set: body },
       { new: true },
     ).populate<{ members: PopulatedMember[] }>(MEMBER_POPULATE);
     if (!doc) {
@@ -167,10 +161,7 @@ projectRouter.delete(
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { id } = req.params;
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new AppError(404, 'PROJECT_NOT_FOUND', 'Project not found');
-    }
+    const id = parseObjectIdParam(req.params.id, 'Project not found', 'PROJECT_NOT_FOUND');
 
     const doc = await ProjectModel.findOneAndDelete({ _id: id, orgId: req.user.orgId });
     if (!doc) {
@@ -186,22 +177,19 @@ projectRouter.post(
   authenticate,
   orgContext,
   requirePermission('projects:manage' satisfies Permission),
+  validate({ body: addProjectMemberSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { id } = req.params;
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new AppError(404, 'PROJECT_NOT_FOUND', 'Project not found');
-    }
+    const id = parseObjectIdParam(req.params.id, 'Project not found', 'PROJECT_NOT_FOUND');
 
-    const parsed = addProjectMemberSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(400, 'VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid request body');
-    }
-    const { userId, roleId } = parsed.data;
+    const { userId, roleId } = req.body as AddProjectMemberInput;
+    // Beyond the generic non-empty-string shape validate() already enforced, userId/roleId
+    // specifically need to look like Mongo ids — a body-field format issue, so this stays
+    // an ordinary 400 (unlike the 404-on-malformed convention for URL path params above).
     if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(roleId)) {
-      throw new AppError(400, 'VALIDATION_ERROR', 'userId and roleId must be valid ids');
+      throw new ValidationError('userId and roleId must be valid ids');
     }
 
     const project = await ProjectModel.findOne({ _id: id, orgId: req.user.orgId });
@@ -245,13 +233,12 @@ projectRouter.delete(
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { id, userId } = req.params;
-    if (!id || !mongoose.isValidObjectId(id)) {
-      throw new AppError(404, 'PROJECT_NOT_FOUND', 'Project not found');
-    }
-    if (!userId || !mongoose.isValidObjectId(userId)) {
-      throw new AppError(404, 'PROJECT_MEMBER_NOT_FOUND', 'Project member not found');
-    }
+    const id = parseObjectIdParam(req.params.id, 'Project not found', 'PROJECT_NOT_FOUND');
+    const userId = parseObjectIdParam(
+      req.params.userId,
+      'Project member not found',
+      'PROJECT_MEMBER_NOT_FOUND',
+    );
 
     const project = await ProjectModel.findOne({ _id: id, orgId: req.user.orgId });
     if (!project) {

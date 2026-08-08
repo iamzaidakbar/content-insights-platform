@@ -88,6 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(session.accessToken);
       queryClient.setQueryData<SessionData>(SESSION_QUERY_KEY, toSessionData(session));
     },
+    // LoginPage already renders its own inline error banner from this same rejection —
+    // the global toast (query-client.ts's MutationCache) would just duplicate it.
+    meta: { skipToast: true },
   });
 
   const registerMutation = useMutation({
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(session.accessToken);
       queryClient.setQueryData<SessionData>(SESSION_QUERY_KEY, toSessionData(session));
     },
+    meta: { skipToast: true },
   });
 
   const logoutMutation = useMutation({
@@ -109,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData<SessionData | null>(SESSION_QUERY_KEY, null);
       queryClient.clear();
     },
+    meta: { skipToast: true },
   });
 
   const session = sessionQuery.data ?? null;

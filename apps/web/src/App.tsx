@@ -1,8 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
 import { useAuth } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
 import AppLayout from './layouts/AppLayout';
+import PageSkeleton from './components/PageSkeleton';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DocumentsPage from './pages/DocumentsPage';
@@ -10,8 +12,11 @@ import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
-import AdminRolesPage from './pages/AdminRolesPage';
-import AdminOrgPage from './pages/AdminOrgPage';
+
+// Code-split — admin pages are only reachable by org:admin users, so most sessions never
+// need this JS at all. Keeps the main bundle smaller for the common case.
+const AdminRolesPage = lazy(() => import('./pages/AdminRolesPage'));
+const AdminOrgPage = lazy(() => import('./pages/AdminOrgPage'));
 
 function HomePage() {
   const { user, org, logout } = useAuth();
@@ -78,8 +83,22 @@ export default function App() {
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
 
           <Route element={<RequireAuth permission="org:admin" />}>
-            <Route path="/admin/roles" element={<AdminRolesPage />} />
-            <Route path="/admin/org" element={<AdminOrgPage />} />
+            <Route
+              path="/admin/roles"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <AdminRolesPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/org"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <AdminOrgPage />
+                </Suspense>
+              }
+            />
           </Route>
         </Route>
       </Route>

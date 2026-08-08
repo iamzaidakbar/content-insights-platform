@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 import { ensureOrgIndexExists } from '../lib/elasticsearch.js';
 import { AppError, isDuplicateKeyError } from '../lib/errors.js';
+import { logger } from '../lib/logger.js';
 import { slugify } from '../lib/slug.js';
 import { OrganizationModel, type OrganizationDocument } from '../models/organization.model.js';
 import { RoleModel, type RoleDocument } from '../models/role.model.js';
@@ -126,9 +127,9 @@ export async function createOrganization(
   try {
     await ensureOrgIndexExists(created.org._id.toString());
   } catch (err) {
-    console.error(
-      `Failed to create Elasticsearch index for org ${created.org._id.toString()}:`,
-      err,
+    logger.error(
+      { err, orgId: created.org._id.toString() },
+      'Failed to create Elasticsearch index for org',
     );
   }
 

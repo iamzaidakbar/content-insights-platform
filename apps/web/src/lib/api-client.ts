@@ -2,6 +2,8 @@ import axios, { isAxiosError } from 'axios';
 
 import type { ApiError, ApiResponse, AuthSession } from '@content-insights/shared';
 
+import { env } from './env';
+
 // Custom per-request flags. Declared via module augmentation so call sites can
 // pass `{ skipAuthRefresh: true }` as a normal, type-checked AxiosRequestConfig
 // field instead of casting.
@@ -55,7 +57,7 @@ export function registerAuthFailureHandler(fn: (() => void) | null): void {
 // ---------------------------------------------------------------------------
 // Axios instances
 // ---------------------------------------------------------------------------
-const baseURL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000/api';
+const baseURL = env.apiUrl;
 
 export const apiClient = axios.create({
   baseURL,

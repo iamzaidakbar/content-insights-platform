@@ -1,4 +1,5 @@
 import express from 'express';
+import { z } from 'zod';
 
 import { asUserId, type Permission, type UserSummary } from '@content-insights/shared';
 
@@ -8,11 +9,17 @@ import { success } from '../lib/response.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { orgContext } from '../middleware/orgContext.js';
 import { requirePermission } from '../middleware/requirePermission.js';
+import { validate } from '../middleware/validate.js';
 import { UserModel } from '../models/user.model.js';
 
 export const userRouter = express.Router();
 
 const SEARCH_RESULT_LIMIT = 20;
+
+const userSearchQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+});
+type UserSearchQuery = z.infer<typeof userSearchQuerySchema>;
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -23,18 +30,19 @@ userRouter.get(
   authenticate,
   orgContext,
   requirePermission('projects:manage' satisfies Permission),
+  validate({ query: userSearchQuerySchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const rawSearch = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-    if (rawSearch.length === 0) {
+    const { search } = req.query as unknown as UserSearchQuery;
+    if (!search) {
       res.status(200).json(success([] as UserSummary[]));
       return;
     }
 
-    const escaped = escapeRegex(rawSearch);
+    const escaped = escapeRegex(search);
     const users = await UserModel.find({
       orgId: req.user.orgId,
       email: { $regex: escaped, $options: 'i' },

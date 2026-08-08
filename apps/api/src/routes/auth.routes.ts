@@ -6,6 +6,8 @@ import {
   loginSchema,
   registerSchema,
   type AuthSession,
+  type LoginInput,
+  type RegisterInput,
   type UserId,
 } from '@content-insights/shared';
 
@@ -19,12 +21,17 @@ import { success } from '../lib/response.js';
 import { toOrganizationDTO, toUserDTO } from '../lib/serializers.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { orgContext } from '../middleware/orgContext.js';
+import { authRateLimiter } from '../middleware/rateLimiters.js';
+import { validate } from '../middleware/validate.js';
 import { OrganizationModel, type OrganizationDocument } from '../models/organization.model.js';
 import { RoleModel, type RoleDocument } from '../models/role.model.js';
 import { UserModel, type UserDocument } from '../models/user.model.js';
 import { createOrganization } from '../services/organization.service.js';
 
 export const authRouter = express.Router();
+
+// 100 req/min per IP across the whole auth surface (register/login/refresh/logout/me).
+authRouter.use(authRateLimiter);
 
 interface IssuedSession {
   authSession: AuthSession;
@@ -61,17 +68,9 @@ function issueSession(
 
 authRouter.post(
   '/register',
+  validate({ body: registerSchema }),
   asyncHandler(async (req, res) => {
-    const parsed = registerSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(
-        400,
-        'VALIDATION_ERROR',
-        parsed.error.issues[0]?.message ?? 'Invalid request body',
-      );
-    }
-
-    const { email, password, orgName } = parsed.data;
+    const { email, password, orgName } = req.body as RegisterInput;
     const passwordHash = await hashPassword(password);
 
     const created = await createOrganization({ orgName, email, passwordHash });
@@ -84,17 +83,9 @@ authRouter.post(
 
 authRouter.post(
   '/login',
+  validate({ body: loginSchema }),
   asyncHandler(async (req, res) => {
-    const parsed = loginSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw new AppError(
-        400,
-        'VALIDATION_ERROR',
-        parsed.error.issues[0]?.message ?? 'Invalid request body',
-      );
-    }
-
-    const { email, password } = parsed.data;
+    const { email, password } = req.body as LoginInput;
     const normalizedEmail = email.toLowerCase().trim();
 
     const user = await UserModel.findOne({ email: normalizedEmail });

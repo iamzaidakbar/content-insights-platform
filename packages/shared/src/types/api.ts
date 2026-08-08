@@ -3,10 +3,17 @@ export interface ApiSuccess<T> {
   data: T;
 }
 
+export interface ApiFieldError {
+  field: string;
+  message: string;
+}
+
 export interface ApiError {
   success: false;
   message: string;
   code: string;
+  requestId?: string;
+  fields?: ApiFieldError[];
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;

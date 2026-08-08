@@ -1,7 +1,22 @@
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
+import toast from 'react-hot-toast';
+
+import { getApiErrorMessage } from './api-client';
 
 export const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    // Systemic net for every useMutation call in the app — individual mutations don't
+    // need their own onError just to surface a toast. A mutation can opt out (e.g. when
+    // it already renders its own inline form error and a toast would just be noisy
+    // duplication) via `useMutation({ ..., meta: { skipToast: true } })`.
+    onError: (error, _variables, _onMutateResult, mutation) => {
+      if (mutation.meta?.skipToast === true) {
+        return;
+      }
+      toast.error(getApiErrorMessage(error, 'Something went wrong. Please try again.'));
+    },
+  }),
   defaultOptions: {
     queries: {
       // 401s are handled by the axios response interceptor's refresh-and-
