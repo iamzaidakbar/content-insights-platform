@@ -13,7 +13,7 @@ import {
 import { asyncHandler } from '../lib/async-handler.js';
 import { AppError } from '../lib/errors.js';
 import { parseObjectIdParam } from '../lib/objectId.js';
-import { pageQuerySchema, type PageQuery } from '../lib/pagination.js';
+import { documentListQuerySchema, type DocumentListQuery } from '../lib/pagination.js';
 import { documentIngestQueue } from '../lib/queue.js';
 import { success } from '../lib/response.js';
 import { toDocumentDTO } from '../lib/serializers.js';
@@ -26,7 +26,7 @@ import { DocumentModel } from '../models/document.model.js';
 
 export const documentRouter = express.Router();
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 12; // matches UserSettings' search.defaultPageSize default
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 
 const ACCEPTED_MIME_TYPES: Record<string, DocumentFileType> = {
@@ -183,28 +183,28 @@ documentRouter.get(
   authenticate,
   orgContext,
   requirePermission('documents:read' satisfies Permission),
-  validate({ query: pageQuerySchema }),
+  validate({ query: documentListQuerySchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const { page = 1 } = req.query as unknown as PageQuery;
+    const { page = 1, pageSize = DEFAULT_PAGE_SIZE } = req.query as unknown as DocumentListQuery;
 
     const [items, total] = await Promise.all([
       DocumentModel.find({ orgId: req.user.orgId })
         .sort({ createdAt: -1 })
-        .skip((page - 1) * PAGE_SIZE)
-        .limit(PAGE_SIZE),
+        .skip((page - 1) * pageSize)
+        .limit(pageSize),
       DocumentModel.countDocuments({ orgId: req.user.orgId }),
     ]);
 
     const result: PaginatedResult<Document> = {
       items: items.map(toDocumentDTO),
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
       total,
-      totalPages: Math.ceil(total / PAGE_SIZE),
+      totalPages: Math.ceil(total / pageSize),
     };
 
     res.status(200).json(success(result));

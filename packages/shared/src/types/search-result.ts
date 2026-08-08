@@ -8,6 +8,7 @@ export interface SearchHit {
   highlight: string;
   metadata: Record<string, unknown>;
   fileType: DocumentFileType;
+  createdAt: string;
 }
 
 export interface SearchResponse {

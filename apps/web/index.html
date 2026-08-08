@@ -4,6 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Content Insights Platform</title>
+    <script>
+      // Applies the cached theme/font-size synchronously, before the app JS loads or
+      // paints anything — avoids a flash of the wrong theme while SettingsContext boots
+      // and fetches the real settings from the API. Mirrors (but doesn't replace) the
+      // same logic SettingsContext runs once it's mounted; must stay a plain inline
+      // script (not a module) so it runs before first paint.
+      (function () {
+        try {
+          var raw = localStorage.getItem('ci-settings-cache');
+          var cached = raw ? JSON.parse(raw) : null;
+          var theme = cached && cached.appearance ? cached.appearance.theme : 'dark';
+          var fontSize = cached && cached.appearance ? cached.appearance.fontSize : 'medium';
+          var resolvedTheme =
+            theme === 'system'
+              ? window.matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+              : theme || 'dark';
+          document.documentElement.setAttribute('data-theme', resolvedTheme);
+          document.documentElement.setAttribute('data-font-size', fontSize || 'medium');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

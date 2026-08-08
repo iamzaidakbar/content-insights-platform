@@ -1,11 +1,27 @@
-import type { Document, Organization, Project, ProjectMember, Role, User } from '@content-insights/shared';
-import { asDocumentId, asOrgId, asProjectId, asRoleId, asUserId } from '@content-insights/shared';
+import type {
+  Document,
+  Organization,
+  Project,
+  ProjectMember,
+  Role,
+  User,
+  UserSettings,
+} from '@content-insights/shared';
+import {
+  asDocumentId,
+  asOrgId,
+  asProjectId,
+  asRoleId,
+  asUserId,
+  asUserSettingsId,
+} from '@content-insights/shared';
 
 import type { DocumentDocument } from '../models/document.model.js';
 import type { OrganizationDocument } from '../models/organization.model.js';
 import type { ProjectDocument } from '../models/project.model.js';
 import type { RoleDocument } from '../models/role.model.js';
 import type { UserDocument } from '../models/user.model.js';
+import type { UserSettingsDocument } from '../models/userSettings.model.js';
 
 export function toOrganizationDTO(org: OrganizationDocument): Organization {
   return {
@@ -65,6 +81,18 @@ export function toProjectDTO(project: ProjectDTOSource, members: ProjectMember[]
     members,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
+  };
+}
+
+export function toUserSettingsDTO(settings: UserSettingsDocument): UserSettings {
+  return {
+    id: asUserSettingsId(settings._id.toString()),
+    userId: asUserId(settings.userId.toString()),
+    orgId: asOrgId(settings.orgId.toString()),
+    appearance: settings.appearance,
+    search: settings.search,
+    notifications: settings.notifications,
+    updatedAt: settings.updatedAt.toISOString(),
   };
 }
 

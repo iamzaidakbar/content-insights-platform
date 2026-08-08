@@ -3,50 +3,53 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
 import { useAuth } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
-import AppLayout from './layouts/AppLayout';
+import AppShell from './layouts/AppShell';
 import PageSkeleton from './components/PageSkeleton';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import DocumentsPage from './pages/DocumentsPage';
 import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import SettingsPage from './pages/SettingsPage';
+import TrendsPage from './pages/TrendsPage';
+import AlertsPage from './pages/AlertsPage';
+import TagsPage from './pages/TagsPage';
+import ProfilePage from './pages/ProfilePage';
 
 // Code-split — admin pages are only reachable by org:admin users, so most sessions never
 // need this JS at all. Keeps the main bundle smaller for the common case.
 const AdminRolesPage = lazy(() => import('./pages/AdminRolesPage'));
 const AdminOrgPage = lazy(() => import('./pages/AdminOrgPage'));
+// Split separately too — its toolbar (icon set, filter/sort popovers, results grid) is
+// the single largest contributor to the main bundle, enough on its own to push the
+// bundle-size budget (build.chunkSizeWarningLimit, vite.config.ts) over 250kB.
+const ArticlesPage = lazy(() => import('./pages/ArticlesPage'));
 
 function HomePage() {
-  const { user, org, logout } = useAuth();
+  const { user, org } = useAuth();
 
   return (
     <div className="text-center">
-      <h1 className="text-3xl font-semibold">Content Insights Platform</h1>
-      <p className="mt-2 text-slate-400">
+      <h1 className="text-3xl font-semibold text-[var(--text-primary)]">
+        Content Insights Platform
+      </h1>
+      <p className="mt-2 text-[var(--text-secondary)]">
         Signed in as {user?.email} · {org?.name}
       </p>
       <div className="mt-6 flex items-center justify-center gap-3">
         <Link
           to="/documents"
-          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+          className="rounded-[var(--radius-button)] border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-primary)] transition hover:border-[var(--accent)]"
         >
-          Documents
+          Articles
         </Link>
         <Link
           to="/search"
-          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+          className="rounded-[var(--radius-button)] border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-primary)] transition hover:border-[var(--accent)]"
         >
           Search
         </Link>
-        <button
-          type="button"
-          onClick={() => void logout()}
-          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-        >
-          Log out
-        </button>
       </div>
     </div>
   );
@@ -59,7 +62,7 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<RequireAuth />}>
-        <Route element={<AppLayout />}>
+        <Route element={<AppShell />}>
           <Route
             path="/"
             element={
@@ -70,7 +73,14 @@ export default function App() {
           />
 
           <Route element={<RequireAuth permission="documents:read" />}>
-            <Route path="/documents" element={<DocumentsPage />} />
+            <Route
+              path="/documents"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <ArticlesPage />
+                </Suspense>
+              }
+            />
           </Route>
           <Route element={<RequireAuth permission="documents:write" />}>
             <Route path="/documents/upload" element={<UploadPage />} />
@@ -81,6 +91,12 @@ export default function App() {
 
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
+
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/trends" element={<TrendsPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/tags" element={<TagsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
           <Route element={<RequireAuth permission="org:admin" />}>
             <Route

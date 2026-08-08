@@ -8,6 +8,7 @@ import App from './App.tsx';
 import { AuthProvider } from './auth/AuthContext.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { queryClient } from './lib/query-client.ts';
+import { SettingsProvider } from './settings/SettingsContext.tsx';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -22,16 +23,18 @@ createRoot(rootElement).render(
         position="top-right"
         toastOptions={{
           style: {
-            background: '#1e293b', // slate-800
-            color: '#f1f5f9', // slate-100
-            border: '1px solid #334155', // slate-700
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
           },
         }}
       />
       <ErrorBoundary>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <SettingsProvider>
+              <App />
+            </SettingsProvider>
           </AuthProvider>
         </BrowserRouter>
       </ErrorBoundary>

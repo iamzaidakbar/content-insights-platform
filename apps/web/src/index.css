@@ -1,1 +1,100 @@
 @import 'tailwindcss';
+
+/* ==========================================================================
+   Design tokens — dark is the base/default palette (bare :root); light is an
+   override applied via [data-theme="light"] on <html>. Both palettes are
+   defined explicitly (never computed from one another) so neither can drift
+   silently out of sync. Applied/toggled at runtime by lib/apply-settings.ts
+   based on the user's appearance.theme setting (resolving 'system' via
+   prefers-color-scheme).
+   ========================================================================== */
+:root {
+  --bg-primary: #0f1117;
+  --bg-surface: #1a1d27;
+  --bg-card: #1e2130;
+  --bg-hover: #252840;
+  --border: #2e3150;
+  --text-primary: #e8eaf6;
+  --text-secondary: #8b8fa8;
+  --text-muted: #555878;
+  --accent: #6c63ff;
+  --accent-hover: #7c74ff;
+  --accent-soft: rgba(108, 99, 255, 0.15);
+  --tag-bg: #2a2d4a;
+  --tag-text: #a5a8d0;
+  --green: #22c55e;
+  --red: #ef4444;
+
+  /* Spacing/radius conventions — 4px base unit (matches Tailwind's default scale, so
+     ordinary p-1/gap-2/etc. utilities already comply; these vars exist for the handful
+     of places that need an exact, non-utility-scale radius). */
+  --space-1: 4px;
+  --radius-card: 12px;
+  --radius-button: 8px;
+  --radius-tag: 6px;
+  --radius-input: 8px;
+
+  /* appearance.fontSize scaling — multiplies the root font size; every rem-based
+     Tailwind utility scales with it automatically. Set by lib/apply-settings.ts via
+     [data-font-size] below, not written directly. */
+  --font-scale: 1;
+}
+
+:root[data-theme='light'] {
+  --bg-primary: #f4f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f0f1f8;
+  --border: #e2e4f0;
+  --text-primary: #1a1d2e;
+  --text-secondary: #555878;
+  --text-muted: #9395a8;
+  --accent: #6c63ff;
+  --accent-hover: #6c63ff;
+  --accent-soft: rgba(108, 99, 255, 0.1);
+  --tag-bg: #ede9ff;
+  --tag-text: #5b53ee;
+  --green: #22c55e;
+  --red: #ef4444;
+}
+
+:root[data-font-size='small'] {
+  --font-scale: 0.9;
+}
+:root[data-font-size='large'] {
+  --font-scale: 1.125;
+}
+
+html {
+  font-size: calc(16px * var(--font-scale));
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+/* Loading-skeleton shimmer — a moving gradient sweep, distinct from Tailwind's built-in
+   animate-pulse (a flat opacity fade). Used by ArticleCardSkeleton and any other
+   loading-state block that wants the sweep rather than a pulse. */
+@keyframes shimmer-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.animate-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-hover) 25%,
+    var(--bg-card) 50%,
+    var(--bg-hover) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+}

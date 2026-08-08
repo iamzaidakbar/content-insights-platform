@@ -5,6 +5,7 @@ export type UserId = Branded<string, 'UserId'>;
 export type RoleId = Branded<string, 'RoleId'>;
 export type DocumentId = Branded<string, 'DocumentId'>;
 export type ProjectId = Branded<string, 'ProjectId'>;
+export type UserSettingsId = Branded<string, 'UserSettingsId'>;
 
 // Narrowing helpers only — they do not validate. See src/validators for
 // parsing untrusted input (e.g. request params) into these branded types.
@@ -13,3 +14,4 @@ export const asUserId = (value: string): UserId => value as UserId;
 export const asRoleId = (value: string): RoleId => value as RoleId;
 export const asDocumentId = (value: string): DocumentId => value as DocumentId;
 export const asProjectId = (value: string): ProjectId => value as ProjectId;
+export const asUserSettingsId = (value: string): UserSettingsId => value as UserSettingsId;

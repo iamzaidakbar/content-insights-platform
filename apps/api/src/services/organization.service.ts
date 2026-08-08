@@ -7,6 +7,7 @@ import { slugify } from '../lib/slug.js';
 import { OrganizationModel, type OrganizationDocument } from '../models/organization.model.js';
 import { RoleModel, type RoleDocument } from '../models/role.model.js';
 import { UserModel, type UserDocument } from '../models/user.model.js';
+import { UserSettingsModel } from '../models/userSettings.model.js';
 
 export interface CreateOrganizationInput {
   orgName: string;
@@ -94,6 +95,17 @@ export async function createOrganization(
       );
       if (!user) {
         throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create user');
+      }
+
+      // Schema defaults (theme: 'dark', fontSize: 'medium', etc.) apply automatically —
+      // no need to spell them out here, same as leaving `appearance`/`search`/
+      // `notifications` unset lets each subdocument's own field defaults kick in.
+      const [userSettings] = await UserSettingsModel.create(
+        [{ userId: user._id, orgId: org._id }],
+        { session },
+      );
+      if (!userSettings) {
+        throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create user settings');
       }
 
       // `roles` here means "roles assigned to the registering user" (used by issueSession to

@@ -2,9 +2,12 @@ import type { ApiResponse, Document, PaginatedResult } from '@content-insights/s
 
 import { apiClient } from './api-client';
 
-export async function fetchDocuments(page: number): Promise<PaginatedResult<Document>> {
+export async function fetchDocuments(
+  page: number,
+  pageSize: number,
+): Promise<PaginatedResult<Document>> {
   const response = await apiClient.get<ApiResponse<PaginatedResult<Document>>>('/documents', {
-    params: { page },
+    params: { page, pageSize },
   });
   const body = response.data;
   if (!body.success) {

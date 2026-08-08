@@ -6,3 +6,4 @@ export * from './search-result.js';
 export * from './api.js';
 export * from './auth.js';
 export * from './project.js';
+export * from './user-settings.js';

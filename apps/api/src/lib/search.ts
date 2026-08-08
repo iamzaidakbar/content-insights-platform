@@ -72,6 +72,7 @@ export async function executeSearch(params: SearchParams): Promise<SearchRespons
       highlight: highlightFragments.join(' … '),
       metadata: source?.metadata ?? {},
       fileType: (source?.fileType ?? 'txt') as DocumentFileType,
+      createdAt: source?.createdAt ?? new Date(0).toISOString(),
     };
   });
 

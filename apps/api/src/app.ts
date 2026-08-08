@@ -15,6 +15,7 @@ import { healthRouter } from './routes/health.routes.js';
 import { projectRouter } from './routes/project.routes.js';
 import { roleRouter } from './routes/role.routes.js';
 import { searchRouter } from './routes/search.routes.js';
+import { settingsRouter } from './routes/settings.routes.js';
 import { userRouter } from './routes/user.routes.js';
 
 export function createApp(): Express {
@@ -49,6 +50,7 @@ export function createApp(): Express {
   app.use('/api/projects', projectRouter);
   app.use('/api/roles', roleRouter);
   app.use('/api/users', userRouter);
+  app.use('/api/settings', settingsRouter);
 
   // No route matched — respond with the same JSON envelope every other error uses,
   // instead of Express's default HTML 404 page.
