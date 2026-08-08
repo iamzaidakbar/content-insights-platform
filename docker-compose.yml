@@ -73,6 +73,7 @@ services:
       MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/content-insights?replicaSet=rs0}
       ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
     ports:
       - '${API_PORT:-4000}:${API_PORT:-4000}'
     volumes:

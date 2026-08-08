@@ -8,6 +8,7 @@ import morgan from 'morgan';
 
 import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.routes.js';
+import { documentRouter } from './routes/document.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp(): Express {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/documents', documentRouter);
 
   app.use(errorHandler);
 
