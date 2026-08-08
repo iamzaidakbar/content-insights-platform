@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 import { ensureOrgIndexExists } from '../lib/elasticsearch.js';
-import { AppError } from '../lib/errors.js';
+import { AppError, isDuplicateKeyError } from '../lib/errors.js';
 import { slugify } from '../lib/slug.js';
 import { OrganizationModel, type OrganizationDocument } from '../models/organization.model.js';
 import { RoleModel, type RoleDocument } from '../models/role.model.js';
@@ -16,12 +16,6 @@ export interface CreateOrganizationResult {
   user: UserDocument;
   org: OrganizationDocument;
   roles: RoleDocument[];
-}
-
-function isDuplicateKeyError(
-  err: unknown,
-): err is { code: number; keyPattern?: Record<string, unknown> } {
-  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 11000;
 }
 
 export async function createOrganization(
@@ -65,12 +59,26 @@ export async function createOrganization(
       if (!org) {
         throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create organization');
       }
-      const [ownerRole] = await RoleModel.create(
-        [{ orgId: org._id, name: 'Owner', permissions: ['*'] }],
-        { session },
+      // One batch create() call for all 3 seeded roles — still a single operation-in-flight
+      // under the session's sequencing rule (see the comment above). Mongoose 9 requires
+      // `ordered: true` explicitly whenever create() is called with both a session and
+      // multiple documents, or it throws "Cannot call `create()` with a session and multiple
+      // documents unless `ordered: true` is set" — harmless to set here since these 3 inserts
+      // have no cross-doc ordering dependency anyway.
+      const [adminRole, editorRole, viewerRole] = await RoleModel.create(
+        [
+          { orgId: org._id, name: 'admin', permissions: ['*'] },
+          {
+            orgId: org._id,
+            name: 'editor',
+            permissions: ['documents:read', 'documents:write', 'search:query'],
+          },
+          { orgId: org._id, name: 'viewer', permissions: ['documents:read', 'search:query'] },
+        ],
+        { session, ordered: true },
       );
-      if (!ownerRole) {
-        throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create role');
+      if (!adminRole || !editorRole || !viewerRole) {
+        throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create roles');
       }
       const [user] = await UserModel.create(
         [
@@ -78,7 +86,7 @@ export async function createOrganization(
             email: normalizedEmail,
             passwordHash: input.passwordHash,
             orgId: org._id,
-            roles: [ownerRole._id],
+            roles: [adminRole._id],
           },
         ],
         { session },
@@ -87,7 +95,9 @@ export async function createOrganization(
         throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create user');
       }
 
-      created = { user, org, roles: [ownerRole] };
+      // `roles` here means "roles assigned to the registering user" (used by issueSession to
+      // build the JWT), not "every role seeded for the org" — only adminRole applies to user.
+      created = { user, org, roles: [adminRole] };
     });
   } catch (err) {
     if (isDuplicateKeyError(err)) {

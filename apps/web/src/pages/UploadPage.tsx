@@ -171,7 +171,7 @@ export default function UploadPage() {
   const metadataError = documentQuery.data ? getMetadataError(documentQuery.data.metadata) : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-slate-100">
+    <div className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl">
         <Link to="/documents" className="text-sm text-slate-400 underline">
           &larr; Back to documents
@@ -319,6 +319,6 @@ export default function UploadPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

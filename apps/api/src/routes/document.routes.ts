@@ -7,6 +7,7 @@ import {
   type Document,
   type DocumentFileType,
   type PaginatedResult,
+  type Permission,
 } from '@content-insights/shared';
 
 import { asyncHandler } from '../lib/async-handler.js';
@@ -71,7 +72,7 @@ documentRouter.post(
   '/upload',
   authenticate,
   orgContext,
-  requirePermission('document:upload'),
+  requirePermission('documents:write' satisfies Permission),
   handleUpload,
   asyncHandler(async (req, res) => {
     if (!req.user) {
@@ -140,7 +141,7 @@ documentRouter.get(
   '/projects',
   authenticate,
   orgContext,
-  requirePermission('document:read'),
+  requirePermission('documents:read' satisfies Permission),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
@@ -161,7 +162,7 @@ documentRouter.get(
   '/:id',
   authenticate,
   orgContext,
-  requirePermission('document:read'),
+  requirePermission('documents:read' satisfies Permission),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
@@ -186,7 +187,7 @@ documentRouter.get(
   '/',
   authenticate,
   orgContext,
-  requirePermission('document:read'),
+  requirePermission('documents:read' satisfies Permission),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');

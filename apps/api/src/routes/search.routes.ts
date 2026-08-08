@@ -1,6 +1,6 @@
 import express from 'express';
 
-import { searchRequestSchema, type SearchResponse } from '@content-insights/shared';
+import { searchRequestSchema, type Permission, type SearchResponse } from '@content-insights/shared';
 
 import { asyncHandler } from '../lib/async-handler.js';
 import { AppError } from '../lib/errors.js';
@@ -16,7 +16,7 @@ searchRouter.post(
   '/',
   authenticate,
   orgContext,
-  requirePermission('document:read'),
+  requirePermission('search:query' satisfies Permission),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');

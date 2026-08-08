@@ -139,162 +139,160 @@ export default function SearchPage() {
     hasQuery && !searchQuery.isError && (searchQuery.isLoading || hits.length > 0);
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-12 text-slate-100">
-      <div className="mx-auto w-full max-w-5xl">
-        <div>
-          <h1 className="text-2xl font-semibold">Search</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Search across documents in your organization.
-          </p>
-        </div>
+    <div className="mx-auto w-full max-w-5xl px-4 py-12">
+      <div>
+        <h1 className="text-2xl font-semibold">Search</h1>
+        <p className="mt-1 text-sm text-slate-400">
+          Search across documents in your organization.
+        </p>
+      </div>
 
-        <div className="mt-6">
-          <label htmlFor="search-query" className="sr-only">
-            Search documents
-          </label>
-          <input
-            id="search-query"
-            type="search"
-            value={rawQuery}
-            onChange={(event) => setRawQuery(event.target.value)}
-            placeholder="Search documents…"
-            className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
-          />
-        </div>
+      <div className="mt-6">
+        <label htmlFor="search-query" className="sr-only">
+          Search documents
+        </label>
+        <input
+          id="search-query"
+          type="search"
+          value={rawQuery}
+          onChange={(event) => setRawQuery(event.target.value)}
+          placeholder="Search documents…"
+          className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
+        />
+      </div>
 
-        {searchQuery.isError ? (
-          <p className="mt-6 text-sm text-red-400">
-            {getApiErrorMessage(searchQuery.error, 'Unable to search documents.')}
-          </p>
-        ) : null}
+      {searchQuery.isError ? (
+        <p className="mt-6 text-sm text-red-400">
+          {getApiErrorMessage(searchQuery.error, 'Unable to search documents.')}
+        </p>
+      ) : null}
 
-        <div className="mt-6 flex flex-col gap-8 md:flex-row">
-          <aside className="w-full shrink-0 space-y-6 md:w-56">
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                File type
-              </h2>
-              <div className="mt-2 space-y-2">
-                {FILE_TYPE_OPTIONS.map((fileType) => (
-                  <label key={fileType} className="flex items-center gap-2 text-sm text-slate-300">
+      <div className="mt-6 flex flex-col gap-8 md:flex-row">
+        <aside className="w-full shrink-0 space-y-6 md:w-56">
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              File type
+            </h2>
+            <div className="mt-2 space-y-2">
+              {FILE_TYPE_OPTIONS.map((fileType) => (
+                <label key={fileType} className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={fileTypes.includes(fileType)}
+                    onChange={() => toggleListParam('fileTypes', fileType)}
+                    className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-slate-100 focus:ring-0"
+                  />
+                  {fileType.toUpperCase()}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Project
+            </h2>
+            <div className="mt-2 space-y-2">
+              {projectsQuery.isLoading ? (
+                Array.from({ length: 3 }, (_, index) => (
+                  <div key={index} className="h-4 w-24 animate-pulse rounded bg-slate-800" />
+                ))
+              ) : projectsQuery.isError ? (
+                <p className="text-xs text-red-400">Unable to load projects.</p>
+              ) : projectOptions.length === 0 ? (
+                <p className="text-xs text-slate-500">No projects yet.</p>
+              ) : (
+                projectOptions.map((projectId) => (
+                  <label
+                    key={projectId}
+                    className="flex items-center gap-2 text-sm text-slate-300"
+                  >
                     <input
                       type="checkbox"
-                      checked={fileTypes.includes(fileType)}
-                      onChange={() => toggleListParam('fileTypes', fileType)}
+                      checked={projectIds.includes(projectId)}
+                      onChange={() => toggleListParam('projectIds', projectId)}
                       className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-slate-100 focus:ring-0"
                     />
-                    {fileType.toUpperCase()}
+                    <span className="truncate">{projectId}</span>
                   </label>
-                ))}
-              </div>
+                ))
+              )}
             </div>
-
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Project
-              </h2>
-              <div className="mt-2 space-y-2">
-                {projectsQuery.isLoading ? (
-                  Array.from({ length: 3 }, (_, index) => (
-                    <div key={index} className="h-4 w-24 animate-pulse rounded bg-slate-800" />
-                  ))
-                ) : projectsQuery.isError ? (
-                  <p className="text-xs text-red-400">Unable to load projects.</p>
-                ) : projectOptions.length === 0 ? (
-                  <p className="text-xs text-slate-500">No projects yet.</p>
-                ) : (
-                  projectOptions.map((projectId) => (
-                    <label
-                      key={projectId}
-                      className="flex items-center gap-2 text-sm text-slate-300"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={projectIds.includes(projectId)}
-                        onChange={() => toggleListParam('projectIds', projectId)}
-                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-slate-100 focus:ring-0"
-                      />
-                      <span className="truncate">{projectId}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-          </aside>
-
-          <div className="min-w-0 flex-1">
-            {!hasQuery ? (
-              <p className="py-12 text-center text-slate-400">
-                Start typing to search your organization&apos;s documents.
-              </p>
-            ) : (
-              <>
-                {!searchQuery.isLoading && result ? (
-                  <p className="text-xs text-slate-500">
-                    {total} result{total === 1 ? '' : 's'} · {result.took}ms
-                  </p>
-                ) : null}
-
-                {showResultsList ? (
-                  <ul className="mt-3 space-y-3">
-                    {searchQuery.isLoading
-                      ? Array.from({ length: SKELETON_RESULT_COUNT }, (_, index) => (
-                          <SkeletonResult key={index} />
-                        ))
-                      : hits.map((hit) => (
-                          <li
-                            key={hit.docId}
-                            className="rounded-md border border-slate-900 p-4 transition hover:border-slate-700"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <h3 className="text-sm font-medium text-slate-100">{hit.title}</h3>
-                              <FileTypeBadge fileType={hit.fileType} />
-                            </div>
-                            <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                              <HighlightedSnippet fragment={hit.highlight} />
-                            </p>
-                            <div className="mt-3">
-                              <ScoreBar score={hit.score} maxScore={maxScore} />
-                            </div>
-                          </li>
-                        ))}
-                  </ul>
-                ) : null}
-
-                {showZeroResults ? (
-                  <div className="py-12 text-center">
-                    <p className="text-slate-400">No results for &quot;{trimmedQuery}&quot;.</p>
-                  </div>
-                ) : null}
-
-                {!searchQuery.isLoading && hits.length > 0 ? (
-                  <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
-                    <button
-                      type="button"
-                      disabled={page <= 1}
-                      onClick={() => goToPage(page - 1)}
-                      className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Prev
-                    </button>
-                    <span>
-                      Page {page} of {totalPages}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={page >= totalPages}
-                      onClick={() => goToPage(page + 1)}
-                      className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Next
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            )}
           </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          {!hasQuery ? (
+            <p className="py-12 text-center text-slate-400">
+              Start typing to search your organization&apos;s documents.
+            </p>
+          ) : (
+            <>
+              {!searchQuery.isLoading && result ? (
+                <p className="text-xs text-slate-500">
+                  {total} result{total === 1 ? '' : 's'} · {result.took}ms
+                </p>
+              ) : null}
+
+              {showResultsList ? (
+                <ul className="mt-3 space-y-3">
+                  {searchQuery.isLoading
+                    ? Array.from({ length: SKELETON_RESULT_COUNT }, (_, index) => (
+                        <SkeletonResult key={index} />
+                      ))
+                    : hits.map((hit) => (
+                        <li
+                          key={hit.docId}
+                          className="rounded-md border border-slate-900 p-4 transition hover:border-slate-700"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="text-sm font-medium text-slate-100">{hit.title}</h3>
+                            <FileTypeBadge fileType={hit.fileType} />
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                            <HighlightedSnippet fragment={hit.highlight} />
+                          </p>
+                          <div className="mt-3">
+                            <ScoreBar score={hit.score} maxScore={maxScore} />
+                          </div>
+                        </li>
+                      ))}
+                </ul>
+              ) : null}
+
+              {showZeroResults ? (
+                <div className="py-12 text-center">
+                  <p className="text-slate-400">No results for &quot;{trimmedQuery}&quot;.</p>
+                </div>
+              ) : null}
+
+              {!searchQuery.isLoading && hits.length > 0 ? (
+                <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => goToPage(page - 1)}
+                    className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Prev
+                  </button>
+                  <span>
+                    Page {page} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => goToPage(page + 1)}
+                    className="rounded-md border border-slate-700 px-3 py-1.5 text-slate-100 transition hover:border-slate-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

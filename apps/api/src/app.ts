@@ -9,7 +9,10 @@ import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.routes.js';
 import { documentRouter } from './routes/document.routes.js';
+import { projectRouter } from './routes/project.routes.js';
+import { roleRouter } from './routes/role.routes.js';
 import { searchRouter } from './routes/search.routes.js';
+import { userRouter } from './routes/user.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -32,6 +35,9 @@ export function createApp(): Express {
   app.use('/api/auth', authRouter);
   app.use('/api/documents', documentRouter);
   app.use('/api/search', searchRouter);
+  app.use('/api/projects', projectRouter);
+  app.use('/api/roles', roleRouter);
+  app.use('/api/users', userRouter);
 
   app.use(errorHandler);
 

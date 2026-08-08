@@ -2,45 +2,48 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 
 import { useAuth } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
+import AppLayout from './layouts/AppLayout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DocumentsPage from './pages/DocumentsPage';
 import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
+import AdminRolesPage from './pages/AdminRolesPage';
+import AdminOrgPage from './pages/AdminOrgPage';
 
 function HomePage() {
   const { user, org, logout } = useAuth();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold">Content Insights Platform</h1>
-        <p className="mt-2 text-slate-400">
-          Signed in as {user?.email} · {org?.name}
-        </p>
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <Link
-            to="/documents"
-            className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-          >
-            Documents
-          </Link>
-          <Link
-            to="/search"
-            className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-          >
-            Search
-          </Link>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-          >
-            Log out
-          </button>
-        </div>
+    <div className="text-center">
+      <h1 className="text-3xl font-semibold">Content Insights Platform</h1>
+      <p className="mt-2 text-slate-400">
+        Signed in as {user?.email} · {org?.name}
+      </p>
+      <div className="mt-6 flex items-center justify-center gap-3">
+        <Link
+          to="/documents"
+          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+        >
+          Documents
+        </Link>
+        <Link
+          to="/search"
+          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+        >
+          Search
+        </Link>
+        <button
+          type="button"
+          onClick={() => void logout()}
+          className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+        >
+          Log out
+        </button>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -49,18 +52,38 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
       <Route element={<RequireAuth />}>
-        <Route path="/" element={<HomePage />} />
+        <Route element={<AppLayout />}>
+          <Route
+            path="/"
+            element={
+              <div className="flex flex-1 items-center justify-center">
+                <HomePage />
+              </div>
+            }
+          />
+
+          <Route element={<RequireAuth permission="documents:read" />}>
+            <Route path="/documents" element={<DocumentsPage />} />
+          </Route>
+          <Route element={<RequireAuth permission="documents:write" />}>
+            <Route path="/documents/upload" element={<UploadPage />} />
+          </Route>
+          <Route element={<RequireAuth permission="search:query" />}>
+            <Route path="/search" element={<SearchPage />} />
+          </Route>
+
+          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+
+          <Route element={<RequireAuth permission="org:admin" />}>
+            <Route path="/admin/roles" element={<AdminRolesPage />} />
+            <Route path="/admin/org" element={<AdminOrgPage />} />
+          </Route>
+        </Route>
       </Route>
-      <Route element={<RequireAuth permission="document:read" />}>
-        <Route path="/documents" element={<DocumentsPage />} />
-      </Route>
-      <Route element={<RequireAuth permission="document:upload" />}>
-        <Route path="/documents/upload" element={<UploadPage />} />
-      </Route>
-      <Route element={<RequireAuth permission="document:read" />}>
-        <Route path="/search" element={<SearchPage />} />
-      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
