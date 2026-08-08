@@ -36,6 +36,7 @@ interface ArticlesGridProps {
   onShare: (id: string) => void;
   onBookmark: (id: string) => void;
   onEdit: (id: string) => void;
+  onTagClick: (tag: string) => void;
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
@@ -80,6 +81,7 @@ export default function ArticlesGrid({
   onShare,
   onBookmark,
   onEdit,
+  onTagClick,
   page,
   totalPages,
   onPageChange,
@@ -108,6 +110,7 @@ export default function ArticlesGrid({
         onShare={onShare}
         onBookmark={onBookmark}
         onEdit={onEdit}
+        onTagClick={onTagClick}
       />
     );
   }

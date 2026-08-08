@@ -1,13 +1,24 @@
-import type { ApiResponse, Document, PaginatedResult } from '@content-insights/shared';
+import type { ApiResponse, DateRangeFilter, Document, PaginatedResult } from '@content-insights/shared';
 
 import { apiClient } from './api-client';
 
-export async function fetchDocuments(
-  page: number,
-  pageSize: number,
-): Promise<PaginatedResult<Document>> {
+export interface FetchDocumentsParams {
+  page: number;
+  pageSize: number;
+  projectIds?: string[] | undefined;
+  dateRange?: DateRangeFilter | undefined;
+}
+
+export async function fetchDocuments(params: FetchDocumentsParams): Promise<PaginatedResult<Document>> {
+  const { page, pageSize, projectIds, dateRange } = params;
   const response = await apiClient.get<ApiResponse<PaginatedResult<Document>>>('/documents', {
-    params: { page, pageSize },
+    params: {
+      page,
+      pageSize,
+      ...(projectIds && projectIds.length > 0 ? { projectIds: projectIds.join(',') } : {}),
+      ...(dateRange?.start ? { from: dateRange.start } : {}),
+      ...(dateRange?.end ? { to: dateRange.end } : {}),
+    },
   });
   const body = response.data;
   if (!body.success) {

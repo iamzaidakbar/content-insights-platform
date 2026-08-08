@@ -6,3 +6,5 @@ export * from './search-result.schema.js';
 export * from './auth.schema.js';
 export * from './project.schema.js';
 export * from './user-settings.schema.js';
+export * from './search-filters.schema.js';
+export * from './tag.schema.js';

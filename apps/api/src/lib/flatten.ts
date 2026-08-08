@@ -1,9 +1,18 @@
+// A plain object is only safe to recurse into if none of ITS OWN values are arrays — once
+// a nested object mixes in array-typed fields (e.g. search.lastUsedFilters.sources), dot-
+// notation $set can only ever add/overwrite keys explicitly present, never remove keys the
+// caller omitted (e.g. clearing dateRange back to {} would otherwise leave a stale
+// dateRange.start in Mongo). Such objects — currently only SearchFilters — are treated as
+// a single atomic leaf and replaced wholesale instead.
+function isFlattenable(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  return !Object.values(value).some((v) => Array.isArray(v));
+}
+
 // Turns a nested partial object into Mongo dot-notation for a $set update, e.g.
-// { appearance: { theme: 'light' } } -> { 'appearance.theme': 'light' }. Only plain
-// objects are recursed into — arrays and primitives are treated as leaf values, so a
-// field typed as an array would be replaced wholesale rather than merged element-wise
-// (not a concern for UserSettings today, since every nested field here is a plain object
-// or a primitive, never an array).
+// { appearance: { theme: 'light' } } -> { 'appearance.theme': 'light' }.
 export function flattenToDotNotation(
   obj: Record<string, unknown>,
   prefix = '',
@@ -11,8 +20,8 @@ export function flattenToDotNotation(
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${key}` : key;
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      Object.assign(result, flattenToDotNotation(value as Record<string, unknown>, path));
+    if (isFlattenable(value)) {
+      Object.assign(result, flattenToDotNotation(value, path));
     } else {
       result[path] = value;
     }

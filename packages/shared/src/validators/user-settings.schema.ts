@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { searchFiltersSchema } from './search-filters.schema.js';
+
 export const themeSchema = z.enum(['light', 'dark', 'system']);
 export const fontSizeSchema = z.enum(['small', 'medium', 'large']);
 export const cardDensitySchema = z.enum(['comfortable', 'compact', 'cozy']);
@@ -21,6 +23,7 @@ export const searchSettingsSchema = z.object({
   defaultSort: searchSortSchema,
   defaultLayout: searchLayoutSchema,
   openArticleIn: openArticleInSchema,
+  lastUsedFilters: searchFiltersSchema.optional(),
 });
 
 export const inAppAlertSettingsSchema = z.object({

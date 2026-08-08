@@ -34,6 +34,7 @@ export interface ArticleCardProps {
   onShare: (id: string) => void;
   onBookmark: (id: string) => void;
   onEdit: (id: string) => void;
+  onTagClick: (tag: string) => void;
 }
 
 const SNIPPET_LINE_CLAMP: Record<CardDensity, string> = {
@@ -78,10 +79,12 @@ function TagChips({
   tags,
   maxTags,
   size = 'normal',
+  onTagClick,
 }: {
   tags: string[];
   maxTags: number;
   size?: 'normal' | 'small';
+  onTagClick: (tag: string) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   if (tags.length === 0) {
@@ -93,13 +96,16 @@ function TagChips({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {visible.map((tag) => (
-        <span
+        <button
           key={tag}
-          className={`rounded-[var(--radius-tag)] ${size === 'small' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-[13px]'}`}
+          type="button"
+          onClick={() => onTagClick(tag)}
+          title={`Filter by "${tag}"`}
+          className={`rounded-[var(--radius-tag)] transition-opacity hover:opacity-75 ${size === 'small' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-[13px]'}`}
           style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
         >
           {tag}
-        </span>
+        </button>
       ))}
       {!showAll && overflow > 0 ? (
         <button
@@ -159,6 +165,7 @@ export default function ArticleCard({
   onShare,
   onBookmark,
   onEdit,
+  onTagClick,
 }: ArticleCardProps) {
   const { settings } = useSettings();
   const { cardDensity } = settings.appearance;
@@ -254,7 +261,7 @@ export default function ArticleCard({
             <SourceAndDate url={url} source={source} publishDate={publishDate} />
           </div>
           <div className="hidden shrink-0 md:block">
-            <TagChips tags={tags} maxTags={maxTags} size="small" />
+            <TagChips tags={tags} maxTags={maxTags} size="small" onTagClick={onTagClick} />
           </div>
         </div>
         {previewPanel}
@@ -303,7 +310,7 @@ export default function ArticleCard({
             <p className="line-clamp-1 text-sm text-[var(--text-secondary)]">{snippet}</p>
 
             <div className="flex items-center justify-between gap-3">
-              <TagChips tags={tags} maxTags={maxTags} size="small" />
+              <TagChips tags={tags} maxTags={maxTags} size="small" onTagClick={onTagClick} />
               {url ? (
                 <button
                   type="button"
@@ -376,7 +383,7 @@ export default function ArticleCard({
         ) : null}
 
         <div className="mt-3">
-          <TagChips tags={tags} maxTags={maxTags} />
+          <TagChips tags={tags} maxTags={maxTags} onTagClick={onTagClick} />
         </div>
       </div>
       {previewPanel}

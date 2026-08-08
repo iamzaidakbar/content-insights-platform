@@ -7,11 +7,28 @@ export interface IAppearanceSettings {
   cardDensity: 'comfortable' | 'compact' | 'cozy';
 }
 
+export interface IDateRangeFilter {
+  start?: string;
+  end?: string;
+}
+
+export interface ISearchFilters {
+  dateRange: IDateRangeFilter;
+  sources: string[];
+  contentType: 'news' | 'document' | 'report' | null;
+  tags: string[];
+  languages: string[];
+  projects: string[];
+}
+
 export interface ISearchSettings {
   defaultPageSize: 12 | 24 | 48;
   defaultSort: 'publishDate' | 'relevance' | 'source';
   defaultLayout: '1col' | '2col' | '3col' | 'dense';
   openArticleIn: 'newTab' | 'sameTab' | 'sidePanel';
+  // Absent (undefined) until the first Apply Filters / Advanced Search submit — no default,
+  // no `required`, so it's simply missing from the document until explicitly $set.
+  lastUsedFilters?: ISearchFilters;
 }
 
 export interface IInAppAlertSettings {
@@ -51,6 +68,34 @@ const appearanceSchema = new mongoose.Schema<IAppearanceSettings>(
   { _id: false },
 );
 
+// minimize: false everywhere below — Mongoose's default `minimize: true` strips any
+// nested field whose value serializes to `{}` (e.g. a cleared dateRange with neither
+// start nor end) straight out of toJSON() output. SearchFilters.dateRange is typed as
+// always-present (never optional) on the shared DTO, so a client reading
+// `lastUsedFilters.dateRange.start` must never hit `dateRange` having vanished entirely.
+const dateRangeFilterSchema = new mongoose.Schema<IDateRangeFilter>(
+  {
+    start: { type: String, required: false },
+    end: { type: String, required: false },
+  },
+  { _id: false, minimize: false },
+);
+
+// No top-level `default` on any field here — the whole subdocument is optional and absent
+// until the frontend sends a complete SearchFilters object (see flatten.ts's isFlattenable
+// guard, which $sets this whole shape atomically rather than merging it field-by-field).
+const searchFiltersSchema = new mongoose.Schema<ISearchFilters>(
+  {
+    dateRange: { type: dateRangeFilterSchema, required: false },
+    sources: { type: [String], required: false },
+    contentType: { type: String, enum: ['news', 'document', 'report', null], required: false },
+    tags: { type: [String], required: false },
+    languages: { type: [String], required: false },
+    projects: { type: [String], required: false },
+  },
+  { _id: false, minimize: false },
+);
+
 const searchSettingsSchema = new mongoose.Schema<ISearchSettings>(
   {
     defaultPageSize: { type: Number, enum: [12, 24, 48], default: 12 },
@@ -65,8 +110,9 @@ const searchSettingsSchema = new mongoose.Schema<ISearchSettings>(
       enum: ['newTab', 'sameTab', 'sidePanel'],
       default: 'newTab',
     },
+    lastUsedFilters: { type: searchFiltersSchema, required: false },
   },
-  { _id: false },
+  { _id: false, minimize: false },
 );
 
 const inAppAlertsSchema = new mongoose.Schema<IInAppAlertSettings>(
@@ -98,7 +144,7 @@ const userSettingsSchema = new mongoose.Schema<IUserSettings>(
     search: { type: searchSettingsSchema, default: () => ({}) },
     notifications: { type: notificationSettingsSchema, default: () => ({}) },
   },
-  { timestamps: { createdAt: false, updatedAt: true } },
+  { timestamps: { createdAt: false, updatedAt: true }, minimize: false },
 );
 userSettingsSchema.index({ userId: 1, orgId: 1 }, { unique: true });
 

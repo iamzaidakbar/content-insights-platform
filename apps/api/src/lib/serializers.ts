@@ -4,6 +4,7 @@ import type {
   Project,
   ProjectMember,
   Role,
+  Tag,
   User,
   UserSettings,
 } from '@content-insights/shared';
@@ -12,6 +13,7 @@ import {
   asOrgId,
   asProjectId,
   asRoleId,
+  asTagId,
   asUserId,
   asUserSettingsId,
 } from '@content-insights/shared';
@@ -20,6 +22,7 @@ import type { DocumentDocument } from '../models/document.model.js';
 import type { OrganizationDocument } from '../models/organization.model.js';
 import type { ProjectDocument } from '../models/project.model.js';
 import type { RoleDocument } from '../models/role.model.js';
+import type { TagDocument } from '../models/tag.model.js';
 import type { UserDocument } from '../models/user.model.js';
 import type { UserSettingsDocument } from '../models/userSettings.model.js';
 
@@ -93,6 +96,18 @@ export function toUserSettingsDTO(settings: UserSettingsDocument): UserSettings 
     search: settings.search,
     notifications: settings.notifications,
     updatedAt: settings.updatedAt.toISOString(),
+  };
+}
+
+export function toTagDTO(tag: TagDocument): Tag {
+  return {
+    id: asTagId(tag._id.toString()),
+    orgId: asOrgId(tag.orgId.toString()),
+    name: tag.name,
+    color: tag.color,
+    count: tag.count,
+    createdAt: tag.createdAt.toISOString(),
+    updatedAt: tag.updatedAt.toISOString(),
   };
 }
 

@@ -1,6 +1,6 @@
-import { useRef, useState, type ComponentType } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   AlignJustify,
@@ -11,22 +11,34 @@ import {
   Info,
   List,
   Search as SearchIcon,
+  SlidersHorizontal,
   Tag as TagIcon,
 } from 'lucide-react';
 
-import type { DocumentFileType, SearchLayout, SearchPageSize, SearchSort } from '@content-insights/shared';
+import {
+  EMPTY_SEARCH_FILTERS,
+  type ArticleContentType,
+  type SearchFilters,
+  type SearchLayout,
+  type SearchPageSize,
+  type SearchSort,
+  type Tag,
+} from '@content-insights/shared';
 
 import { useAuth } from '../auth/AuthContext';
 import { useSettings } from '../settings/SettingsContext';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { getApiErrorMessage } from '../lib/api-client';
-import { fetchDocuments } from '../lib/documents-api';
+import { fetchDocuments, fetchProjectIds } from '../lib/documents-api';
 import { searchDocuments } from '../lib/search-api';
+import { createTag, fetchTags } from '../lib/tags-api';
 import ArticleTabs, { type ArticleTabKey } from '../components/ArticleTabs';
 import ArticlesGrid, { type ArticleGridItem } from '../components/ArticlesGrid';
-
-const FILE_TYPE_OPTIONS: DocumentFileType[] = ['pdf', 'docx', 'txt'];
+import FilterPanel from '../components/FilterPanel';
+import AdvancedSearchModal, { type AdvancedSearchResult } from '../components/AdvancedSearchModal';
+import TagsPanel from '../components/TagsPanel';
+import TagSelectPopover from '../components/TagSelectPopover';
 
 // ES highlight fragments carry literal <mark>/</mark> markers (see lib/search.ts on the
 // API side); ArticleCard's snippet prop is plain text, so strip them here rather than
@@ -42,6 +54,54 @@ const SORT_LABELS: Record<SearchSort, string> = {
 };
 const SORT_OPTIONS: SearchSort[] = ['publishDate', 'relevance', 'source'];
 const PAGE_SIZE_OPTIONS: SearchPageSize[] = [12, 24, 48];
+
+const CONTENT_TYPE_VALUES: ArticleContentType[] = ['news', 'document', 'report'];
+
+// Keeps the results bookmarkable/shareable — every entry point (typing, Filter Panel
+// Apply, Advanced Search submit, tag-chip click, page change) funnels through filters/
+// query/page state, and one effect in the component below mirrors all of it here.
+function filtersToSearchParams(filters: SearchFilters, query: string, page: number): URLSearchParams {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  if (page > 1) params.set('page', String(page));
+  if (filters.dateRange.start) params.set('from', filters.dateRange.start);
+  if (filters.dateRange.end) params.set('to', filters.dateRange.end);
+  if (filters.contentType) params.set('contentType', filters.contentType);
+  if (filters.tags.length > 0) params.set('tags', filters.tags.join(','));
+  if (filters.languages.length > 0) params.set('languages', filters.languages.join(','));
+  if (filters.projects.length > 0) params.set('projects', filters.projects.join(','));
+  if (filters.sources.length > 0) params.set('sources', filters.sources.join(','));
+  return params;
+}
+
+function hasAnyFilterParams(params: URLSearchParams): boolean {
+  return ['from', 'to', 'contentType', 'tags', 'languages', 'projects', 'sources'].some((key) =>
+    params.has(key),
+  );
+}
+
+function splitParam(value: string | null): string[] {
+  return value ? value.split(',').filter(Boolean) : [];
+}
+
+function searchParamsToFilters(params: URLSearchParams): SearchFilters {
+  const contentTypeRaw = params.get('contentType');
+  const contentType = CONTENT_TYPE_VALUES.includes(contentTypeRaw as ArticleContentType)
+    ? (contentTypeRaw as ArticleContentType)
+    : null;
+
+  return {
+    dateRange: {
+      start: params.get('from') ?? undefined,
+      end: params.get('to') ?? undefined,
+    },
+    sources: splitParam(params.get('sources')),
+    contentType,
+    tags: splitParam(params.get('tags')),
+    languages: splitParam(params.get('languages')),
+    projects: splitParam(params.get('projects')),
+  };
+}
 
 interface LayoutOption {
   value: SearchLayout;
@@ -145,61 +205,55 @@ function PerPageDropdown({
   );
 }
 
-function FilterPanel({
-  selectedFileTypes,
-  onToggleFileType,
-  canApply,
-}: {
-  selectedFileTypes: DocumentFileType[];
-  onToggleFileType: (fileType: DocumentFileType) => void;
-  canApply: boolean;
-}) {
-  return (
-    <div className="absolute left-0 z-20 mt-1 w-64 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-lg">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-        File type
-      </h3>
-      <div className="mt-2 space-y-2">
-        {FILE_TYPE_OPTIONS.map((fileType) => (
-          <label key={fileType} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-            <input
-              type="checkbox"
-              checked={selectedFileTypes.includes(fileType)}
-              onChange={() => onToggleFileType(fileType)}
-              className="h-4 w-4 rounded border-[var(--border)] bg-[var(--bg-surface)]"
-            />
-            {fileType.toUpperCase()}
-          </label>
-        ))}
-      </div>
-      {!canApply ? (
-        <p className="mt-3 text-xs text-[var(--text-muted)]">
-          Type a search query to apply filters.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 export default function ArticlesPage() {
   const { permissions } = useAuth();
   const { settings, updateSetting } = useSettings();
   const { defaultLayout: layout, defaultSort: sortBy, defaultPageSize: pageSize } = settings.search;
+  const queryClient = useQueryClient();
 
   const resultsTopRef = useRef<HTMLDivElement>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<ArticleTabKey>('all');
-  const [page, setPage] = useState(1);
-  const [rawQuery, setRawQuery] = useState('');
+  const [page, setPage] = useState<number>(() => {
+    const raw = Number(searchParams.get('page'));
+    return Number.isInteger(raw) && raw > 0 ? raw : 1;
+  });
+  const [rawQuery, setRawQuery] = useState(() => searchParams.get('q') ?? '');
   const debouncedQuery = useDebouncedValue(rawQuery, 300);
   const trimmedQuery = debouncedQuery.trim();
   const hasQuery = trimmedQuery.length > 0;
 
+  // URL params win (shareable link) over the last-persisted server value, which itself
+  // wins over an empty default — restores settings.search.lastUsedFilters "if present"
+  // per spec, but only on first mount, never retroactively once the user has started
+  // interacting with this page.
+  const [filters, setFilters] = useState<SearchFilters>(() =>
+    hasAnyFilterParams(searchParams) ? searchParamsToFilters(searchParams) : (settings.search.lastUsedFilters ?? EMPTY_SEARCH_FILTERS),
+  );
+
+  const activeFilterCount =
+    (filters.dateRange.start || filters.dateRange.end ? 1 : 0) +
+    filters.sources.length +
+    (filters.contentType ? 1 : 0) +
+    filters.tags.length +
+    filters.languages.length +
+    filters.projects.length;
+  const hasActiveFilters = hasQuery || activeFilterCount > 0;
+
+  useEffect(() => {
+    setSearchParams(filtersToSearchParams(filters, trimmedQuery, page), { replace: true });
+    // Only these three should trigger a URL sync — searchParams/setSearchParams
+    // themselves are stable-ish but re-running on their identity would fight with the
+    // browser back/forward button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters, trimmedQuery, page]);
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
-  useClickOutside(filterRef, () => setIsFilterOpen(false));
-  const [selectedFileTypes, setSelectedFileTypes] = useState<DocumentFileType[]>([]);
-  const hasActiveFilters = hasQuery || selectedFileTypes.length > 0;
+  const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState(false);
+  const [isTagsPanelOpen, setIsTagsPanelOpen] = useState(false);
+  const [isTagSelectOpen, setIsTagSelectOpen] = useState(false);
+  const tagSelectAnchorRef = useRef<HTMLDivElement>(null);
 
   const [isChannelsOpen, setIsChannelsOpen] = useState(false);
   const [areArticlesHidden, setAreArticlesHidden] = useState(false);
@@ -211,17 +265,41 @@ export default function ArticlesPage() {
   const canUpload = permissions.includes('documents:write') || permissions.includes('*');
   const isNewsTab = activeTab === 'news';
 
-  function toggleFileType(fileType: DocumentFileType) {
-    setSelectedFileTypes((current) =>
-      current.includes(fileType) ? current.filter((f) => f !== fileType) : [...current, fileType],
-    );
+  const tagsQuery = useQuery({ queryKey: ['tags'], queryFn: fetchTags, staleTime: 60_000 });
+  const tags = tagsQuery.data ?? [];
+
+  // Same query key SearchPage.tsx already uses for this exact endpoint — shares its cache
+  // rather than colliding with it.
+  const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjectIds, staleTime: 5 * 60_000 });
+  const projectOptions = projectsQuery.data ?? [];
+
+  const createTagMutation = useMutation({
+    mutationFn: createTag,
+    onSuccess: (tag) => {
+      queryClient.setQueryData<Tag[]>(['tags'], (current) => [...(current ?? []), tag]);
+    },
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Failed to create tag.')),
+  });
+
+  function applyFilters(next: SearchFilters) {
+    setFilters(next);
     setPage(1);
+    updateSetting('search.lastUsedFilters', next);
+    if (next.contentType === 'news') {
+      setActiveTab('news');
+    } else if (activeTab === 'news') {
+      setActiveTab('all');
+    }
   }
 
   function handleClearFilters() {
     setRawQuery('');
-    setSelectedFileTypes([]);
+    setFilters(EMPTY_SEARCH_FILTERS);
     setPage(1);
+    updateSetting('search.lastUsedFilters', EMPTY_SEARCH_FILTERS);
+    if (activeTab === 'news') {
+      setActiveTab('all');
+    }
   }
 
   function changeTab(tab: ArticleTabKey) {
@@ -273,12 +351,31 @@ export default function ArticlesPage() {
     });
   }
 
-  function handleTagSelected() {
+  function handleTagSelectedClick() {
     if (selectedIds.size === 0) {
       toast('Select one or more articles first.');
       return;
     }
-    toast(`Tagging ${selectedIds.size} article${selectedIds.size === 1 ? '' : 's'} — coming soon.`);
+    setIsTagSelectOpen((open) => !open);
+  }
+
+  // No document-tagging association endpoint exists yet (Document has no tags field, and
+  // none is proposed here) — applying an existing/newly-created tag to the checked
+  // articles stays UI-complete-but-stubbed, matching this page's other still-"coming
+  // soon" bulk actions (handleTag/handleEdit below). Tag *creation* itself is real and
+  // persisted.
+  function handleApplyTagToSelected(tag: Tag) {
+    toast(`Tagged ${selectedIds.size} article${selectedIds.size === 1 ? '' : 's'} with "${tag.name}" — coming soon.`);
+    setIsTagSelectOpen(false);
+  }
+
+  function handleCreateAndApplyTag(input: { name: string; color: string }) {
+    createTagMutation.mutate(input, {
+      onSuccess: (tag) => {
+        toast.success(`Created "${tag.name}".`);
+        handleApplyTagToSelected(tag);
+      },
+    });
   }
 
   function handleTag(_id: string) {
@@ -313,21 +410,55 @@ export default function ArticlesPage() {
     toast('Editing is coming soon.');
   }
 
+  // Shared by the Tags panel's row click and each card's clickable tag chips — both
+  // "add that tag as an active filter" per spec. Applied immediately (no Apply Filters
+  // gate), unlike the Filter Panel's other sections.
+  function handleTagChipClick(tagName: string) {
+    setFilters((current) =>
+      current.tags.includes(tagName) ? current : { ...current, tags: [...current.tags, tagName] },
+    );
+    setPage(1);
+    setIsTagsPanelOpen(false);
+  }
+
+  function handleAdvancedSearch(result: AdvancedSearchResult) {
+    setRawQuery(result.query);
+    setFilters((current) => ({
+      ...current,
+      dateRange: result.dateRange,
+      contentType: result.contentType,
+      tags: result.tags,
+    }));
+    setPage(1);
+    if (result.contentType === 'news') {
+      setActiveTab('news');
+    }
+    // sourceUrlContains is intentionally not merged in here — no url field exists on an
+    // indexed chunk to filter against server-side (see AdvancedSearchModal's own comment).
+  }
+
   const listQuery = useQuery({
-    queryKey: ['documents-list', page, pageSize],
-    queryFn: () => fetchDocuments(page, pageSize),
+    queryKey: ['documents-list', page, pageSize, filters.projects, filters.dateRange],
+    queryFn: () =>
+      fetchDocuments({
+        page,
+        pageSize,
+        projectIds: filters.projects,
+        dateRange: filters.dateRange,
+      }),
     enabled: !isNewsTab && !hasQuery,
     // Deliberately no keepPreviousData — the spec calls for skeleton cards on every page
     // change, not the old page's cards lingering while the next one loads.
   });
 
   const searchQuery = useQuery({
-    queryKey: ['articles-search', trimmedQuery, selectedFileTypes, page, pageSize],
+    queryKey: ['articles-search', trimmedQuery, filters.projects, filters.dateRange, page, pageSize],
     queryFn: () =>
       searchDocuments({
         query: trimmedQuery,
-        fileTypes: selectedFileTypes,
-        projectIds: [],
+        fileTypes: [],
+        projectIds: filters.projects,
+        dateRange: filters.dateRange,
         page,
         size: pageSize,
       }),
@@ -385,23 +516,19 @@ export default function ArticlesPage() {
       {/* Toolbar row */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="relative" ref={filterRef}>
-            <button
-              type="button"
-              onClick={() => setIsFilterOpen((open) => !open)}
-              className="flex h-9 items-center gap-2 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
-            >
-              <Filter size={16} />
-              Filter
-            </button>
-            {isFilterOpen ? (
-              <FilterPanel
-                selectedFileTypes={selectedFileTypes}
-                onToggleFileType={toggleFileType}
-                canApply={hasQuery}
-              />
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(true)}
+            className="flex h-9 items-center gap-2 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
+          >
+            <Filter size={16} />
+            Filter
+            {activeFilterCount > 0 ? (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-xs font-semibold text-[var(--accent)]">
+                {activeFilterCount}
+              </span>
             ) : null}
-          </div>
+          </button>
 
           <div className="relative">
             <SearchIcon
@@ -419,7 +546,7 @@ export default function ArticlesPage() {
               className="h-9 w-[340px] rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-9 pr-9 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
             />
             <span
-              title="Search across titles and content. Use the Filter button to narrow by file type."
+              title="Search across titles and content. Use the Filter button or Advanced Search to narrow results."
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
             >
               <Info size={15} />
@@ -437,9 +564,10 @@ export default function ArticlesPage() {
           </button>
           <button
             type="button"
-            onClick={() => toast('Advanced Search is coming soon.')}
-            className="h-9 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+            onClick={() => setIsAdvancedSearchOpen(true)}
+            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
           >
+            <SlidersHorizontal size={14} />
             Advanced Search
           </button>
 
@@ -471,7 +599,10 @@ export default function ArticlesPage() {
 
           <button
             type="button"
-            onClick={() => setIsChannelsOpen((open) => !open)}
+            onClick={() => {
+              setIsChannelsOpen((open) => !open);
+              setIsTagsPanelOpen(false);
+            }}
             className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border px-3 text-sm transition-colors"
             style={
               isChannelsOpen
@@ -519,19 +650,31 @@ export default function ArticlesPage() {
               </div>
 
               <div className="flex items-center gap-3 text-sm">
-                <button
-                  type="button"
-                  onClick={handleTagSelected}
-                  disabled={selectedIds.size === 0}
-                  className={`flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] px-3 transition-colors disabled:cursor-not-allowed ${
-                    selectedIds.size > 0
-                      ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
-                      : 'text-[var(--text-secondary)] opacity-40'
-                  }`}
-                >
-                  <TagIcon size={14} />
-                  Tag Selected
-                </button>
+                <div className="relative" ref={tagSelectAnchorRef}>
+                  <button
+                    type="button"
+                    onClick={handleTagSelectedClick}
+                    disabled={selectedIds.size === 0}
+                    className={`flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] px-3 transition-colors disabled:cursor-not-allowed ${
+                      selectedIds.size > 0
+                        ? 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]'
+                        : 'text-[var(--text-secondary)] opacity-40'
+                    }`}
+                  >
+                    <TagIcon size={14} />
+                    Tag Selected
+                  </button>
+                  {isTagSelectOpen ? (
+                    <TagSelectPopover
+                      tags={tags}
+                      selectedCount={selectedIds.size}
+                      isCreating={createTagMutation.isPending}
+                      onSelectTag={handleApplyTagToSelected}
+                      onCreateTag={handleCreateAndApplyTag}
+                      onClose={() => setIsTagSelectOpen(false)}
+                    />
+                  ) : null}
+                </div>
                 {selectedIds.size > 0 ? (
                   <span
                     className="rounded-[var(--radius-tag)] px-2 py-1 text-xs font-medium"
@@ -540,12 +683,16 @@ export default function ArticlesPage() {
                     {selectedIds.size} selected
                   </span>
                 ) : null}
-                <Link
-                  to="/tags"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTagsPanelOpen((open) => !open);
+                    setIsChannelsOpen(false);
+                  }}
                   className="text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
                 >
                   View All Tags
-                </Link>
+                </button>
                 {/* "View full content" now lives on each ArticleCard itself (its Preview
                     icon) — a page-level toggle would have nothing left to drive once
                     every card manages its own expand/collapse. */}
@@ -589,6 +736,7 @@ export default function ArticlesPage() {
                 onShare={(id) => void handleShare(id)}
                 onBookmark={handleBookmark}
                 onEdit={handleEdit}
+                onTagClick={handleTagChipClick}
                 page={page}
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
@@ -606,7 +754,33 @@ export default function ArticlesPage() {
             </p>
           </aside>
         ) : null}
+
+        {isTagsPanelOpen ? (
+          <TagsPanel
+            tags={tags}
+            isLoading={tagsQuery.isLoading}
+            onTagClick={(tag) => handleTagChipClick(tag.name)}
+            onClose={() => setIsTagsPanelOpen(false)}
+          />
+        ) : null}
       </div>
+
+      <FilterPanel
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        filters={filters}
+        onApply={applyFilters}
+        onClearAll={handleClearFilters}
+        projectOptions={projectOptions}
+        tags={tags}
+      />
+
+      <AdvancedSearchModal
+        isOpen={isAdvancedSearchOpen}
+        onClose={() => setIsAdvancedSearchOpen(false)}
+        onSearch={handleAdvancedSearch}
+        tags={tags}
+      />
     </div>
   );
 }

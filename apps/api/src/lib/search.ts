@@ -1,5 +1,6 @@
 import {
   asDocumentId,
+  type DateRangeFilter,
   type DocumentFileType,
   type SearchHit,
   type SearchResponse,
@@ -14,6 +15,7 @@ export interface SearchParams {
   // exactOptionalPropertyTypes.
   projectIds?: string[] | undefined;
   fileTypes?: DocumentFileType[] | undefined;
+  dateRange?: DateRangeFilter | undefined;
   orgId: string;
   page: number;
   size: number;
@@ -23,7 +25,7 @@ const HIGHLIGHT_FRAGMENT_SIZE = 150;
 
 // Separated from executeSearch so query-building is unit-testable without a live ES connection.
 export function buildSearchQuery(params: SearchParams): Record<string, unknown> {
-  const { query, projectIds, fileTypes, page, size } = params;
+  const { query, projectIds, fileTypes, dateRange, page, size } = params;
 
   const filter: Record<string, unknown>[] = [
     { term: { orgId: params.orgId } }, // always present — never queries across orgs
@@ -34,11 +36,32 @@ export function buildSearchQuery(params: SearchParams): Record<string, unknown> 
   if (fileTypes && fileTypes.length > 0) {
     filter.push({ terms: { fileType: fileTypes } });
   }
+  if (dateRange && (dateRange.start ?? dateRange.end)) {
+    filter.push({
+      range: {
+        createdAt: {
+          ...(dateRange.start ? { gte: dateRange.start } : {}),
+          ...(dateRange.end ? { lte: dateRange.end } : {}),
+        },
+      },
+    });
+  }
 
   return {
     query: {
       bool: {
-        must: [{ multi_match: { query, fields: ['title', 'content'] } }],
+        // simple_query_string (not multi_match) so the Advanced Search modal's composed
+        // boolean text — +required, "exact phrase", (any|of|these), -excluded — is honored
+        // natively by ES rather than treated as one big literal match phrase.
+        must: [
+          {
+            simple_query_string: {
+              query,
+              fields: ['title', 'content'],
+              default_operator: 'or',
+            },
+          },
+        ],
         filter,
       },
     },

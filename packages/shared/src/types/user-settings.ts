@@ -1,4 +1,5 @@
 import type { OrgId, UserId, UserSettingsId } from '../ids.js';
+import type { SearchFilters } from './search-filters.js';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type FontSize = 'small' | 'medium' | 'large';
@@ -21,6 +22,9 @@ export interface SearchSettings {
   defaultSort: SearchSort;
   defaultLayout: SearchLayout;
   openArticleIn: OpenArticleIn;
+  // Absent until the user first clicks "Apply Filters" or submits Advanced Search — not
+  // included in DEFAULT_SEARCH_SETTINGS below, restored by the frontend only "if present".
+  lastUsedFilters?: SearchFilters | undefined;
 }
 
 export interface InAppAlertSettings {

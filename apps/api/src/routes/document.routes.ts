@@ -189,14 +189,34 @@ documentRouter.get(
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const { page = 1, pageSize = DEFAULT_PAGE_SIZE } = req.query as unknown as DocumentListQuery;
+    const {
+      page = 1,
+      pageSize = DEFAULT_PAGE_SIZE,
+      projectIds,
+      from,
+      to,
+    } = req.query as unknown as DocumentListQuery;
+
+    const filter: Record<string, unknown> = { orgId: req.user.orgId };
+    if (projectIds) {
+      const ids = projectIds.split(',').filter(Boolean);
+      if (ids.length > 0) {
+        filter.projectId = { $in: ids };
+      }
+    }
+    if (from ?? to) {
+      filter.createdAt = {
+        ...(from ? { $gte: new Date(from) } : {}),
+        ...(to ? { $lte: new Date(to) } : {}),
+      };
+    }
 
     const [items, total] = await Promise.all([
-      DocumentModel.find({ orgId: req.user.orgId })
+      DocumentModel.find(filter)
         .sort({ createdAt: -1 })
         .skip((page - 1) * pageSize)
         .limit(pageSize),
-      DocumentModel.countDocuments({ orgId: req.user.orgId }),
+      DocumentModel.countDocuments(filter),
     ]);
 
     const result: PaginatedResult<Document> = {
