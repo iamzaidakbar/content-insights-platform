@@ -9,9 +9,11 @@ import {
   Settings as SettingsIcon,
   Tag,
   TrendingUp,
-  User,
+  User as UserIcon,
   Users,
 } from 'lucide-react';
+
+import type { User } from '@content-insights/shared';
 
 import { useAuth } from '../auth/AuthContext';
 import { useSettings } from '../settings/SettingsContext';
@@ -32,7 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/trends', label: 'Trends', icon: TrendingUp },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
   { to: '/alerts', label: 'Alerts', icon: Bell },
-  { to: '/profile', label: 'User', icon: User },
+  { to: '/profile', label: 'User', icon: UserIcon },
   { to: '/projects', label: 'Groups', icon: Users },
   { to: '/tags', label: 'Tags', icon: Tag },
 ];
@@ -70,10 +72,16 @@ function displayNameFromEmail(email: string): string {
     .join(' ');
 }
 
-function initialsFromEmail(email: string): string {
-  const name = displayNameFromEmail(email);
+// The Account settings section lets a user set a real displayName — prefer it everywhere
+// a human-readable name is shown, falling back to the email-derived name only until they do.
+function resolveDisplayName(user: User): string {
+  return user.displayName?.trim() || displayNameFromEmail(user.email);
+}
+
+function initialsFromUser(user: User): string {
+  const name = resolveDisplayName(user);
   const parts = name.split(' ').filter(Boolean);
-  const first = parts[0]?.[0] ?? email[0] ?? '?';
+  const first = parts[0]?.[0] ?? user.email[0] ?? '?';
   const second = parts[1]?.[0] ?? '';
   return (first + second).toUpperCase();
 }
@@ -196,12 +204,12 @@ export default function AppShell() {
               className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
               style={{ backgroundColor: 'var(--accent)' }}
             >
-              {user ? initialsFromEmail(user.email) : '?'}
+              {user ? initialsFromUser(user) : '?'}
             </div>
             {user ? (
               <div className="hidden text-sm leading-tight sm:block">
                 <p className="font-medium text-[var(--text-primary)]">
-                  {displayNameFromEmail(user.email)}
+                  {resolveDisplayName(user)}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)]">{user.email}</p>
               </div>

@@ -12,3 +12,9 @@ export const organizationSchema = z.object({
 });
 
 export type OrganizationInput = z.infer<typeof organizationSchema>;
+
+// PATCH /api/organizations/:orgId
+export const updateOrganizationSchema = z.object({
+  name: z.string().trim().min(1),
+});
+export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;

@@ -43,6 +43,10 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, orgName: string) => Promise<void>;
   logout: () => Promise<void>;
+  // Merges a partial User update (e.g. a new displayName) into the cached session so
+  // every consumer of useAuth() — AppShell's header, this page, anywhere else — reflects
+  // it immediately, without a full /auth/refresh round-trip.
+  updateUser: (patch: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -132,6 +136,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     logout: async () => {
       await logoutMutation.mutateAsync();
+    },
+    updateUser: (patch) => {
+      queryClient.setQueryData<SessionData | null>(SESSION_QUERY_KEY, (current) =>
+        current ? { ...current, user: { ...current.user, ...patch } } : current,
+      );
     },
   };
 

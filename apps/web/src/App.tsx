@@ -11,7 +11,6 @@ import UploadPage from './pages/UploadPage';
 import SearchPage from './pages/SearchPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
-import SettingsPage from './pages/SettingsPage';
 import TrendsPage from './pages/TrendsPage';
 import AlertsPage from './pages/AlertsPage';
 import TagsPage from './pages/TagsPage';
@@ -21,10 +20,15 @@ import ProfilePage from './pages/ProfilePage';
 // need this JS at all. Keeps the main bundle smaller for the common case.
 const AdminRolesPage = lazy(() => import('./pages/AdminRolesPage'));
 const AdminOrgPage = lazy(() => import('./pages/AdminOrgPage'));
+const AdminMembersPage = lazy(() => import('./pages/AdminMembersPage'));
 // Split separately too — its toolbar (icon set, filter/sort popovers, results grid) is
 // the single largest contributor to the main bundle, enough on its own to push the
 // bundle-size budget (build.chunkSizeWarningLimit, vite.config.ts) over 250kB.
 const ArticlesPage = lazy(() => import('./pages/ArticlesPage'));
+// Six independent settings sections (Appearance's theme-card SVGs, the change-password
+// form, org management, ...) add up fast — most sessions never open Settings, so none of
+// that JS belongs in the main bundle.
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 function HomePage() {
   const { user, org } = useAuth();
@@ -92,7 +96,14 @@ export default function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
 
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/settings"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <SettingsPage />
+              </Suspense>
+            }
+          />
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/tags" element={<TagsPage />} />
@@ -112,6 +123,14 @@ export default function App() {
               element={
                 <Suspense fallback={<PageSkeleton />}>
                   <AdminOrgPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/admin/members"
+              element={
+                <Suspense fallback={<PageSkeleton />}>
+                  <AdminMembersPage />
                 </Suspense>
               }
             />

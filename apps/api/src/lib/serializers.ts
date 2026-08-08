@@ -1,6 +1,7 @@
 import type {
   Document,
   Organization,
+  OrganizationDetail,
   Project,
   ProjectMember,
   Role,
@@ -42,6 +43,8 @@ export function toUserDTO(user: UserDocument): User {
     id: asUserId(user._id.toString()),
     orgId: asOrgId(user.orgId.toString()),
     email: user.email,
+    // exactOptionalPropertyTypes: omit the key entirely when absent, never assign undefined.
+    ...(user.displayName !== undefined ? { displayName: user.displayName } : {}),
     roles: user.roles.map((roleId) => asRoleId(roleId.toString())),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
@@ -85,6 +88,10 @@ export function toProjectDTO(project: ProjectDTOSource, members: ProjectMember[]
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
+}
+
+export function toOrganizationDetailDTO(org: OrganizationDocument, memberCount: number): OrganizationDetail {
+  return { ...toOrganizationDTO(org), memberCount };
 }
 
 export function toUserSettingsDTO(settings: UserSettingsDocument): UserSettings {

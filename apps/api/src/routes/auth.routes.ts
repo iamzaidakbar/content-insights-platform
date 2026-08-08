@@ -3,9 +3,11 @@ import express from 'express';
 import {
   asOrgId,
   asUserId,
+  changePasswordSchema,
   loginSchema,
   registerSchema,
   type AuthSession,
+  type ChangePasswordInput,
   type LoginInput,
   type RegisterInput,
   type UserId,
@@ -150,6 +152,34 @@ authRouter.post(
   '/logout',
   asyncHandler(async (_req, res) => {
     clearRefreshCookie(res);
+    res.status(200).json(success(null));
+  }),
+);
+
+authRouter.post(
+  '/change-password',
+  authenticate,
+  validate({ body: changePasswordSchema }),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+
+    const { currentPassword, newPassword } = req.body as ChangePasswordInput;
+
+    const user = await UserModel.findById(req.user.id);
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+
+    const currentValid = await verifyPassword(currentPassword, user.passwordHash);
+    if (!currentValid) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Current password is incorrect');
+    }
+
+    user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+
     res.status(200).json(success(null));
   }),
 );
