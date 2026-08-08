@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-export const documentStatusSchema = z.enum(['pending', 'processing', 'indexed', 'failed']);
+export const documentStatusSchema = z.enum([
+  'pending',
+  'processing',
+  'chunked',
+  'indexed',
+  'failed',
+]);
 export const documentFileTypeSchema = z.enum(['pdf', 'docx', 'txt']);
 
 export const documentSchema = z.object({

@@ -21,3 +21,12 @@ export async function fetchDocument(id: string): Promise<Document> {
   }
   return body.data;
 }
+
+export async function fetchProjectIds(): Promise<string[]> {
+  const response = await apiClient.get<ApiResponse<string[]>>('/documents/projects');
+  const body = response.data;
+  if (!body.success) {
+    throw new Error(body.message);
+  }
+  return body.data;
+}

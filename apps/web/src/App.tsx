@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DocumentsPage from './pages/DocumentsPage';
 import UploadPage from './pages/UploadPage';
+import SearchPage from './pages/SearchPage';
 
 function HomePage() {
   const { user, org, logout } = useAuth();
@@ -23,6 +24,12 @@ function HomePage() {
             className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
           >
             Documents
+          </Link>
+          <Link
+            to="/search"
+            className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+          >
+            Search
           </Link>
           <button
             type="button"
@@ -50,6 +57,9 @@ export default function App() {
       </Route>
       <Route element={<RequireAuth permission="document:upload" />}>
         <Route path="/documents/upload" element={<UploadPage />} />
+      </Route>
+      <Route element={<RequireAuth permission="document:read" />}>
+        <Route path="/search" element={<SearchPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

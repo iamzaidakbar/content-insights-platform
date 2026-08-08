@@ -137,6 +137,27 @@ documentRouter.post(
 );
 
 documentRouter.get(
+  '/projects',
+  authenticate,
+  orgContext,
+  requirePermission('document:read'),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+
+    // No Project entity exists anywhere — projectId is a free-form optional string on
+    // Document. This exists only so the frontend's project multi-select has data.
+    const projectIds = await DocumentModel.distinct('projectId', {
+      orgId: req.user.orgId,
+      projectId: { $ne: null },
+    });
+
+    res.status(200).json(success(projectIds as string[]));
+  }),
+);
+
+documentRouter.get(
   '/:id',
   authenticate,
   orgContext,

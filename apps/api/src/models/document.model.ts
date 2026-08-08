@@ -35,7 +35,7 @@ const documentSchema = new mongoose.Schema<IDocument>(
     fileKey: { type: String, required: false, default: '' },
     status: {
       type: String,
-      enum: ['pending', 'processing', 'indexed', 'failed'],
+      enum: ['pending', 'processing', 'chunked', 'indexed', 'failed'],
       default: 'pending',
     },
     // Function default, not a shared object literal.

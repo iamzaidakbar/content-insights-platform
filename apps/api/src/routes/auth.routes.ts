@@ -1,5 +1,4 @@
 import express from 'express';
-import mongoose from 'mongoose';
 
 import {
   asOrgId,
@@ -18,12 +17,12 @@ import { hashPassword, verifyPassword } from '../lib/password.js';
 import { flattenPermissions } from '../lib/permissions.js';
 import { success } from '../lib/response.js';
 import { toOrganizationDTO, toUserDTO } from '../lib/serializers.js';
-import { slugify } from '../lib/slug.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { orgContext } from '../middleware/orgContext.js';
 import { OrganizationModel, type OrganizationDocument } from '../models/organization.model.js';
 import { RoleModel, type RoleDocument } from '../models/role.model.js';
 import { UserModel, type UserDocument } from '../models/user.model.js';
+import { createOrganization } from '../services/organization.service.js';
 
 export const authRouter = express.Router();
 
@@ -60,12 +59,6 @@ function issueSession(
   };
 }
 
-function isDuplicateKeyError(
-  err: unknown,
-): err is { code: number; keyPattern?: Record<string, unknown> } {
-  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 11000;
-}
-
 authRouter.post(
   '/register',
   asyncHandler(async (req, res) => {
@@ -79,84 +72,9 @@ authRouter.post(
     }
 
     const { email, password, orgName } = parsed.data;
-    const normalizedEmail = email.toLowerCase().trim();
-    const slug = slugify(orgName);
-    if (!slug) {
-      throw new AppError(
-        400,
-        'VALIDATION_ERROR',
-        'Organization name must contain at least one letter or number',
-      );
-    }
     const passwordHash = await hashPassword(password);
 
-    const session = await mongoose.startSession();
-    let created:
-      { user: UserDocument; org: OrganizationDocument; roles: RoleDocument[] } | undefined;
-
-    try {
-      await session.withTransaction(async () => {
-        // A ClientSession can only have one operation in flight at a time —
-        // these must run sequentially, not via Promise.all, or the driver
-        // rejects the second call with "ConflictingOperationInProgress".
-        const existingOrg = await OrganizationModel.findOne({ slug }).session(session);
-        const existingUser = await UserModel.findOne({ email: normalizedEmail }).session(session);
-
-        if (existingOrg) {
-          throw new AppError(
-            409,
-            'ORG_SLUG_TAKEN',
-            'An organization with this name is already registered',
-          );
-        }
-        if (existingUser) {
-          throw new AppError(409, 'EMAIL_TAKEN', 'An account with this email already exists');
-        }
-
-        const [org] = await OrganizationModel.create([{ name: orgName, slug, plan: 'free' }], {
-          session,
-        });
-        if (!org) {
-          throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create organization');
-        }
-        const [ownerRole] = await RoleModel.create(
-          [{ orgId: org._id, name: 'Owner', permissions: ['*'] }],
-          { session },
-        );
-        if (!ownerRole) {
-          throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create role');
-        }
-        const [user] = await UserModel.create(
-          [{ email: normalizedEmail, passwordHash, orgId: org._id, roles: [ownerRole._id] }],
-          { session },
-        );
-        if (!user) {
-          throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create user');
-        }
-
-        created = { user, org, roles: [ownerRole] };
-      });
-    } catch (err) {
-      if (isDuplicateKeyError(err)) {
-        if (err.keyPattern?.slug) {
-          throw new AppError(
-            409,
-            'ORG_SLUG_TAKEN',
-            'An organization with this name is already registered',
-          );
-        }
-        if (err.keyPattern?.email) {
-          throw new AppError(409, 'EMAIL_TAKEN', 'An account with this email already exists');
-        }
-      }
-      throw err;
-    } finally {
-      await session.endSession();
-    }
-
-    if (!created) {
-      throw new AppError(500, 'INTERNAL_ERROR', 'Registration did not complete');
-    }
+    const created = await createOrganization({ orgName, email, passwordHash });
 
     const { authSession, refreshToken } = issueSession(created.user, created.org, created.roles);
     setRefreshCookie(res, refreshToken);

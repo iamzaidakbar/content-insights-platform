@@ -32,7 +32,9 @@ async function processIngestJob(job: Job<IngestJobData>): Promise<void> {
     const chunks = chunkText(text);
     const wordCount = text.split(/\s+/).filter(Boolean).length;
 
-    doc.status = 'indexed';
+    // This worker only extracts + chunks now. The index worker owns 'indexed',
+    // only after a real Elasticsearch bulk-index call succeeds.
+    doc.status = 'chunked';
     doc.metadata = { ...doc.metadata, wordCount, chunkCount: chunks.length };
     await doc.save();
 

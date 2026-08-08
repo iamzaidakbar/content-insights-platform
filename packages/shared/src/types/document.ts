@@ -1,6 +1,6 @@
 import type { DocumentId, OrgId, UserId } from '../ids.js';
 
-export type DocumentStatus = 'pending' | 'processing' | 'indexed' | 'failed';
+export type DocumentStatus = 'pending' | 'processing' | 'chunked' | 'indexed' | 'failed';
 export type DocumentFileType = 'pdf' | 'docx' | 'txt';
 
 export interface Document {
