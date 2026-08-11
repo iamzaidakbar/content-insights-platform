@@ -15,6 +15,7 @@ import type {
   SearchSortOption,
   SourceTypeTab,
 } from '@content-insights/shared';
+import { normalizeFilterPanelState } from '@content-insights/shared';
 
 import { esClient, getOrgIndexName, type EsArticleDocument } from './elasticsearch.js';
 
@@ -326,6 +327,11 @@ function buildArticleFilterClauses(
   now: Date,
   excludeConceptKey?: string,
 ): ArticleFilterClauses {
+  // Mongoose minimize can strip empty taxonomyValues/userTagIds/etc. from persisted
+  // FilterPanelState (insights sourceFilters, saved searches). Normalize once here so every
+  // ES search/facet/chart path is safe — not just the few call sites that remember to.
+  filters = normalizeFilterPanelState(filters);
+
   const filter: Record<string, unknown>[] = [];
   const must: Record<string, unknown>[] = [];
 

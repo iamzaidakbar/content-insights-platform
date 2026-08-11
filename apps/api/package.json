@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "seed": "tsx src/scripts/seed.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "clean": "rimraf dist"

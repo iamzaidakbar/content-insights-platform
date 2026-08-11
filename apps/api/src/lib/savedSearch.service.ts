@@ -19,6 +19,7 @@ import {
   type ChannelViewerState,
   type DateFilterValue,
   type FilterPanelState,
+  normalizeFilterPanelState,
   type Permission,
   type SavedSearch,
   type SavedSearchWithViewerState,
@@ -266,7 +267,8 @@ export async function buildArticleMongoQuery(
   // `undefined[...]`), which previously 500'd GET /channels, GET /channels/:id/open, and
   // POST /saved-searches/:id/run for any dynamic saved search saved with an empty taxonomy
   // selection.
-  const taxonomyValues = filters.taxonomyValues ?? {};
+  filters = normalizeFilterPanelState(filters);
+  const taxonomyValues = filters.taxonomyValues;
 
   // Project scoping — never trust filters.projectIds alone; intersect with what the group
   // is actually granted (empty selection = "all accessible at runtime", per
@@ -510,10 +512,13 @@ export type LoadedSavedSearch =
 // "rolling." A snapshot has no live query at all — its "search" IS its frozen locationHash
 // list — see fetchArticlesByLocationHashes for turning that into actual articles.
 export function loadSavedSearch(doc: SavedSearchDocument): LoadedSavedSearch {
+  // Mongoose minimize can strip empty taxonomyValues: {} (and similar) at write time —
+  // normalize so every Load response has a full FilterPanelState for the web client.
+  const filters = normalizeFilterPanelState(doc.filters);
   if (doc.type === 'snapshot') {
-    return { type: 'snapshot', filters: doc.filters, locationHashes: doc.snapshotLocationHashes };
+    return { type: 'snapshot', filters, locationHashes: doc.snapshotLocationHashes };
   }
-  return { type: 'dynamic', filters: doc.filters };
+  return { type: 'dynamic', filters };
 }
 
 export interface ArticlePage {

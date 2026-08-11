@@ -588,6 +588,7 @@ export function SavedQueriesPanel({
     setLoadingId(search.id);
     try {
       const loaded = await fetchSavedSearch(search.id);
+      invalidateList();
       onLoad?.(loaded);
       toast.success(`Loaded "${loaded.savedSearch.name}".`);
       onClose?.();

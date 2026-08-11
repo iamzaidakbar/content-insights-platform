@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   BarChart3,
@@ -27,6 +27,7 @@ import {
   DEFAULT_USER_SETTINGS,
   EMPTY_ADVANCED_SEARCH,
   EMPTY_FILTER_PANEL_STATE,
+  normalizeFilterPanelState,
   SEARCH_SORT_OPTIONS,
   type FilterPanelState,
   type ResultViewMode,
@@ -45,7 +46,11 @@ import { bulkArticleOperation, exportArticles, hideArticle, unhideArticle } from
 import { fetchConcepts } from '../lib/concepts-api';
 import { fetchGroup, fetchGroups } from '../lib/groups-api';
 import { fetchProjects } from '../lib/projects-api';
-import type { LoadSavedSearchResult } from '../lib/saved-searches-api';
+import {
+  ARTICLES_LOAD_SAVED_SEARCH_PARAM,
+  fetchSavedSearch,
+  type LoadSavedSearchResult,
+} from '../lib/saved-searches-api';
 import { fetchSearchFacets, searchArticles } from '../lib/search-api';
 import { fetchMySettings, updateMySettings } from '../lib/settings-api';
 import { createUserTag, fetchUserTags } from '../lib/user-tags-api';
@@ -184,10 +189,15 @@ interface FilterChip {
 export default function ArticlesPage() {
   const { user, permissions, updateUser } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const savedSearchIdToLoad = searchParams.get(ARTICLES_LOAD_SAVED_SEARCH_PARAM);
 
   const [page, setPage] = useState(1);
   const [queryInput, setQueryInput] = useState('');
   const debouncedQuery = useDebouncedValue(queryInput, 300);
+  // When a saved search is applied, ignore stale debounce ticks until the box catches up —
+  // otherwise a pending keystroke debounce can overwrite the loaded `filters.query`.
+  const pendingLoadQueryRef = useRef<string | null>(null);
 
   const [filters, setFilters] = useState<FilterPanelState>(() => ({
     ...EMPTY_FILTER_PANEL_STATE,
@@ -198,6 +208,12 @@ export default function ArticlesPage() {
   // filter edit behind the same 300ms delay.
   useEffect(() => {
     const trimmed = debouncedQuery.trim();
+    if (pendingLoadQueryRef.current !== null) {
+      if (trimmed !== pendingLoadQueryRef.current.trim()) return;
+      pendingLoadQueryRef.current = null;
+      setFilters((current) => (current.query === trimmed ? current : { ...current, query: trimmed }));
+      return;
+    }
     setFilters((current) => (current.query === trimmed ? current : { ...current, query: trimmed }));
     setPage(1);
   }, [debouncedQuery]);
@@ -505,13 +521,62 @@ export default function ArticlesPage() {
   // snapshot this re-runs it as a live query against the same criteria rather than pinning
   // the exact frozen article set (`result.items`); a known, smaller nuance separate from the
   // Save-side Dynamic/Snapshot gap this wiring fixes.
-  function handleLoadSavedSearch(loaded: LoadSavedSearchResult) {
-    setFilters(loaded.result.filters);
-    setQueryInput(loaded.result.filters.query);
+  async function applyLoadedSavedSearch(loaded: LoadSavedSearchResult) {
+    const targetGroupId = loaded.savedSearch.groupId;
+    if (targetGroupId && targetGroupId !== currentGroupId) {
+      try {
+        await setCurrentGroupMutation.mutateAsync(targetGroupId);
+      } catch {
+        // Mutation already toasts; still apply filters so Load is not a no-op.
+      }
+    }
+    // Mongoose minimize can strip empty taxonomyValues/userTagIds/etc. from stored docs —
+    // normalize before setState so chip/filter code never Object.entries(undefined).
+    const nextFilters = normalizeFilterPanelState(loaded.result.filters);
+    pendingLoadQueryRef.current = nextFilters.query;
+    setFilters(nextFilters);
+    setQueryInput(nextFilters.query);
     setPage(1);
     setIsSaveOpen(false);
     setIsLoadOpen(false);
   }
+
+  function handleLoadSavedSearch(loaded: LoadSavedSearchResult) {
+    void applyLoadedSavedSearch(loaded);
+  }
+
+  // /saved-searches Load navigates here with ?savedSearch=<id> — fetch once, apply filters,
+  // then strip the param so refresh doesn't re-apply.
+  useEffect(() => {
+    if (!savedSearchIdToLoad) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await fetchSavedSearch(savedSearchIdToLoad);
+        if (cancelled) return;
+        await applyLoadedSavedSearch(loaded);
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(err, 'Unable to load this saved search.'));
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchParams(
+            (prev) => {
+              const next = new URLSearchParams(prev);
+              next.delete(ARTICLES_LOAD_SAVED_SEARCH_PARAM);
+              return next;
+            },
+            { replace: true },
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the deep-link id changes
+  }, [savedSearchIdToLoad]);
 
   function handleApplyAdvancedSearch(result: AdvancedSearchApplyResult) {
     setFilters((current) => ({ ...current, advancedSearch: result.advancedSearch, dateFilter: result.dateFilter }));

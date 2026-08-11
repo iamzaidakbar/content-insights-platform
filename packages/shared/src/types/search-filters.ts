@@ -72,3 +72,22 @@ export const EMPTY_FILTER_PANEL_STATE: FilterPanelState = {
   advancedSearch: EMPTY_ADVANCED_SEARCH,
   sort: 'date_desc',
 };
+
+/**
+ * Rehydrate a FilterPanelState that may have been persisted with Mongoose `minimize`
+ * (empty objects/arrays stripped) or otherwise partial. Always returns a full state
+ * safe for Object.entries / .length / spread without null checks at every call site.
+ */
+export function normalizeFilterPanelState(
+  filters: Partial<FilterPanelState> | null | undefined,
+): FilterPanelState {
+  const input = filters ?? {};
+  return {
+    ...EMPTY_FILTER_PANEL_STATE,
+    ...input,
+    projectIds: input.projectIds ?? [],
+    taxonomyValues: input.taxonomyValues ?? {},
+    userTagIds: input.userTagIds ?? [],
+    advancedSearch: input.advancedSearch ?? EMPTY_ADVANCED_SEARCH,
+  };
+}

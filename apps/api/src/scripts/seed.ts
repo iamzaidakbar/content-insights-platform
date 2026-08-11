@@ -3,20 +3,22 @@
 // Content Insights Platform — demo seed script.
 //
 // Run with:
-//   pnpm --filter @content-insights/api exec tsx src/scripts/seed.ts
+//   pnpm --filter @content-insights/api seed
+//   # or: pnpm --filter @content-insights/api exec tsx src/scripts/seed.ts
 //
 // Hybrid approach:
 //   - Organization/Users/Groups/Projects/Concepts/UserTags/SavedSearches/Insights/
 //     Dashboards/GlobalSettings/EntityMapping are created via REAL HTTP calls against the
 //     live API (http://localhost:4000/api/...), exercising real validation/permission
 //     checks.
-//   - Bulk Article content (~240 articles) is inserted directly via Mongoose (same MongoDB
-//     the API uses) and then indexed into Elasticsearch via the API's own bulkIndexArticles
-//     helper, since driving 240 articles through the multipart upload endpoint one at a
-//     time would be prohibitively slow for seed data.
+//   - Bulk Article content (10,000 unique articles) is inserted directly via Mongoose
+//     (same MongoDB the API uses) and then indexed into Elasticsearch via the API's own
+//     bulkIndexArticles helper.
 //
-// Set SEED_RESET=1 to wipe any previously-seeded "Meridian Media Intelligence" org (Mongo
-// docs + its Elasticsearch index) before seeding — useful while iterating on this script.
+// By default this wipes any previously-seeded "Meridian Media Intelligence" org (Mongo
+// docs + its Elasticsearch index) before seeding, so re-runs never leave duplicate
+// articles. Set SEED_RESET=0 to skip the wipe (register will fail if the org already
+// exists).
 // ---------------------------------------------------------------------------------------
 
 import { randomUUID, createHash } from 'node:crypto';
@@ -56,6 +58,11 @@ const ORG_NAME = 'Meridian Media Intelligence';
 const ORG_SLUG = slugify(ORG_NAME);
 const PASSWORD = 'ContentInsights!23';
 const ADMIN_EMAIL = 'admin@meridian.dev';
+
+/** Total unique articles across all projects (split evenly). */
+const TOTAL_ARTICLES = 10_000;
+/** insertMany / progress chunk size */
+const ARTICLE_INSERT_CHUNK = 500;
 
 const bugs: string[] = [];
 function logBug(message: string): void {
@@ -985,8 +992,8 @@ const USER_DEFS: UserDef[] = [
 ];
 
 // ---------------------------------------------------------------------------------------
-// Optional reset (SEED_RESET=1) — wipes a previously-seeded Meridian org so this script
-// can be iterated on / re-run cleanly.
+// Reset — wipes a previously-seeded Meridian org so this script can be re-run cleanly
+// without duplicate articles (orgId+locationHash is unique).
 // ---------------------------------------------------------------------------------------
 
 async function resetPriorSeedData(): Promise<void> {
@@ -1065,8 +1072,10 @@ async function main(): Promise<void> {
   console.log('Connecting to MongoDB...');
   await connectDB();
 
-  if (process.env.SEED_RESET === '1') {
-    console.log('SEED_RESET=1 — wiping any prior Meridian seed data...');
+  // Default: wipe prior Meridian seed so articles are never duplicated on re-run.
+  // Opt out with SEED_RESET=0 only when you intentionally want to keep existing data.
+  if (process.env.SEED_RESET !== '0') {
+    console.log('Wiping any prior Meridian seed data (set SEED_RESET=0 to skip)...');
     await resetPriorSeedData();
   }
 
@@ -1236,44 +1245,57 @@ async function main(): Promise<void> {
   console.log('  Done.');
 
   // ---------------------------------------------------------------------------------
-  // 7. Articles — direct Mongoose bulk insert + Elasticsearch bulk index
+  // 7. Articles — direct Mongoose bulk insert + Elasticsearch bulk index (10,000 unique)
   // ---------------------------------------------------------------------------------
   console.log('\n[7/12] Generating and inserting articles ...');
-  const ARTICLES_PER_PROJECT = 60;
-  const insertedArticles: InsertedArticle[] = [];
+  const projectList = Object.values(projects);
+  const ARTICLES_PER_PROJECT = Math.floor(TOTAL_ARTICLES / projectList.length);
+  const remainder = TOTAL_ARTICLES - ARTICLES_PER_PROJECT * projectList.length;
+  console.log(
+    `  Target ${TOTAL_ARTICLES.toLocaleString()} articles across ${projectList.length} projects ` +
+      `(${ARTICLES_PER_PROJECT.toLocaleString()} each` +
+      (remainder > 0 ? `, +${remainder} on first project` : '') +
+      ').',
+  );
 
-  for (const proj of Object.values(projects)) {
+  const insertedArticles: InsertedArticle[] = [];
+  const esDocs: IndexArticleParams[] = [];
+  const seenHashes = new Set<string>();
+
+  for (let projectIndex = 0; projectIndex < projectList.length; projectIndex++) {
+    const proj = projectList[projectIndex] as ProjectRuntime;
     const def = proj.def;
+    const count = ARTICLES_PER_PROJECT + (projectIndex === 0 ? remainder : 0);
     const specs: Array<{
       domain: string;
       sourceType: 'news' | 'file_system';
       hidden: boolean;
       publishedAt: Date;
+      serial: string;
     }> = [];
 
-    const idx = shuffle(Array.from({ length: ARTICLES_PER_PROJECT }, (_, i) => i));
-    const fsSet = new Set(shuffle(idx).slice(0, Math.round(ARTICLES_PER_PROJECT * 0.15)));
-    const hiddenSet = new Set(shuffle(idx).slice(0, Math.round(ARTICLES_PER_PROJECT * 0.03) || 1));
+    const idx = shuffle(Array.from({ length: count }, (_, i) => i));
+    const fsSet = new Set(shuffle(idx).slice(0, Math.round(count * 0.15)));
+    const hiddenSet = new Set(shuffle(idx).slice(0, Math.max(1, Math.round(count * 0.03))));
     const dateShuffled = shuffle(idx);
-    const last7Set = new Set(dateShuffled.slice(0, Math.round(ARTICLES_PER_PROJECT * 0.15)));
+    const last7Set = new Set(dateShuffled.slice(0, Math.round(count * 0.15)));
     const midSet = new Set(
-      dateShuffled.slice(
-        Math.round(ARTICLES_PER_PROJECT * 0.15),
-        Math.round(ARTICLES_PER_PROJECT * 0.15) + Math.round(ARTICLES_PER_PROJECT * 0.3),
-      ),
+      dateShuffled.slice(Math.round(count * 0.15), Math.round(count * 0.15) + Math.round(count * 0.3)),
     );
 
-    for (let i = 0; i < ARTICLES_PER_PROJECT; i++) {
+    for (let i = 0; i < count; i++) {
       let offsetDays: number;
       if (last7Set.has(i)) offsetDays = randInt(0, 7);
       else if (midSet.has(i)) offsetDays = randInt(7, 30);
-      else offsetDays = randInt(30, 90);
+      else offsetDays = randInt(30, 365);
       const publishedAt = new Date(now.getTime() - offsetDays * 86_400_000 - randInt(0, 86_400_000));
+      const serial = `${def.key.slice(0, 3).toUpperCase()}-${String(i + 1).padStart(4, '0')}`;
       specs.push({
         domain: pick(def.domains),
         sourceType: fsSet.has(i) ? 'file_system' : 'news',
         hidden: hiddenSet.has(i),
         publishedAt,
+        serial,
       });
     }
 
@@ -1307,12 +1329,11 @@ async function main(): Promise<void> {
         domain: spec.domain,
       };
 
-      const title = def.headline(entity);
+      // Unique title + locationHash — serial guarantees no orgId+locationHash collisions
+      // even when headline templates recycle the same entity combo.
+      const title = `${def.headline(entity)} (${spec.serial})`;
       const summary = def.lead(entity);
 
-      // Cycle through a shuffled copy of the sentence pool (reshuffling only once exhausted)
-      // rather than pure random-with-replacement, so a single article doesn't end up with
-      // the same filler sentence verbatim two or three times in a row.
       let sentenceQueue = shuffle(def.bodySentences);
       let sentenceIdx = 0;
       const nextSentence = (): string => {
@@ -1348,7 +1369,13 @@ async function main(): Promise<void> {
         taxonomyValues.airlines = pickN(def.airlines, 2);
       }
 
-      const locationHash = sha256Hex(`${spec.domain}|${title}|${spec.publishedAt.toISOString()}`);
+      const locationHash = sha256Hex(
+        `${orgId}|${proj.id}|${spec.serial}|${spec.domain}|${spec.publishedAt.toISOString()}|${title}`,
+      );
+      if (seenHashes.has(locationHash)) {
+        throw new Error(`Duplicate locationHash generated for ${spec.serial} — aborting seed.`);
+      }
+      seenHashes.add(locationHash);
 
       docs.push({
         orgId,
@@ -1371,48 +1398,50 @@ async function main(): Promise<void> {
       });
     }
 
-    const created = await ArticleModel.insertMany(docs, { ordered: false });
-    for (const doc of created) {
-      insertedArticles.push({
-        _id: doc._id.toString(),
-        projectKey: proj.def.key,
-        domain: doc.domain,
-        sourceType: doc.sourceType,
-        hidden: doc.hidden,
-        publishedAt: doc.publishedAt,
-        taxonomyValues: doc.taxonomyValues as Record<string, string[]>,
-      });
+    let createdCount = 0;
+    for (let offset = 0; offset < docs.length; offset += ARTICLE_INSERT_CHUNK) {
+      const chunk = docs.slice(offset, offset + ARTICLE_INSERT_CHUNK);
+      const created = await ArticleModel.insertMany(chunk, { ordered: false });
+      createdCount += created.length;
+      for (const doc of created) {
+        insertedArticles.push({
+          _id: doc._id.toString(),
+          projectKey: proj.def.key,
+          domain: doc.domain,
+          sourceType: doc.sourceType,
+          hidden: doc.hidden,
+          publishedAt: doc.publishedAt,
+          taxonomyValues: doc.taxonomyValues as Record<string, string[]>,
+        });
+        esDocs.push({
+          id: doc._id.toString(),
+          orgId,
+          projectId: proj.id,
+          title: doc.title,
+          summary: doc.summary,
+          body: doc.body,
+          domain: doc.domain,
+          sourceType: doc.sourceType,
+          publishedAt: doc.publishedAt.toISOString(),
+          authors: doc.authors,
+          taxonomyValues: doc.taxonomyValues as Record<string, string[]>,
+          tagIds: [],
+          locationHash: doc.locationHash,
+          hidden: doc.hidden,
+          createdAt: (doc.createdAt ?? doc.publishedAt).toISOString(),
+        });
+      }
+      process.stdout.write(
+        `\r  + ${def.name}: ${Math.min(offset + chunk.length, docs.length).toLocaleString()}/${docs.length.toLocaleString()} inserted`,
+      );
     }
-    console.log(`  + ${created.length} articles inserted for ${def.name}`);
+    console.log(`\n  + ${createdCount.toLocaleString()} articles inserted for ${def.name}`);
   }
 
-  console.log('  Indexing all articles into Elasticsearch ...');
-  const esDocs: IndexArticleParams[] = [];
-  {
-    const allArticles = await ArticleModel.find({ orgId });
-    for (const a of allArticles) {
-      esDocs.push({
-        id: a._id.toString(),
-        orgId,
-        projectId: a.projectId.toString(),
-        title: a.title,
-        summary: a.summary,
-        body: a.body,
-        domain: a.domain,
-        sourceType: a.sourceType,
-        publishedAt: a.publishedAt.toISOString(),
-        authors: a.authors,
-        taxonomyValues: a.taxonomyValues as Record<string, string[]>,
-        tagIds: [],
-        locationHash: a.locationHash,
-        hidden: a.hidden,
-        createdAt: a.createdAt.toISOString(),
-      });
-    }
-  }
+  console.log(`  Indexing ${esDocs.length.toLocaleString()} articles into Elasticsearch ...`);
   await bulkIndexArticles(orgId, esDocs);
   await esClient.indices.refresh({ index: getOrgIndexName(orgId) });
-  console.log(`  Indexed ${esDocs.length} articles; refreshed index.`);
+  console.log(`  Indexed ${esDocs.length.toLocaleString()} articles; refreshed index.`);
 
   // ---------------------------------------------------------------------------------
   // 8. Global settings
@@ -1516,14 +1545,14 @@ async function main(): Promise<void> {
     await api('POST', '/user-tags/bulk-apply', { token, body: { articleIds: chosen, tagId } });
     console.log(`  + applied "${tagName}" to ${chosen.length} articles (${projectKey})`);
   }
-  await bulkApplyTag('Breaking', 'reputation', 15, 'analyst.comms@meridian.dev');
-  await bulkApplyTag('Breaking', 'policy', 8, 'analyst.comms@meridian.dev');
-  await bulkApplyTag('Follow-Up Needed', 'financial', 12, 'analyst.exec@meridian.dev');
-  await bulkApplyTag('Verified', 'aviation', 10, 'publisher@meridian.dev');
-  await bulkApplyTag('High Impact', 'financial', 10, 'analyst.compliance@meridian.dev');
-  await bulkApplyTag('Needs Review', 'reputation', 6, 'groupadmin.comms@meridian.dev');
-  await bulkApplyTag('Archived', 'policy', 5, 'groupadmin.risk@meridian.dev');
-  await bulkApplyTag('Internal - Do Not Cite', 'financial', 4, 'analyst.compliance@meridian.dev');
+  await bulkApplyTag('Breaking', 'reputation', 150, 'analyst.comms@meridian.dev');
+  await bulkApplyTag('Breaking', 'policy', 80, 'analyst.comms@meridian.dev');
+  await bulkApplyTag('Follow-Up Needed', 'financial', 120, 'analyst.exec@meridian.dev');
+  await bulkApplyTag('Verified', 'aviation', 100, 'publisher@meridian.dev');
+  await bulkApplyTag('High Impact', 'financial', 100, 'analyst.compliance@meridian.dev');
+  await bulkApplyTag('Needs Review', 'reputation', 60, 'groupadmin.comms@meridian.dev');
+  await bulkApplyTag('Archived', 'policy', 50, 'groupadmin.risk@meridian.dev');
+  await bulkApplyTag('Internal - Do Not Cite', 'financial', 40, 'analyst.compliance@meridian.dev');
 
   // ---------------------------------------------------------------------------------
   // 10. Saved searches / channels
@@ -1616,30 +1645,96 @@ async function main(): Promise<void> {
     console.log('  + Aviation Ops Watch (dynamic)');
   }
 
-  // #4 Snapshot — Policy Snapshot, owned by Corporate Communications — confirm count first
+  // #4 Snapshot — Policy Snapshot, owned by Corporate Communications — must stay ≤ snapshot cap
   {
     const creator = usersByEmail.get('analyst.comms@meridian.dev');
     if (!creator) throw new Error('missing analyst.comms');
     const token = await tokenFor('analyst.comms@meridian.dev', creator.password);
-    const policyOrgValue = pick(PROJECT_DEFS.find((p) => p.key === 'policy')!.organizations);
-    const filters = baseFilters({
-      projectIds: [(projects.policy as ProjectRuntime).id],
-      taxonomyValues: { organizations: [policyOrgValue] },
-    });
-    const searchResult = await api<{ total: number }>('POST', '/search', {
-      token,
-      body: { filters, page: 1, size: 1 },
-    });
-    console.log(`  Policy Snapshot candidate filter matches ${searchResult.total} articles (cap 200).`);
-    if (searchResult.total === 0 || searchResult.total > 190) {
-      logBug(
-        `Policy Snapshot candidate filter matched ${searchResult.total} articles (expected a small, non-zero, comfortably-under-cap number) — falling back to project-only filter.`,
-      );
-      filters.taxonomyValues = {};
+    const policyDef = PROJECT_DEFS.find((p) => p.key === 'policy')!;
+    const policyOrgValue = pick(policyDef.organizations);
+    const policyDomain = pick(policyDef.domains);
+    const policyCountry = pick(policyDef.countries);
+
+    // At 10k scale a single-org filter alone often exceeds the snapshot cap (~200). Try
+    // progressively tighter date/domain constraints until we land in (0, 190].
+    const snapshotCandidates: FilterPanelState[] = [
+      baseFilters({
+        projectIds: [(projects.policy as ProjectRuntime).id],
+        taxonomyValues: { organizations: [policyOrgValue] },
+        dateFilter: { mode: 'lastNDays', lastNDays: 3 },
+      }),
+      baseFilters({
+        projectIds: [(projects.policy as ProjectRuntime).id],
+        taxonomyValues: { organizations: [policyOrgValue] },
+        dateFilter: { mode: 'lastNDays', lastNDays: 7 },
+      }),
+      baseFilters({
+        projectIds: [(projects.policy as ProjectRuntime).id],
+        taxonomyValues: {
+          organizations: [policyOrgValue],
+          [hardDomainConceptKey('policy')]: [policyDomain],
+        },
+        dateFilter: { mode: 'lastNDays', lastNDays: 14 },
+      }),
+      baseFilters({
+        projectIds: [(projects.policy as ProjectRuntime).id],
+        taxonomyValues: {
+          organizations: [policyOrgValue],
+          countries: [policyCountry],
+        },
+        dateFilter: { mode: 'lastNDays', lastNDays: 30 },
+      }),
+      baseFilters({
+        projectIds: [(projects.policy as ProjectRuntime).id],
+        taxonomyValues: {
+          organizations: [policyOrgValue],
+          [hardDomainConceptKey('policy')]: [policyDomain],
+          countries: [policyCountry],
+        },
+        dateFilter: { mode: 'lastNDays', lastNDays: 60 },
+      }),
+    ];
+
+    let filters: FilterPanelState | null = null;
+    for (const candidate of snapshotCandidates) {
+      const searchResult = await api<{ total: number }>('POST', '/search', {
+        token,
+        body: { filters: candidate, page: 1, size: 1 },
+      });
+      console.log(`  Policy Snapshot candidate matches ${searchResult.total} articles (cap 200).`);
+      if (searchResult.total > 0 && searchResult.total <= 190) {
+        filters = candidate;
+        break;
+      }
     }
+
+    if (!filters) {
+      // Deterministic last resort: pin to a handful of concrete seeded serials via text query
+      // so the snapshot always succeeds even if taxonomy+date combos overshoot.
+      filters = baseFilters({
+        projectIds: [(projects.policy as ProjectRuntime).id],
+        query: 'POL-0001',
+      });
+      const fallbackTotal = await api<{ total: number }>('POST', '/search', {
+        token,
+        body: { filters, page: 1, size: 1 },
+      });
+      console.log(`  Policy Snapshot fallback (POL-0001 text) matches ${fallbackTotal.total} articles.`);
+      if (fallbackTotal.total === 0 || fallbackTotal.total > 190) {
+        throw new Error(
+          `Unable to build a Policy Snapshot filter under the ${200} article cap (got ${fallbackTotal.total}).`,
+        );
+      }
+    }
+
     const ss = await api<{ id: string }>('POST', '/saved-searches', {
       token,
-      body: { groupId: (groups.comms as GroupRuntime).id, name: 'Policy Snapshot — Recent Filings', type: 'snapshot', filters },
+      body: {
+        groupId: (groups.comms as GroupRuntime).id,
+        name: 'Policy Snapshot — Recent Filings',
+        type: 'snapshot',
+        filters,
+      },
     });
     savedSearchIds.policySnapshot = ss.id;
     console.log('  + Policy Snapshot — Recent Filings (snapshot)');
@@ -1879,6 +1974,17 @@ async function main(): Promise<void> {
     dashboards: await DashboardModel.countDocuments({ orgId }),
   };
   console.log('Entity counts:', JSON.stringify(counts, null, 2));
+  if (counts.articles !== TOTAL_ARTICLES) {
+    logBug(`Expected ${TOTAL_ARTICLES} articles, found ${counts.articles}.`);
+  }
+  const uniqueHashes = await ArticleModel.distinct('locationHash', { orgId });
+  if (uniqueHashes.length !== counts.articles) {
+    logBug(
+      `Duplicate locationHash detected: ${counts.articles} articles but only ${uniqueHashes.length} unique hashes.`,
+    );
+  } else {
+    console.log(`  Unique locationHash check passed (${uniqueHashes.length.toLocaleString()}).`);
+  }
 
   console.log('\nSearch smoke test (as analyst.compliance, Risk & Compliance group) ...');
   const complianceUser = usersByEmail.get('analyst.compliance@meridian.dev');

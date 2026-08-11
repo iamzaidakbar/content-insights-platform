@@ -27,6 +27,9 @@ function unwrap<T>(body: ApiResponse<T>): T {
 
 export type SavedSearchListScope = 'mine' | 'channels';
 
+/** Query param used by /saved-searches (and deep links) to open Articles with a saved search applied. */
+export const ARTICLES_LOAD_SAVED_SEARCH_PARAM = 'savedSearch';
+
 // NOTE: this covers GET /saved-searches?scope=channels, which returns plain SavedSearch rows
 // (no per-viewer state). For the richer, viewer-state-aware channel listing (sort by last
 // viewed, "has new articles" badge, etc.) use fetchChannels in ./channels-api instead — that

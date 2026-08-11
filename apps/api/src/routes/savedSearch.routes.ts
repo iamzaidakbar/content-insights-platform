@@ -213,7 +213,8 @@ savedSearchRouter.get(
 // GET /:id — load/rehydrate. For a dynamic saved search this is just its stored
 // FilterPanelState handed back unchanged (relative dates recalculate later, at actual
 // query time — see loadSavedSearch's own comment); for a snapshot, the "search" IS its
-// frozen locationHash-matched article set.
+// frozen locationHash-matched article set. Loading also marks lastRunAt (same bookkeeping
+// as POST /:id/run) so the Saved Searches "Last run" column updates when someone Loads.
 savedSearchRouter.get(
   '/:id',
   authenticate,
@@ -235,6 +236,8 @@ savedSearchRouter.get(
       loaded.type === 'snapshot'
         ? { ...loaded, ...(await fetchArticlesByLocationHashes(doc.orgId.toString(), loaded.locationHashes)) }
         : loaded;
+
+    await markSavedSearchAsRun(doc, new Date());
 
     res.status(200).json(success({ savedSearch: await toSavedSearchDTO(await populateOwner(doc)), result }));
   }),
