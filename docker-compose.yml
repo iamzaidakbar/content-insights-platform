@@ -70,11 +70,10 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me-in-production}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me-in-production}
-      # Always use compose service hostnames inside the container — never interpolate
-      # host-machine `localhost` URIs from `.env` (those are for running apps/api on the
-      # host against published ports). Overriding these with localhost makes Mongo/ES/Redis
-      # unreachable and the API exits with empty responses on :4000.
-      MONGODB_URI: mongodb://mongodb:27017/content-insights?replicaSet=rs0
+      # Mongo may be local compose (`mongodb://mongodb:...`) or Atlas (`mongodb+srv://...`)
+      # from `.env`. ES/Redis stay on compose DNS — host `localhost` from `.env` is unreachable
+      # inside this container.
+      MONGODB_URI: ${MONGODB_URI:-mongodb://mongodb:27017/content-insights?replicaSet=rs0}
       ELASTICSEARCH_URL: http://elasticsearch:9200
       REDIS_URL: redis://redis:6379
       UPLOAD_DIR: ${UPLOAD_DIR:-./uploads}
@@ -87,8 +86,6 @@ services:
       - /app/apps/web/node_modules
       - /app/packages/shared/node_modules
     depends_on:
-      mongodb:
-        condition: service_healthy
       elasticsearch:
         condition: service_healthy
       redis:

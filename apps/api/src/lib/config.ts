@@ -27,8 +27,18 @@ export const config = {
   corsOrigin: optional('CORS_ORIGIN', 'http://localhost:5173'),
   logLevel: optional('LOG_LEVEL', 'info'),
 
+  // Cross-origin SPAs (e.g. Vercel web → separate API host) need SameSite=None + Secure
+  // so the httpOnly refresh cookie is sent on credentialed XHRs. Local same-site keeps Lax.
+  cookieSameSite: (() => {
+    const raw = optional('COOKIE_SAMESITE', nodeEnv === 'production' ? 'none' : 'lax');
+    if (raw === 'none' || raw === 'strict' || raw === 'lax') return raw;
+    return 'lax';
+  })(),
+
   mongodbUri: required('MONGODB_URI'),
   elasticsearchUrl: required('ELASTICSEARCH_URL'),
+  // Elastic Cloud requires an API key; local Docker ES usually does not.
+  elasticsearchApiKey: process.env.ELASTICSEARCH_API_KEY || undefined,
   redisUrl: required('REDIS_URL'),
 
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),

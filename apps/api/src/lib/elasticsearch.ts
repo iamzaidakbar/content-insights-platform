@@ -13,7 +13,10 @@ import { OrganizationModel } from '../models/organization.model.js';
 
 import { config } from './config.js';
 
-export const esClient = new Client({ node: config.elasticsearchUrl });
+export const esClient = new Client({
+  node: config.elasticsearchUrl,
+  ...(config.elasticsearchApiKey ? { auth: { apiKey: config.elasticsearchApiKey } } : {}),
+});
 
 // One index per org, one ES doc per Article (no chunking — Article.body is already a
 // single extracted-text field by the time it reaches this layer; any chunking needed to
