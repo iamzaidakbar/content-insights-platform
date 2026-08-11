@@ -183,3 +183,20 @@ body {
   background-size: 200% 100%;
   animation: shimmer-sweep 1.6s ease-in-out infinite;
 }
+
+/* Tippy theme for react-wordcloud hover tooltips — matches --chart-* tokens. */
+.tippy-box[data-theme~='cip-chart'] {
+  background-color: var(--chart-surface);
+  color: var(--chart-ink-primary);
+  border: 1px solid var(--chart-gridline);
+  border-radius: var(--radius-button);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-size: 12px;
+  font-weight: 500;
+}
+.tippy-box[data-theme~='cip-chart'] .tippy-arrow {
+  color: var(--chart-surface);
+}
+.tippy-box[data-theme~='cip-chart'][data-placement^='top'] > .tippy-arrow::before {
+  border-top-color: var(--chart-gridline);
+}

@@ -22,7 +22,9 @@
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "6.28.0",
-    "react-window": "1.8.11"
+    "react-window": "1.8.11",
+    "react-wordcloud": "^1.2.7",
+    "tippy.js": "^6.2.6"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

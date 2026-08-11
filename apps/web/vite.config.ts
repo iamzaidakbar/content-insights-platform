@@ -58,6 +58,8 @@ export default defineConfig({
     // Don't pre-bundle/cache the workspace package — pick up its rebuilt
     // dist/ output immediately instead of a stale esbuild dep cache.
     exclude: ['@content-insights/shared'],
+    // Pre-bundle the CJS-heavy wordcloud stack so Vite serves a single ESM chunk.
+    include: ['react-wordcloud'],
   },
   build: {
     // Matches the production chunk-size budget (see manualChunks below) — Vite's own

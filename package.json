@@ -32,5 +32,13 @@
     "typescript": "6.0.2",
     "typescript-eslint": "^8.19.1",
     "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "react": "19",
+        "react-dom": "19"
+      }
+    }
   }
 }
