@@ -18,7 +18,13 @@ import { fetchEntityMapping, mapEntityMappingEntry, syncEntityMapping } from '..
 import { formatDate } from '../../lib/format';
 import { fetchProjects } from '../../lib/projects-api';
 import EmptyState from '../EmptyState';
-import { SETTINGS_SELECT_CLASSNAME, SettingsSection } from '../settings/SettingsSection';
+import Alert from '../ui/Alert';
+import Badge from '../ui/Badge';
+import Button from '../ui/Button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import { Input, Select } from '../ui/Input';
+import Skeleton from '../ui/Skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 const ENTITY_TYPE_LABELS: Record<UpstreamEntityType, string> = {
   project: 'Project',
@@ -26,10 +32,10 @@ const ENTITY_TYPE_LABELS: Record<UpstreamEntityType, string> = {
   source: 'Source',
 };
 
-const STATUS_STYLES: Record<EntityMappingStatus, string> = {
-  unmapped: 'border border-[var(--amber)] text-[var(--amber)]',
-  mapped: 'border border-[var(--green)] text-[var(--green)]',
-  conflict: 'border border-[var(--red)] text-[var(--red)]',
+const STATUS_VARIANTS: Record<EntityMappingStatus, 'warning' | 'success' | 'error'> = {
+  unmapped: 'warning',
+  mapped: 'success',
+  conflict: 'error',
 };
 
 const STATUS_LABELS: Record<EntityMappingStatus, string> = {
@@ -39,11 +45,7 @@ const STATUS_LABELS: Record<EntityMappingStatus, string> = {
 };
 
 function StatusPill({ status }: { status: EntityMappingStatus }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
-      {STATUS_LABELS[status]}
-    </span>
-  );
+  return <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -102,10 +104,10 @@ function MapEntryEditor({
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-2.5">
-      <select
+      <Select
         value={localType}
         onChange={(event) => handleTypeChange(event.target.value as UpstreamEntityType)}
-        className={SETTINGS_SELECT_CLASSNAME}
+        className="w-auto py-1.5"
         aria-label="Local entity type"
       >
         {UPSTREAM_ENTITY_TYPES.map((type) => (
@@ -113,13 +115,13 @@ function MapEntryEditor({
             {ENTITY_TYPE_LABELS[type]}
           </option>
         ))}
-      </select>
+      </Select>
 
       {localType === 'project' ? (
-        <select
+        <Select
           value={projectId}
           onChange={(event) => setProjectId(event.target.value)}
-          className={SETTINGS_SELECT_CLASSNAME}
+          className="w-auto py-1.5"
           aria-label="Project"
         >
           <option value="">Select a project…</option>
@@ -128,18 +130,18 @@ function MapEntryEditor({
               {project.name}
             </option>
           ))}
-        </select>
+        </Select>
       ) : null}
 
       {localType === 'concept' ? (
         <>
-          <select
+          <Select
             value={projectId}
             onChange={(event) => {
               setProjectId(event.target.value);
               setConceptId('');
             }}
-            className={SETTINGS_SELECT_CLASSNAME}
+            className="w-auto py-1.5"
             aria-label="Project"
           >
             <option value="">Select a project…</option>
@@ -148,11 +150,11 @@ function MapEntryEditor({
                 {project.name}
               </option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             value={conceptId}
             onChange={(event) => setConceptId(event.target.value)}
-            className={SETTINGS_SELECT_CLASSNAME}
+            className="w-auto py-1.5"
             aria-label="Concept"
             disabled={!projectId}
           >
@@ -162,36 +164,27 @@ function MapEntryEditor({
                 {concept.displayLabel || concept.name}
               </option>
             ))}
-          </select>
+          </Select>
         </>
       ) : null}
 
       {localType === 'source' ? (
-        <input
+        <Input
           type="text"
           value={sourceId}
           onChange={(event) => setSourceId(event.target.value)}
           placeholder="e.g. reuters.com"
-          className="rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          className="w-auto min-w-[12rem] py-1.5"
         />
       ) : null}
 
       <div className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => mapMutation.mutate()}
-          disabled={!canSave}
-          className="rounded-[var(--radius-button)] bg-[var(--accent)] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {mapMutation.isPending ? 'Saving…' : 'Save mapping'}
-        </button>
+        </Button>
+        <Button type="button" size="sm" onClick={() => mapMutation.mutate()} disabled={!canSave} loading={mapMutation.isPending}>
+          Save mapping
+        </Button>
       </div>
     </div>
   );
@@ -234,41 +227,41 @@ export default function AdminEntityMappingSection() {
   }
 
   return (
-    <SettingsSection
-      title="Entity mapping"
-      description="Reconciles upstream sources against this org's local Projects, Concepts, and article domains."
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
-        <p className="max-w-2xl text-xs leading-relaxed text-[var(--text-secondary)]">
-          No external content platform is connected in this environment — &quot;Sync&quot; scans this org&apos;s own
-          already-ingested Projects, Concepts, and article domains as stand-ins for upstream entities, rather than
-          calling a live integration. It never overwrites an existing mapping decision, only adds newly-discovered
-          candidates.
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Entity mapping</CardTitle>
+        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+          Reconciles upstream sources against this org&apos;s local Projects, Concepts, and article domains.
         </p>
-        {canManage ? (
-          <button
-            type="button"
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-            className="flex shrink-0 items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <RefreshCw size={14} className={syncMutation.isPending ? 'animate-spin' : ''} />
-            {syncMutation.isPending ? 'Syncing…' : 'Sync sources from index'}
-          </button>
-        ) : null}
-      </div>
+      </CardHeader>
+      <CardBody className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
+          <p className="max-w-2xl text-xs leading-relaxed text-[var(--text-secondary)]">
+            No external content platform is connected in this environment — &quot;Sync&quot; scans this org&apos;s own
+            already-ingested Projects, Concepts, and article domains as stand-ins for upstream entities, rather than
+            calling a live integration. It never overwrites an existing mapping decision, only adds newly-discovered
+            candidates.
+          </p>
+          {canManage ? (
+            <Button
+              size="sm"
+              leftIcon={<RefreshCw size={14} className={syncMutation.isPending ? 'animate-spin' : ''} />}
+              onClick={() => syncMutation.mutate()}
+              loading={syncMutation.isPending}
+            >
+              Sync sources from index
+            </Button>
+          ) : null}
+        </div>
 
-      <div className="mt-5">
         {mappingQuery.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }, (_, index) => (
-              <div key={index} className="h-11 animate-pulse rounded bg-[var(--bg-hover)]" />
+              <Skeleton key={index} className="h-11 w-full" />
             ))}
           </div>
         ) : mappingQuery.isError ? (
-          <p className="text-sm text-[var(--red)]">
-            {getApiErrorMessage(mappingQuery.error, 'Unable to load the entity mapping.')}
-          </p>
+          <Alert variant="error">{getApiErrorMessage(mappingQuery.error, 'Unable to load the entity mapping.')}</Alert>
         ) : entries.length === 0 ? (
           <EmptyState
             icon={RefreshCw}
@@ -276,25 +269,25 @@ export default function AdminEntityMappingSection() {
             description="Run a sync to discover this org's Projects, Concepts, and article sources as mappable entries."
           />
         ) : (
-          <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border)]">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-                <tr>
-                  <th className="px-3 py-2.5 font-medium">Upstream entity</th>
-                  <th className="px-3 py-2.5 font-medium">Mapped to</th>
-                  <th className="px-3 py-2.5 font-medium">Status</th>
-                  <th className="px-3 py-2.5 font-medium">Last synced</th>
-                  {canManage ? <th className="px-3 py-2.5 font-medium">Actions</th> : null}
-                </tr>
-              </thead>
-              <tbody>
+          <div className="space-y-3">
+            <Table>
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>Upstream entity</TH>
+                  <TH>Mapped to</TH>
+                  <TH>Status</TH>
+                  <TH>Last synced</TH>
+                  {canManage ? <TH>Actions</TH> : null}
+                </TR>
+              </THead>
+              <TBody>
                 {entries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-[var(--border)] align-top last:border-b-0">
-                    <td className="px-3 py-2.5">
+                  <TR key={entry.id} className="align-top">
+                    <TD>
                       <p className="text-[var(--text-primary)]">{entry.upstreamName}</p>
                       <p className="text-xs text-[var(--text-muted)]">{ENTITY_TYPE_LABELS[entry.upstreamType]}</p>
-                    </td>
-                    <td className="px-3 py-2.5">
+                    </TD>
+                    <TD>
                       {editingEntryId === entry.id ? null : entry.localId ? (
                         <>
                           <p className="text-[var(--text-primary)]">{entry.localName ?? entry.localId}</p>
@@ -303,15 +296,15 @@ export default function AdminEntityMappingSection() {
                       ) : (
                         <span className="text-xs text-[var(--text-muted)]">Unmapped</span>
                       )}
-                    </td>
-                    <td className="px-3 py-2.5">
+                    </TD>
+                    <TD>
                       <StatusPill status={entry.status} />
-                    </td>
-                    <td className="px-3 py-2.5 text-[var(--text-secondary)]">
+                    </TD>
+                    <TD className="text-[var(--text-secondary)]">
                       {entry.lastSyncedAt ? formatDate(entry.lastSyncedAt) : '—'}
-                    </td>
+                    </TD>
                     {canManage ? (
-                      <td className="px-3 py-2.5">
+                      <TD>
                         {editingEntryId !== entry.id ? (
                           <div className="flex items-center gap-3 text-xs">
                             <button
@@ -326,22 +319,22 @@ export default function AdminEntityMappingSection() {
                                 type="button"
                                 onClick={() => unmapMutation.mutate(entry)}
                                 disabled={unmapMutation.isPending}
-                                className="text-[var(--text-secondary)] hover:text-[var(--red)] disabled:cursor-not-allowed disabled:opacity-60"
+                                className="text-[var(--text-secondary)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-60"
                               >
                                 Unmap
                               </button>
                             ) : null}
                           </div>
                         ) : null}
-                      </td>
+                      </TD>
                     ) : null}
-                  </tr>
+                  </TR>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
 
             {canManage && editingEntryId ? (
-              <div className="border-t border-[var(--border)] p-3">
+              <div className="rounded-[var(--radius-card)] border border-[var(--border)] p-3">
                 {(() => {
                   const editing = entries.find((entry) => entry.id === editingEntryId);
                   return editing ? (
@@ -352,13 +345,13 @@ export default function AdminEntityMappingSection() {
             ) : null}
           </div>
         )}
-      </div>
-      {!canManage && !mappingQuery.isLoading && !mappingQuery.isError ? (
-        <p className="text-xs text-[var(--text-muted)]">
-          You have read-only access to entity mapping. Ask an admin with the entity-mapping:manage permission to sync
-          or map entries.
-        </p>
-      ) : null}
-    </SettingsSection>
+        {!canManage && !mappingQuery.isLoading && !mappingQuery.isError ? (
+          <p className="text-xs text-[var(--text-muted)]">
+            You have read-only access to entity mapping. Ask an admin with the entity-mapping:manage permission to sync
+            or map entries.
+          </p>
+        ) : null}
+      </CardBody>
+    </Card>
   );
 }

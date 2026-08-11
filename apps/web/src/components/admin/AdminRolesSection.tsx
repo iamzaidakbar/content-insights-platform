@@ -6,9 +6,14 @@ import { Lock, ShieldCheck } from 'lucide-react';
 import { PERMISSIONS, SYSTEM_ROLE_NAMES, type Permission, type Role } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../../lib/api-client';
-import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import { createRole, deleteRole, fetchRoles, updateRole } from '../../lib/roles-api';
-import { SettingsSection } from '../settings/SettingsSection';
+import Alert from '../ui/Alert';
+import Badge from '../ui/Badge';
+import Button from '../ui/Button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import { Input } from '../ui/Input';
+import Modal from '../ui/Modal';
+import Skeleton from '../ui/Skeleton';
 
 // ---------------------------------------------------------------------------------------
 // Group the flat PERMISSIONS catalog by its "resource" prefix (everything before the first
@@ -135,36 +140,32 @@ function DeleteRoleDialog({ role, onClose }: { role: Role; onClose: () => void }
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Delete role?</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          <span className="text-[var(--text-primary)]">{role.name}</span> will be permanently removed. This cannot
-          be undone.
-        </p>
-        {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="Delete role?"
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={deleteMutation.isPending}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--red)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {deleteMutation.isPending ? 'Deleting…' : 'Delete role'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button variant="destructive" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+            Delete role
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-[var(--text-secondary)]">
+        <span className="text-[var(--text-primary)]">{role.name}</span> will be permanently removed. This cannot be
+        undone.
+      </p>
+      {error ? (
+        <Alert variant="error" className="mt-3">
+          {error}
+        </Alert>
+      ) : null}
+    </Modal>
   );
 }
 
@@ -202,7 +203,7 @@ function RoleCard({ role, onRequestDelete }: { role: Role; onRequestDelete: (rol
   const hasWildcard = role.permissions.includes('*');
 
   return (
-    <div className="rounded-[var(--radius-input)] border border-[var(--border)] p-4">
+    <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-3.5">
       <div className="flex items-center justify-between gap-3">
         {isRenaming ? (
           <form
@@ -217,43 +218,36 @@ function RoleCard({ role, onRequestDelete }: { role: Role; onRequestDelete: (rol
               renameMutation.mutate();
             }}
           >
-            <input
+            <Input
               autoFocus
               value={nameDraft}
               onChange={(event) => setNameDraft(event.target.value)}
-              className={`max-w-xs ${INPUT_CLASSNAME}`}
+              className="max-w-xs py-1.5"
             />
-            <button
-              type="submit"
-              disabled={renameMutation.isPending}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
-            >
+            <Button type="submit" size="sm" loading={renameMutation.isPending}>
               Save
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setIsRenaming(false);
                 setNameDraft(role.name);
                 setError(null);
               }}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
             >
               Cancel
-            </button>
+            </Button>
           </form>
         ) : (
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">{role.name}</h3>
             {role.isSystem ? (
-              <span
-                title={SYSTEM_ROLE_EXPLANATION}
-                className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-medium"
-                style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-              >
+              <Badge variant="default" title={SYSTEM_ROLE_EXPLANATION} className="gap-1">
                 <Lock size={10} />
                 System
-              </span>
+              </Badge>
             ) : null}
             <button
               type="button"
@@ -303,14 +297,18 @@ function RoleCard({ role, onRequestDelete }: { role: Role; onRequestDelete: (rol
             onClick={() => onRequestDelete(role)}
             disabled={role.isSystem}
             title={role.isSystem ? 'System roles cannot be deleted' : 'Delete this role'}
-            className="text-xs text-[var(--red)] hover:underline disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:no-underline"
+            className="text-xs text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:no-underline"
           >
             Delete
           </button>
         </div>
       </div>
 
-      {error ? <p className="mt-2 text-xs text-[var(--red)]">{error}</p> : null}
+      {error ? (
+        <Alert variant="error" className="mt-2">
+          {error}
+        </Alert>
+      ) : null}
 
       <div className="mt-3">
         {hasWildcard ? (
@@ -382,60 +380,64 @@ export default function AdminRolesSection() {
   }
 
   return (
-    <div className="space-y-6">
-      <SettingsSection title="Roles" description="Roles and their permissions for your organization.">
-        {rolesQuery.isError ? (
-          <p className="text-sm text-[var(--red)]">{getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}</p>
-        ) : null}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Roles</CardTitle>
+          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+            Roles and their permissions for your organization.
+          </p>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          {rolesQuery.isError ? (
+            <Alert variant="error">{getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}</Alert>
+          ) : null}
 
-        <div className="space-y-3">
           {rolesQuery.isLoading
-            ? Array.from({ length: 3 }, (_, index) => (
-                <div key={index} className="h-24 animate-pulse rounded-[var(--radius-input)] bg-[var(--bg-hover)]" />
-              ))
-            : roles.map((role) => (
-                <RoleCard key={role.id} role={role} onRequestDelete={setDeletingRole} />
-              ))}
-        </div>
-      </SettingsSection>
+            ? Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24 w-full" />)
+            : roles.map((role) => <RoleCard key={role.id} role={role} onRequestDelete={setDeletingRole} />)}
+        </CardBody>
+      </Card>
 
-      <SettingsSection
-        title="Create custom role"
-        description="Custom roles can be edited or deleted freely — unlike the seeded system roles, whose permission sets are fixed."
-      >
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="role-name" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Name
-            </label>
-            <input
-              id="role-name"
-              type="text"
-              required
-              value={newRoleName}
-              onChange={(event) => setNewRoleName(event.target.value)}
-              className={`mt-1 max-w-xs ${INPUT_CLASSNAME}`}
-            />
-          </div>
-
-          <div>
-            <span className="block text-sm font-medium text-[var(--text-secondary)]">Permissions</span>
-            <div className="mt-2">
-              <PermissionChecklist selected={newRolePermissions} onToggle={togglePermission} />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Create custom role</CardTitle>
+          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+            Custom roles can be edited or deleted freely — unlike the seeded system roles, whose permission sets are
+            fixed.
+          </p>
+        </CardHeader>
+        <CardBody>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="role-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+                Name
+              </label>
+              <Input
+                id="role-name"
+                type="text"
+                required
+                value={newRoleName}
+                onChange={(event) => setNewRoleName(event.target.value)}
+                className="mt-1 max-w-xs"
+              />
             </div>
-          </div>
 
-          {formError ? <p className="text-sm text-[var(--red)]">{formError}</p> : null}
+            <div>
+              <span className="block text-sm font-medium text-[var(--text-secondary)]">Permissions</span>
+              <div className="mt-2">
+                <PermissionChecklist selected={newRolePermissions} onToggle={togglePermission} />
+              </div>
+            </div>
 
-          <button
-            type="submit"
-            disabled={createRoleMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {createRoleMutation.isPending ? 'Creating…' : 'Create role'}
-          </button>
-        </form>
-      </SettingsSection>
+            {formError ? <Alert variant="error">{formError}</Alert> : null}
+
+            <Button type="submit" size="sm" loading={createRoleMutation.isPending}>
+              Create role
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
 
       {deletingRole ? <DeleteRoleDialog role={deletingRole} onClose={() => setDeletingRole(null)} /> : null}
     </div>

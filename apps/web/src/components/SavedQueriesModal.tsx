@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Bookmark, RadioTower, Share2, X } from 'lucide-react';
@@ -14,8 +14,6 @@ import EmptyState from './EmptyState';
 import Pagination from './Pagination';
 import { getApiErrorMessage } from '../lib/api-client';
 import { formatDate } from '../lib/format';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
-import { fetchGroups } from '../lib/groups-api';
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -29,6 +27,11 @@ import {
   updateSavedSearch,
   type LoadSavedSearchResult,
 } from '../lib/saved-searches-api';
+import { fetchGroups } from '../lib/groups-api';
+import Button from './ui/Button';
+import ConfirmDialog from './ui/ConfirmDialog';
+import { Input, Select } from './ui/Input';
+import Modal from './ui/Modal';
 
 // ---------------------------------------------------------------------------------------
 // A single reusable surface for saved-search management, used two ways:
@@ -73,46 +76,9 @@ function describeFilters(filters: FilterPanelState): string {
 }
 
 // ---------------------------------------------------------------------------------------
-// Dialog — shared chrome for the per-row action modals below. Renders above
-// SavedQueriesModal's own overlay (z-50) whenever this panel is used inside it.
+// Per-row action modals — shared Modal / ConfirmDialog chrome (z-50 nested overlays stack
+// above SavedQueriesModal when this panel is used inside it).
 // ---------------------------------------------------------------------------------------
-
-function Dialog({
-  title,
-  onClose,
-  children,
-  widthClassName = 'max-w-sm',
-  testId,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-  widthClassName?: string;
-  testId?: string;
-}) {
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        data-testid={testId}
-        className={`w-full ${widthClassName} rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 function RenameDialog({
   search,
@@ -147,28 +113,27 @@ function RenameDialog({
   }
 
   return (
-    <Dialog title="Rename saved search" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <input autoFocus value={name} onChange={(event) => setName(event.target.value)} className={INPUT_CLASSNAME} />
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="Rename saved search"
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={renameMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {renameMutation.isPending ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+          </Button>
+          <Button type="submit" form="rename-saved-search-form" loading={renameMutation.isPending}>
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id="rename-saved-search-form" onSubmit={handleSubmit} className="space-y-3">
+        <Input autoFocus value={name} onChange={(event) => setName(event.target.value)} />
+        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
       </form>
-    </Dialog>
+    </Modal>
   );
 }
 
@@ -208,7 +173,27 @@ function ShareDialog({
   });
 
   return (
-    <Dialog title={`Share "${search.name}"`} onClose={onClose} widthClassName="max-w-md" testId="saved-search-share-dialog">
+    <Modal
+      open
+      onClose={onClose}
+      title={`Share "${search.name}"`}
+      size="md"
+      testId="saved-search-share-dialog"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            onClick={() => shareMutation.mutate()}
+            disabled={selected.length === 0}
+            loading={shareMutation.isPending}
+          >
+            Share
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-4">
         <div>
           <p className="text-xs font-medium text-[var(--text-secondary)]">Currently shared with</p>
@@ -264,26 +249,8 @@ function ShareDialog({
         </div>
 
         {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            onClick={() => shareMutation.mutate()}
-            disabled={selected.length === 0 || shareMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {shareMutation.isPending ? 'Sharing…' : 'Share'}
-          </button>
-        </div>
       </div>
-    </Dialog>
+    </Modal>
   );
 }
 
@@ -313,37 +280,35 @@ function ExposeChannelDialog({
   });
 
   return (
-    <Dialog title="Expose as a channel" onClose={onClose}>
+    <Modal
+      open
+      onClose={onClose}
+      title="Expose as a channel"
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => exposeMutation.mutate()} loading={exposeMutation.isPending}>
+            Expose as channel
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-3">
         <label className="block text-sm font-medium text-[var(--text-secondary)]">
           Channel name <span className="text-[var(--text-muted)]">(optional — defaults to this search's name)</span>
-          <input
+          <Input
             value={channelName}
             onChange={(event) => setChannelName(event.target.value)}
             placeholder={search.name}
-            className={`mt-1 ${INPUT_CLASSNAME}`}
+            className="mt-1"
           />
         </label>
         {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => exposeMutation.mutate()}
-            disabled={exposeMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {exposeMutation.isPending ? 'Saving…' : 'Expose as channel'}
-          </button>
-        </div>
       </div>
-    </Dialog>
+    </Modal>
   );
 }
 
@@ -372,35 +337,32 @@ function ExportDialog({ id, onClose }: { id: string; onClose: () => void }) {
   }
 
   return (
-    <Dialog title="Export query definition" onClose={onClose} widthClassName="max-w-lg">
+    <Modal
+      open
+      onClose={onClose}
+      title="Export query definition"
+      size="lg"
+      footer={
+        exportQuery.isLoading || exportQuery.isError ? undefined : (
+          <>
+            <Button variant="outline" onClick={() => void handleCopy()}>
+              Copy
+            </Button>
+            <Button onClick={handleDownload}>Download</Button>
+          </>
+        )
+      }
+    >
       {exportQuery.isLoading ? (
         <p className="text-sm text-[var(--text-secondary)]">Loading…</p>
       ) : exportQuery.isError ? (
         <p className="text-sm text-[var(--red)]">{getApiErrorMessage(exportQuery.error, 'Unable to export this search.')}</p>
       ) : (
-        <>
-          <pre className="max-h-72 overflow-auto rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] p-3 text-xs text-[var(--text-secondary)]">
-            {json}
-          </pre>
-          <div className="mt-3 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => void handleCopy()}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              Copy
-            </button>
-            <button
-              type="button"
-              onClick={handleDownload}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-            >
-              Download
-            </button>
-          </div>
-        </>
+        <pre className="max-h-72 overflow-auto rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] p-3 text-xs text-[var(--text-secondary)]">
+          {json}
+        </pre>
       )}
-    </Dialog>
+    </Modal>
   );
 }
 
@@ -428,32 +390,21 @@ function DeleteConfirmDialog({
     onError: (err) => setError(getApiErrorMessage(err, 'Unable to delete this saved search.')),
   });
 
+  const baseDescription = `"${search.name}" will stop appearing in Saved Searches${search.isChannel ? ' and Channels' : ''}. This cannot be undone from the UI.`;
+
   return (
-    <Dialog title="Delete saved search?" onClose={onClose} testId="delete-saved-search-dialog">
-      <p className="text-sm text-[var(--text-secondary)]">
-        &quot;{search.name}&quot; will stop appearing in Saved Searches{search.isChannel ? ' and Channels' : ''}. This
-        cannot be undone from the UI.
-      </p>
-      {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
-      <div className="mt-5 flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          data-testid="confirm-delete-saved-search"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          className="rounded-[var(--radius-button)] bg-[var(--red)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-        </button>
-      </div>
-    </Dialog>
+    <ConfirmDialog
+      open
+      onClose={onClose}
+      onConfirm={() => deleteMutation.mutate()}
+      title="Delete saved search?"
+      description={error ? `${baseDescription} ${error}` : baseDescription}
+      confirmLabel="Delete"
+      destructive
+      loading={deleteMutation.isPending}
+      testId="delete-saved-search-dialog"
+      confirmTestId="confirm-delete-saved-search"
+    />
   );
 }
 
@@ -511,12 +462,12 @@ function SaveCurrentSearchTab({
         <label htmlFor="save-query-name" className="block text-sm font-medium text-[var(--text-secondary)]">
           Name
         </label>
-        <input
+        <Input
           id="save-query-name"
           autoFocus
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className={`mt-1 ${INPUT_CLASSNAME}`}
+          className="mt-1"
         />
       </div>
 
@@ -524,18 +475,18 @@ function SaveCurrentSearchTab({
         <label htmlFor="save-query-group" className="block text-sm font-medium text-[var(--text-secondary)]">
           Group
         </label>
-        <select
+        <Select
           id="save-query-group"
           value={groupId}
           onChange={(event) => setGroupId(event.target.value)}
-          className={`mt-1 ${INPUT_CLASSNAME}`}
+          className="mt-1"
         >
           {groupOptions.map((group) => (
             <option key={group.id} value={group.id}>
               {group.name}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div>
@@ -564,13 +515,9 @@ function SaveCurrentSearchTab({
 
       {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={saveMutation.isPending || groupOptions.length === 0}
-        className="h-9 w-full rounded-[var(--radius-button)] bg-[var(--accent)] text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {saveMutation.isPending ? 'Saving…' : 'Save search'}
-      </button>
+      <Button type="submit" disabled={groupOptions.length === 0} loading={saveMutation.isPending} className="w-full">
+        Save search
+      </Button>
     </form>
   );
 }
@@ -836,7 +783,9 @@ export function SavedQueriesPanel({
         </div>
       )}
 
-      {renaming ? <RenameDialog search={renaming} onClose={() => setRenaming(null)} onRenamed={invalidateList} /> : null}
+      {renaming ? (
+        <RenameDialog search={renaming} onClose={() => setRenaming(null)} onRenamed={invalidateList} />
+      ) : null}
       {sharing ? (
         <ShareDialog search={sharing} groupOptions={groupOptions} onClose={() => setSharing(null)} onShared={invalidateList} />
       ) : null}
@@ -844,7 +793,9 @@ export function SavedQueriesPanel({
         <ExposeChannelDialog search={exposing} onClose={() => setExposing(null)} onExposed={invalidateList} />
       ) : null}
       {exportingId ? <ExportDialog id={exportingId} onClose={() => setExportingId(null)} /> : null}
-      {deleting ? <DeleteConfirmDialog search={deleting} onClose={() => setDeleting(null)} onDeleted={invalidateList} /> : null}
+      {deleting ? (
+        <DeleteConfirmDialog search={deleting} onClose={() => setDeleting(null)} onDeleted={invalidateList} />
+      ) : null}
     </div>
   );
 }
@@ -870,49 +821,22 @@ export default function SavedQueriesModal({
   onLoad,
   initialTab,
 }: SavedQueriesModalProps) {
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) {
-    return null;
-  }
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10"
-      onClick={onClose}
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Saved Searches"
+      size="full"
+      scrollable
+      className="max-w-[880px]"
     >
-      <div
-        className="w-full max-w-[880px] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">Saved Searches</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close saved searches"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
-          <SavedQueriesPanel
-            onClose={onClose}
-            {...(currentFilters !== undefined ? { currentFilters } : {})}
-            {...(currentGroupId !== undefined ? { currentGroupId } : {})}
-            {...(onLoad !== undefined ? { onLoad } : {})}
-            {...(initialTab !== undefined ? { initialTab } : {})}
-          />
-        </div>
-      </div>
-    </div>
+      <SavedQueriesPanel
+        onClose={onClose}
+        {...(currentFilters !== undefined ? { currentFilters } : {})}
+        {...(currentGroupId !== undefined ? { currentGroupId } : {})}
+        {...(onLoad !== undefined ? { onLoad } : {})}
+        {...(initialTab !== undefined ? { initialTab } : {})}
+      />
+    </Modal>
   );
 }

@@ -57,6 +57,7 @@ import AdvancedSearchModal, {
 import ArticlesGrid from '../components/ArticlesGrid';
 import ArticleTabs from '../components/ArticleTabs';
 import FilterPanel, { type FilterPanelConcept } from '../components/FilterPanel';
+import Pagination from '../components/Pagination';
 import TagSelectPopover from '../components/TagSelectPopover';
 import InsightBuilderModal from '../components/insights/InsightBuilderModal';
 import SavedQueriesModal from '../components/SavedQueriesModal';
@@ -132,13 +133,13 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        className="flex h-9 items-center gap-2 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+        className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
       >
         <span>Sort: {SORT_LABELS[value]}</span>
-        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={13} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       {isOpen ? (
-        <div className="absolute right-0 z-20 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-lg">
+        <div className="absolute right-0 z-20 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-[var(--shadow-md)]">
           {SEARCH_SORT_OPTIONS.map((option) => (
             <button
               key={option}
@@ -147,7 +148,7 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
                 onChange(option);
                 setIsOpen(false);
               }}
-              className={`block w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm transition-colors ${
+              className={`block w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-xs transition-colors ${
                 option === value
                   ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -161,6 +162,11 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
     </div>
   );
 }
+
+const TOOLBAR_BTN =
+  'flex h-8 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]';
+const TOOLBAR_SELECT =
+  'h-8 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
 
 // The bulk tag/untag popover is TagSelectPopover (shared with Article detail's own "add
 // tag" popover) — previously a local, near-duplicate reimplementation lived here because
@@ -750,326 +756,313 @@ export default function ArticlesPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-8">
-      <ArticleTabs active={filters.sourceTypeTab} onChange={handleTabChange} />
+    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 pt-3 sm:px-6">
+        {/* Compact header: tabs + toolbar */}
+        <div className="shrink-0 space-y-2">
+          <ArticleTabs active={filters.sourceTypeTab} onChange={handleTabChange} />
 
-      {/* Context + toolbar row */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={currentProjectId ?? ''}
-            onChange={(event) => setCurrentProjectMutation.mutate(event.target.value || null)}
-            aria-label="Current project"
-            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-          >
-            <option value="">All projects</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <select
+              value={currentProjectId ?? ''}
+              onChange={(event) => setCurrentProjectMutation.mutate(event.target.value || null)}
+              aria-label="Current project"
+              className={TOOLBAR_SELECT}
+            >
+              <option value="">All projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
 
-          <select
-            value={currentGroupId ?? ''}
-            onChange={(event) => setCurrentGroupMutation.mutate(event.target.value || null)}
-            aria-label="Current group"
-            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-          >
-            <option value="">No group</option>
-            {groupOptions.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
+            <select
+              value={currentGroupId ?? ''}
+              onChange={(event) => setCurrentGroupMutation.mutate(event.target.value || null)}
+              aria-label="Current group"
+              className={TOOLBAR_SELECT}
+            >
+              <option value="">No group</option>
+              {groupOptions.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
 
-          <div className="relative">
-            <SearchIcon
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-            />
-            <input
-              type="search"
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              placeholder="Search articles…"
-              className="h-9 w-[280px] rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-9 pr-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-            />
+            <div className="relative min-w-[160px] flex-1 basis-[200px] sm:max-w-xs">
+              <SearchIcon
+                size={14}
+                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+              />
+              <input
+                type="search"
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                placeholder="Search articles…"
+                className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              />
+            </div>
+
+            <button type="button" onClick={() => setIsFilterOpen(true)} className={TOOLBAR_BTN}>
+              <Filter size={13} />
+              Filters
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleHiddenMode}
+              className={TOOLBAR_BTN}
+              style={
+                filters.hiddenArticles === 'onlyHidden'
+                  ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
+                  : undefined
+              }
+            >
+              {filters.hiddenArticles === 'onlyHidden' ? <Eye size={13} /> : <EyeOff size={13} />}
+              {filters.hiddenArticles === 'onlyHidden' ? 'Hidden only' : 'Hidden'}
+            </button>
+
+            <Link to="/articles/upload" className={TOOLBAR_BTN}>
+              <UploadCloud size={13} />
+              Upload
+            </Link>
+            <button type="button" onClick={() => setIsAdvancedSearchOpen(true)} className={TOOLBAR_BTN}>
+              <SlidersHorizontal size={13} />
+              Advanced
+            </button>
+            {groupOptions.length > 0 ? (
+              <button type="button" onClick={() => setIsSaveOpen(true)} className={TOOLBAR_BTN}>
+                <Bookmark size={13} />
+                Save
+              </button>
+            ) : null}
+            <button type="button" onClick={() => setIsLoadOpen(true)} className={TOOLBAR_BTN}>
+              <FolderOpen size={13} />
+              Load
+            </button>
+            {groupOptions.length > 0 ? (
+              <button type="button" onClick={() => setIsInsightBuilderOpen(true)} className={TOOLBAR_BTN}>
+                <BarChart3 size={13} />
+                Insights
+              </button>
+            ) : null}
+            {canExport ? (
+              <button
+                type="button"
+                onClick={() => exportMutation.mutate()}
+                disabled={exportMutation.isPending}
+                className={`${TOOLBAR_BTN} disabled:cursor-not-allowed disabled:opacity-60`}
+              >
+                <Download size={13} />
+                {exportMutation.isPending ? '…' : 'Export'}
+              </button>
+            ) : null}
+
+            <div className="ml-auto flex items-center gap-1.5">
+              <SortDropdown value={filters.sort as SearchSortOption} onChange={handleSortChange} />
+              <div className="flex items-center gap-0.5 rounded-[var(--radius-button)] border border-[var(--border)] p-0.5">
+                {VIEW_MODE_OPTIONS.map((option) => {
+                  const Icon = option.icon;
+                  const isActive = option.value === viewMode;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      title={option.label}
+                      onClick={() => handleViewModeChange(option.value)}
+                      className="flex h-7 w-7 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
+                      style={isActive ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' } : undefined}
+                    >
+                      <Icon size={14} strokeWidth={1.75} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsFilterOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-          >
-            <Filter size={14} />
-            Filters
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleHiddenMode}
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border px-3 text-sm transition-colors"
-            style={
-              filters.hiddenArticles === 'onlyHidden'
-                ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
-                : { borderColor: 'var(--border)', color: 'var(--text-primary)' }
-            }
-          >
-            {filters.hiddenArticles === 'onlyHidden' ? <Eye size={14} /> : <EyeOff size={14} />}
-            {filters.hiddenArticles === 'onlyHidden' ? 'Showing hidden only' : 'Hidden articles'}
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            to="/articles/upload"
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-          >
-            <UploadCloud size={14} />
-            Upload
-          </Link>
-          <button
-            type="button"
-            onClick={() => setIsAdvancedSearchOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-          >
-            <SlidersHorizontal size={14} />
-            Advanced Search
-          </button>
-          {groupOptions.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setIsSaveOpen(true)}
-              className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-            >
-              <Bookmark size={14} />
-              Save
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setIsLoadOpen(true)}
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-          >
-            <FolderOpen size={14} />
-            Load
-          </button>
-          {groupOptions.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setIsInsightBuilderOpen(true)}
-              className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-            >
-              <BarChart3 size={14} />
-              Open in Insights
-            </button>
-          ) : null}
-          {canExport ? (
-            <button
-              type="button"
-              onClick={() => exportMutation.mutate()}
-              disabled={exportMutation.isPending}
-              className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Download size={14} />
-              {exportMutation.isPending ? 'Exporting…' : 'Export'}
-            </button>
-          ) : null}
-
-          <SortDropdown value={filters.sort as SearchSortOption} onChange={handleSortChange} />
-
-          <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
-            {VIEW_MODE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const isActive = option.value === viewMode;
-              return (
+          {filterChips.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {filterChips.map((chip) => (
                 <button
-                  key={option.value}
+                  key={chip.key}
                   type="button"
-                  title={option.label}
-                  onClick={() => handleViewModeChange(option.value)}
-                  className="flex h-7 w-7 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
-                  style={isActive ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' } : undefined}
+                  onClick={chip.onRemove}
+                  className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-[11px] transition-opacity hover:opacity-75"
+                  style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
                 >
-                  <Icon size={15} strokeWidth={1.75} />
+                  {chip.label}
+                  <X size={11} />
                 </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Active filter chips */}
-      {filterChips.length > 0 ? (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {filterChips.map((chip) => (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={chip.onRemove}
-              className="flex items-center gap-1.5 rounded-[var(--radius-tag)] px-2.5 py-1 text-xs transition-opacity hover:opacity-75"
-              style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-            >
-              {chip.label}
-              <X size={12} />
-            </button>
-          ))}
-          <button type="button" onClick={handleClearAllFilters} className="text-xs text-[var(--accent)] hover:underline">
-            Clear all
-          </button>
-        </div>
-      ) : null}
-
-      <div className="mt-3">
-        <AdvancedSearchSummaryBanner
-          advancedSearch={filters.advancedSearch}
-          dateFilter={filters.dateFilter}
-          concepts={concepts}
-          onEdit={() => setIsAdvancedSearchOpen(true)}
-          onClear={handleClearAdvancedSearchAndDate}
-        />
-      </div>
-
-      {/* Bulk action toolbar */}
-      {selectedIds.size > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2">
-          <span className="text-sm font-medium text-[var(--text-primary)]">{selectedIds.size} selected</span>
-          <button type="button" onClick={handleInvertSelection} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-            Invert
-          </button>
-          <button type="button" onClick={handleClearSelection} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-            Clear
-          </button>
-          <span className="h-4 w-px bg-[var(--border)]" />
-
-          <div className="relative">
-            <button
-              type="button"
-              data-testid="bulk-tag-button"
-              onClick={() => setTagPickerMode((mode) => (mode === 'add' ? null : 'add'))}
-              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <TagIcon size={14} />
-              Tag
-            </button>
-            {tagPickerMode === 'add' ? (
-              <TagSelectPopover
-                tags={userTags}
-                selectedCount={selectedIds.size}
-                isSelecting={bulkMutation.isPending}
-                isCreating={createTagMutation.isPending}
-                allowCreate
-                onSelectTag={handleTagPickerApply}
-                onCreateTag={handleTagPickerCreate}
-                onClose={() => setTagPickerMode(null)}
-              />
-            ) : null}
-          </div>
-
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setTagPickerMode((mode) => (mode === 'remove' ? null : 'remove'))}
-              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <TagIcon size={14} />
-              Untag
-            </button>
-            {tagPickerMode === 'remove' ? (
-              <TagSelectPopover
-                tags={userTags}
-                selectedCount={selectedIds.size}
-                isSelecting={bulkMutation.isPending}
-                allowCreate={false}
-                onSelectTag={handleTagPickerApply}
-                onCreateTag={() => undefined}
-                onClose={() => setTagPickerMode(null)}
-              />
-            ) : null}
-          </div>
-
-          {canHide ? (
-            <>
-              <button
-                type="button"
-                onClick={() => handleBulkHide(false)}
-                disabled={bulkMutation.isPending}
-                className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
-              >
-                <EyeOff size={14} />
-                Hide
+              ))}
+              <button type="button" onClick={handleClearAllFilters} className="text-[11px] text-[var(--accent)] hover:underline">
+                Clear all
               </button>
-              <button
-                type="button"
-                onClick={() => handleBulkHide(true)}
-                disabled={bulkMutation.isPending}
-                className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
-              >
-                <Eye size={14} />
-                Unhide
+            </div>
+          ) : null}
+
+          <AdvancedSearchSummaryBanner
+            advancedSearch={filters.advancedSearch}
+            dateFilter={filters.dateFilter}
+            concepts={concepts}
+            onEdit={() => setIsAdvancedSearchOpen(true)}
+            onClear={handleClearAdvancedSearchAndDate}
+          />
+
+          {selectedIds.size > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5">
+              <span className="text-xs font-medium text-[var(--text-primary)]">{selectedIds.size} selected</span>
+              <button type="button" onClick={handleInvertSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                Invert
               </button>
-            </>
-          ) : null}
+              <button type="button" onClick={handleClearSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                Clear
+              </button>
+              <span className="h-3.5 w-px bg-[var(--border)]" />
 
-          {canShareTeams ? (
-            <button
-              type="button"
-              onClick={handleOpenTeamsShare}
-              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <Share2 size={14} />
-              Share to Teams
-            </button>
-          ) : null}
+              <div className="relative">
+                <button
+                  type="button"
+                  data-testid="bulk-tag-button"
+                  onClick={() => setTagPickerMode((mode) => (mode === 'add' ? null : 'add'))}
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <TagIcon size={13} />
+                  Tag
+                </button>
+                {tagPickerMode === 'add' ? (
+                  <TagSelectPopover
+                    tags={userTags}
+                    selectedCount={selectedIds.size}
+                    isSelecting={bulkMutation.isPending}
+                    isCreating={createTagMutation.isPending}
+                    allowCreate
+                    onSelectTag={handleTagPickerApply}
+                    onCreateTag={handleTagPickerCreate}
+                    onClose={() => setTagPickerMode(null)}
+                  />
+                ) : null}
+              </div>
 
-          {canExport ? (
-            <button
-              type="button"
-              onClick={handleExportSelected}
-              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              <Download size={14} />
-              Export selected
-            </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTagPickerMode((mode) => (mode === 'remove' ? null : 'remove'))}
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <TagIcon size={13} />
+                  Untag
+                </button>
+                {tagPickerMode === 'remove' ? (
+                  <TagSelectPopover
+                    tags={userTags}
+                    selectedCount={selectedIds.size}
+                    isSelecting={bulkMutation.isPending}
+                    allowCreate={false}
+                    onSelectTag={handleTagPickerApply}
+                    onCreateTag={() => undefined}
+                    onClose={() => setTagPickerMode(null)}
+                  />
+                ) : null}
+              </div>
+
+              {canHide ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkHide(false)}
+                    disabled={bulkMutation.isPending}
+                    className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
+                  >
+                    <EyeOff size={13} />
+                    Hide
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkHide(true)}
+                    disabled={bulkMutation.isPending}
+                    className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
+                  >
+                    <Eye size={13} />
+                    Unhide
+                  </button>
+                </>
+              ) : null}
+
+              {canShareTeams ? (
+                <button
+                  type="button"
+                  onClick={handleOpenTeamsShare}
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <Share2 size={13} />
+                  Share to Teams
+                </button>
+              ) : null}
+
+              {canExport ? (
+                <button
+                  type="button"
+                  onClick={handleExportSelected}
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <Download size={13} />
+                  Export selected
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
-      ) : null}
 
-      {/* Results */}
-      <div className="mt-4">
-        <p className="mb-2 text-sm text-[var(--text-secondary)]" data-testid="results-count">
-          {searchQuery.isLoading ? 'Loading…' : `${total.toLocaleString()} result${total === 1 ? '' : 's'}`}
-        </p>
-        <ArticlesGrid
-          hits={hits}
-          viewMode={viewMode}
-          contentLines={contentLines}
-          isLoading={searchQuery.isLoading}
-          isError={searchQuery.isError}
-          errorMessage={getApiErrorMessage(searchQuery.error, 'Unable to load articles.')}
-          onRetry={() => void searchQuery.refetch()}
-          hasActiveFilters={hasActiveFilters}
-          onClearFilters={handleClearAllFilters}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          onSelectAllOnPage={handleSelectAllOnPage}
-          expandedIds={expandedIds}
-          onToggleExpand={handleToggleExpand}
-          onToggleExpandAll={handleToggleExpandAll}
-          concepts={concepts}
-          tagsById={tagsById}
-          canHide={canHide}
-          hidePendingId={hidePendingId}
-          onHideToggle={handleHideToggle}
-          onOpenTagPicker={handleOpenTagPickerForCard}
-          onTaxonomyValueClick={handleTaxonomyValueClick}
-          onTagChipClick={handleTagChipClick}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
+        {/* Scrollable results between toolbar and pagination */}
+        <div className="mt-2 flex min-h-0 flex-1 flex-col">
+          <p className="mb-1.5 shrink-0 text-xs text-[var(--text-secondary)]" data-testid="results-count">
+            {searchQuery.isLoading ? 'Loading…' : `${total.toLocaleString()} result${total === 1 ? '' : 's'}`}
+          </p>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-2">
+            <ArticlesGrid
+              hits={hits}
+              viewMode={viewMode}
+              contentLines={contentLines}
+              isLoading={searchQuery.isLoading}
+              isError={searchQuery.isError}
+              errorMessage={getApiErrorMessage(searchQuery.error, 'Unable to load articles.')}
+              onRetry={() => void searchQuery.refetch()}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={handleClearAllFilters}
+              selectedIds={selectedIds}
+              onSelect={handleSelect}
+              onSelectAllOnPage={handleSelectAllOnPage}
+              expandedIds={expandedIds}
+              onToggleExpand={handleToggleExpand}
+              onToggleExpandAll={handleToggleExpandAll}
+              concepts={concepts}
+              tagsById={tagsById}
+              canHide={canHide}
+              hidePendingId={hidePendingId}
+              onHideToggle={handleHideToggle}
+              onOpenTagPicker={handleOpenTagPickerForCard}
+              onTaxonomyValueClick={handleTaxonomyValueClick}
+              onTagChipClick={handleTagChipClick}
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              showPagination={false}
+            />
+          </div>
+        </div>
+
+        {/* Sticky pagination footer */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--bg-primary)] py-2">
+          <p className="text-xs text-[var(--text-muted)]">
+            {!searchQuery.isLoading && totalPages > 1
+              ? `Page ${page.toLocaleString()} of ${totalPages.toLocaleString()}`
+              : null}
+          </p>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        </div>
       </div>
 
       {/* FilterPanel and AdvancedSearchModal are owned by a sibling agent this phase — wired

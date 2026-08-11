@@ -5,6 +5,7 @@ import { Bell } from 'lucide-react';
 
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import { Alert, Button, Card, Checkbox, PageBody, PageHeader, Skeleton } from '../components/ui';
 import { getApiErrorMessage } from '../lib/api-client';
 import { formatDate } from '../lib/format';
 import {
@@ -61,49 +62,45 @@ export default function AlertsPage() {
   const totalPages = listQuery.data?.totalPages ?? 1;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Notifications</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            New articles, channel updates, and permission changes.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-            <input
-              type="checkbox"
+    <PageBody width="sm">
+      <PageHeader
+        title="Notifications"
+        description="New articles, channel updates, and permission changes."
+        actions={
+          <div className="flex items-center gap-3">
+            <Checkbox
               checked={unreadOnly}
               onChange={(e) => {
                 setUnreadOnly(e.target.checked);
                 setPage(1);
               }}
-              className="accent-[var(--accent)]"
+              label="Unread only"
             />
-            Unread only
-          </label>
-          <button
-            type="button"
-            onClick={() => markAllMutation.mutate()}
-            disabled={markAllMutation.isPending}
-            className="text-sm text-[var(--accent)] hover:underline disabled:opacity-60"
-          >
-            Mark all read
-          </button>
-        </div>
-      </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => markAllMutation.mutate()}
+              disabled={markAllMutation.isPending}
+              className="text-[var(--accent)] hover:text-[var(--accent)]"
+            >
+              Mark all read
+            </Button>
+          </div>
+        }
+      />
 
-      <div className="mt-6">
+      <div>
         {listQuery.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-[var(--radius-card)] bg-[var(--bg-hover)]" />
+              <Skeleton key={i} className="h-16 rounded-[var(--radius-card)]" />
             ))}
           </div>
         ) : listQuery.isError ? (
-          <p className="text-sm text-[var(--red)]">
+          <Alert variant="error">
             {getApiErrorMessage(listQuery.error, 'Unable to load notifications.')}
-          </p>
+          </Alert>
         ) : items.length === 0 ? (
           <EmptyState
             icon={Bell}
@@ -112,53 +109,55 @@ export default function AlertsPage() {
           />
         ) : (
           <>
-            <ul className="divide-y divide-[var(--border)] rounded-[var(--radius-card)] border border-[var(--border)]">
-              {items.map((n) => {
-                const href = entityPath(n.entityType, n.entityId);
-                return (
-                  <li key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-[var(--accent-soft)]/30'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        {href ? (
-                          <Link
-                            to={href}
-                            onClick={() => {
-                              if (!n.read) markReadMutation.mutate(n.id);
-                            }}
-                            className={`text-sm hover:text-[var(--accent)] ${n.read ? 'text-[var(--text-secondary)]' : 'font-medium text-[var(--text-primary)]'}`}
+            <Card>
+              <ul className="divide-y divide-[var(--border)]">
+                {items.map((n) => {
+                  const href = entityPath(n.entityType, n.entityId);
+                  return (
+                    <li key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-[var(--accent-soft)]/30'}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          {href ? (
+                            <Link
+                              to={href}
+                              onClick={() => {
+                                if (!n.read) markReadMutation.mutate(n.id);
+                              }}
+                              className={`text-sm hover:text-[var(--accent)] ${n.read ? 'text-[var(--text-secondary)]' : 'font-medium text-[var(--text-primary)]'}`}
+                            >
+                              {n.title}
+                            </Link>
+                          ) : (
+                            <p
+                              className={`text-sm ${n.read ? 'text-[var(--text-secondary)]' : 'font-medium text-[var(--text-primary)]'}`}
+                            >
+                              {n.title}
+                            </p>
+                          )}
+                          <p className="mt-1 text-sm text-[var(--text-muted)]">{n.body}</p>
+                          <p className="mt-1 text-xs text-[var(--text-muted)]">{formatDate(n.createdAt)}</p>
+                        </div>
+                        {!n.read ? (
+                          <button
+                            type="button"
+                            onClick={() => markReadMutation.mutate(n.id)}
+                            className="shrink-0 text-xs text-[var(--accent)] hover:underline"
                           >
-                            {n.title}
-                          </Link>
-                        ) : (
-                          <p
-                            className={`text-sm ${n.read ? 'text-[var(--text-secondary)]' : 'font-medium text-[var(--text-primary)]'}`}
-                          >
-                            {n.title}
-                          </p>
-                        )}
-                        <p className="mt-1 text-sm text-[var(--text-muted)]">{n.body}</p>
-                        <p className="mt-1 text-xs text-[var(--text-muted)]">{formatDate(n.createdAt)}</p>
+                            Mark read
+                          </button>
+                        ) : null}
                       </div>
-                      {!n.read ? (
-                        <button
-                          type="button"
-                          onClick={() => markReadMutation.mutate(n.id)}
-                          className="shrink-0 text-xs text-[var(--accent)] hover:underline"
-                        >
-                          Mark read
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
             <div className="mt-4 flex justify-end">
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </>
         )}
       </div>
-    </div>
+    </PageBody>
   );
 }

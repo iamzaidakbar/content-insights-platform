@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -6,10 +6,12 @@ import { asRoleId, type Group, type UserSummary } from '@content-insights/shared
 
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../lib/api-client';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { fetchRoles } from '../lib/roles-api';
 import { APPLICATION_ADMIN_ROLE_NAME } from '../lib/scoped-permissions';
 import { assignUserRole, searchUsers } from '../lib/users-api';
+import Button from './ui/Button';
+import { Input, Select } from './ui/Input';
+import Modal from './ui/Modal';
 
 const DEBOUNCE_MS = 300;
 
@@ -37,16 +39,6 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const usersQuery = useQuery({
     queryKey: ['user-search', trimmedQuery],
@@ -97,138 +89,123 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
   const searchResults = usersQuery.data ?? [];
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add member</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          To <span className="text-[var(--text-primary)]">{group.name}</span>
-        </p>
-
-        <div className="mt-4">
-          <label htmlFor="member-search" className="block text-sm font-medium text-[var(--text-secondary)]">
-            Search users by email
-          </label>
-          <input
-            id="member-search"
-            type="text"
-            autoFocus
-            value={rawQuery}
-            onChange={(event) => {
-              setRawQuery(event.target.value);
-              setSelectedUser(null);
-            }}
-            placeholder="e.g. jane@example.com"
-            className={`mt-1 ${INPUT_CLASSNAME}`}
-          />
-
-          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
-            {usersQuery.isLoading ? (
-              <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">Searching…</li>
-            ) : usersQuery.isError ? (
-              <li className="px-2 py-1.5 text-xs text-[var(--red)]">Unable to search users.</li>
-            ) : trimmedQuery.length === 0 ? null : searchResults.length === 0 ? (
-              <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">No matching users.</li>
-            ) : (
-              searchResults.map((candidate) => (
-                <li key={candidate.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedUser(candidate)}
-                    className={`w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm transition-colors ${
-                      selectedUser?.id === candidate.id
-                        ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
-                    }`}
-                  >
-                    {candidate.email}
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-
-          {selectedUser ? (
-            <p className="mt-2 text-xs text-[var(--text-secondary)]">
-              Selected: <span className="text-[var(--text-primary)]">{selectedUser.email}</span>
-            </p>
-          ) : null}
-        </div>
-
-        <div className="mt-4">
-          <label htmlFor="member-role" className="block text-sm font-medium text-[var(--text-secondary)]">
-            Role
-          </label>
-          <select
-            id="member-role"
-            value={selectedRoleId}
-            onChange={(event) => setSelectedRoleId(event.target.value)}
-            className={`mt-1 ${INPUT_CLASSNAME}`}
-          >
-            <option value="">Select a role…</option>
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
-            Need to grant Application Admin instead? That role is always global — use Admin → Role Assignments.
-          </p>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="member-start" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Start date <span className="text-[var(--text-muted)]">(optional)</span>
-            </label>
-            <input
-              id="member-start"
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              className={`mt-1 ${INPUT_CLASSNAME}`}
-            />
-          </div>
-          <div>
-            <label htmlFor="member-end" className="block text-sm font-medium text-[var(--text-secondary)]">
-              End date <span className="text-[var(--text-muted)]">(optional)</span>
-            </label>
-            <input
-              id="member-end"
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              className={`mt-1 ${INPUT_CLASSNAME}`}
-            />
-          </div>
-        </div>
-
-        {error ? <p className="mt-4 text-sm text-[var(--red)]">{error}</p> : null}
-
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="Add member"
+      description={`To ${group.name}`}
+      size="md"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={addMemberMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {addMemberMutation.isPending ? 'Adding…' : 'Add member'}
-          </button>
+          </Button>
+          <Button onClick={handleSubmit} loading={addMemberMutation.isPending}>
+            Add member
+          </Button>
+        </>
+      }
+    >
+      <div>
+        <label htmlFor="member-search" className="block text-sm font-medium text-[var(--text-secondary)]">
+          Search users by email
+        </label>
+        <Input
+          id="member-search"
+          type="text"
+          autoFocus
+          value={rawQuery}
+          onChange={(event) => {
+            setRawQuery(event.target.value);
+            setSelectedUser(null);
+          }}
+          placeholder="e.g. jane@example.com"
+          className="mt-1"
+        />
+
+        <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+          {usersQuery.isLoading ? (
+            <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">Searching…</li>
+          ) : usersQuery.isError ? (
+            <li className="px-2 py-1.5 text-xs text-[var(--red)]">Unable to search users.</li>
+          ) : trimmedQuery.length === 0 ? null : searchResults.length === 0 ? (
+            <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">No matching users.</li>
+          ) : (
+            searchResults.map((candidate) => (
+              <li key={candidate.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedUser(candidate)}
+                  className={`w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm transition-colors ${
+                    selectedUser?.id === candidate.id
+                      ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                  }`}
+                >
+                  {candidate.email}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+
+        {selectedUser ? (
+          <p className="mt-2 text-xs text-[var(--text-secondary)]">
+            Selected: <span className="text-[var(--text-primary)]">{selectedUser.email}</span>
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-4">
+        <label htmlFor="member-role" className="block text-sm font-medium text-[var(--text-secondary)]">
+          Role
+        </label>
+        <Select
+          id="member-role"
+          value={selectedRoleId}
+          onChange={(event) => setSelectedRoleId(event.target.value)}
+          className="mt-1"
+        >
+          <option value="">Select a role…</option>
+          {roles.map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </Select>
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          Need to grant Application Admin instead? That role is always global — use Admin → Role Assignments.
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="member-start" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Start date <span className="text-[var(--text-muted)]">(optional)</span>
+          </label>
+          <Input
+            id="member-start"
+            type="date"
+            value={startDate}
+            onChange={(event) => setStartDate(event.target.value)}
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <label htmlFor="member-end" className="block text-sm font-medium text-[var(--text-secondary)]">
+            End date <span className="text-[var(--text-muted)]">(optional)</span>
+          </label>
+          <Input
+            id="member-end"
+            type="date"
+            value={endDate}
+            onChange={(event) => setEndDate(event.target.value)}
+            className="mt-1"
+          />
         </div>
       </div>
-    </div>
+
+      {error ? <p className="mt-4 text-sm text-[var(--red)]">{error}</p> : null}
+    </Modal>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent, type FormEvent } from 'react';
+import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Check, Plus, X } from 'lucide-react';
@@ -21,8 +21,10 @@ import {
 import ErrorBoundary from '../ErrorBoundary';
 import { resolveChartRenderer } from '../charts/chart-registry';
 import type { ChartSeriesMeta } from '../charts/chart-types';
+import Button from '../ui/Button';
+import { Input, Select } from '../ui/Input';
+import Modal from '../ui/Modal';
 import { getApiErrorMessage } from '../../lib/api-client';
-import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import { CHART_FIELD_SLOTS, CHART_TYPE_META, isRoleSatisfied } from '../../lib/insight-chart-config';
 import { createInsight, updateInsight } from '../../lib/insights-api';
 
@@ -110,14 +112,6 @@ export default function InsightBuilderModal({
   const [wordCloud, setWordCloud] = useState<WordCloudConfig>(existingInsight?.config.wordCloud ?? DEFAULT_WORD_CLOUD);
   const [exclusionInput, setExclusionInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
 
   const slots = CHART_FIELD_SLOTS[chartType];
 
@@ -246,309 +240,285 @@ export default function InsightBuilderModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8" onClick={onClose}>
-      <div
-        data-testid="insight-builder-modal"
-        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{isEditing ? 'Edit insight' : 'New insight'}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
+    <Modal
+      open
+      onClose={onClose}
+      title={isEditing ? 'Edit insight' : 'New insight'}
+      size="full"
+      scrollable
+      testId="insight-builder-modal"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="insight-builder-form" loading={isSaving}>
+            {isEditing ? 'Save changes' : 'Create insight'}
+          </Button>
+        </>
+      }
+    >
+      <form id="insight-builder-form" onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="insight-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+              Name
+            </label>
+            <Input
+              id="insight-name"
+              type="text"
+              required
+              autoFocus
+              maxLength={INSIGHT_NAME_MAX_LENGTH}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="mt-1"
+            />
+            <p className="mt-1 text-right text-xs text-[var(--text-muted)]">
+              {name.length}/{INSIGHT_NAME_MAX_LENGTH}
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="insight-group" className="block text-sm font-medium text-[var(--text-secondary)]">
+              Group
+            </label>
+            {isEditing ? (
+              // An insight's group is fixed at creation (updateInsightSchema has no
+              // groupId field) — shown read-only rather than as a disabled control that
+              // implies it could be changed.
+              <p className="mt-1 flex h-9 items-center text-sm text-[var(--text-primary)]">
+                {groupOptions.find((group) => group.id === groupId)?.name ?? groupId}
+              </p>
+            ) : (
+              <Select
+                id="insight-group"
+                value={groupId}
+                onChange={(event) => setGroupId(event.target.value)}
+                className="mt-1"
+              >
+                {groupOptions.length === 0 ? <option value="">No groups available</option> : null}
+                {groupOptions.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="insight-name" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Name
-              </label>
-              <input
-                id="insight-name"
-                type="text"
-                required
-                autoFocus
-                maxLength={INSIGHT_NAME_MAX_LENGTH}
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              />
-              <p className="mt-1 text-right text-xs text-[var(--text-muted)]">
-                {name.length}/{INSIGHT_NAME_MAX_LENGTH}
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="insight-group" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Group
-              </label>
-              {isEditing ? (
-                // An insight's group is fixed at creation (updateInsightSchema has no
-                // groupId field) — shown read-only rather than as a disabled control that
-                // implies it could be changed.
-                <p className="mt-1 flex h-9 items-center text-sm text-[var(--text-primary)]">
-                  {groupOptions.find((group) => group.id === groupId)?.name ?? groupId}
-                </p>
-              ) : (
-                <select
-                  id="insight-group"
-                  value={groupId}
-                  onChange={(event) => setGroupId(event.target.value)}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
+        <div>
+          <p className="text-sm font-medium text-[var(--text-secondary)]">Chart type</p>
+          <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {CHART_TYPES.map((type) => {
+              const meta = CHART_TYPE_META[type];
+              const Icon = meta.icon;
+              const isSelected = type === chartType;
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleChartTypeSelect(type)}
+                  title={meta.description}
+                  className="flex flex-col items-center gap-1.5 rounded-[var(--radius-input)] border px-2 py-3 text-xs transition-colors"
+                  style={
+                    isSelected
+                      ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
+                      : { borderColor: 'var(--border)', color: 'var(--text-secondary)' }
+                  }
                 >
-                  {groupOptions.length === 0 ? <option value="">No groups available</option> : null}
-                  {groupOptions.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+                  <Icon size={18} strokeWidth={1.75} />
+                  {meta.label}
+                </button>
+              );
+            })}
           </div>
+        </div>
 
-          <div className="mt-5">
-            <p className="text-sm font-medium text-[var(--text-secondary)]">Chart type</p>
-            <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {CHART_TYPES.map((type) => {
-                const meta = CHART_TYPE_META[type];
-                const Icon = meta.icon;
-                const isSelected = type === chartType;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => handleChartTypeSelect(type)}
-                    title={meta.description}
-                    className="flex flex-col items-center gap-1.5 rounded-[var(--radius-input)] border px-2 py-3 text-xs transition-colors"
-                    style={
-                      isSelected
-                        ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                        : { borderColor: 'var(--border)', color: 'var(--text-secondary)' }
-                    }
-                  >
-                    <Icon size={18} strokeWidth={1.75} />
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {chartType === 'wordCloud' ? (
-            <div className="mt-5 space-y-3">
-              <p className="text-sm font-medium text-[var(--text-secondary)]">Word cloud settings</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="wc-max-words" className="block text-xs text-[var(--text-secondary)]">
-                    Max words
-                  </label>
-                  <input
-                    id="wc-max-words"
-                    type="number"
-                    min={1}
-                    max={WORD_CLOUD_MAX_WORDS}
-                    value={wordCloud.maxWords}
-                    onChange={(event) =>
-                      setWordCloud((current) => ({ ...current, maxWords: Number(event.target.value) || 1 }))
-                    }
-                    className={`mt-1 ${INPUT_CLASSNAME}`}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="wc-min-occurrence" className="block text-xs text-[var(--text-secondary)]">
-                    Minimum occurrences
-                  </label>
-                  <input
-                    id="wc-min-occurrence"
-                    type="number"
-                    min={1}
-                    value={wordCloud.minOccurrence}
-                    onChange={(event) =>
-                      setWordCloud((current) => ({ ...current, minOccurrence: Number(event.target.value) || 1 }))
-                    }
-                    className={`mt-1 ${INPUT_CLASSNAME}`}
-                  />
-                </div>
+        {chartType === 'wordCloud' ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-[var(--text-secondary)]">Word cloud settings</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="wc-max-words" className="block text-xs text-[var(--text-secondary)]">
+                  Max words
+                </label>
+                <Input
+                  id="wc-max-words"
+                  type="number"
+                  min={1}
+                  max={WORD_CLOUD_MAX_WORDS}
+                  value={wordCloud.maxWords}
+                  onChange={(event) =>
+                    setWordCloud((current) => ({ ...current, maxWords: Number(event.target.value) || 1 }))
+                  }
+                  className="mt-1"
+                />
               </div>
               <div>
-                <label htmlFor="wc-exclusion" className="block text-xs text-[var(--text-secondary)]">
-                  Excluded words
+                <label htmlFor="wc-min-occurrence" className="block text-xs text-[var(--text-secondary)]">
+                  Minimum occurrences
                 </label>
-                <div className="mt-1 flex gap-2">
-                  <input
-                    id="wc-exclusion"
-                    type="text"
-                    value={exclusionInput}
-                    onChange={(event) => setExclusionInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault();
-                        addExclusion();
-                      }
-                    }}
-                    className={INPUT_CLASSNAME}
-                  />
-                  <button
-                    type="button"
-                    onClick={addExclusion}
-                    className="flex h-9 shrink-0 items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] hover:border-[var(--accent)]"
-                  >
-                    <Plus size={14} />
-                    Add
-                  </button>
-                </div>
-                {wordCloud.permanentExclusions.length > 0 ? (
-                  <ul className="mt-2 flex flex-wrap gap-1.5">
-                    {wordCloud.permanentExclusions.map((word) => (
-                      <li
-                        key={word}
-                        className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs"
-                        style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-                      >
-                        {word}
-                        <button type="button" onClick={() => removeExclusion(word)} aria-label={`Remove ${word}`}>
-                          <X size={11} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                <Input
+                  id="wc-min-occurrence"
+                  type="number"
+                  min={1}
+                  value={wordCloud.minOccurrence}
+                  onChange={(event) =>
+                    setWordCloud((current) => ({ ...current, minOccurrence: Number(event.target.value) || 1 }))
+                  }
+                  className="mt-1"
+                />
               </div>
             </div>
-          ) : (
-            <div className="mt-5">
-              <p className="text-sm font-medium text-[var(--text-secondary)]">Map fields</p>
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                Click an available field below, then click a slot to assign it — or drag a field onto a slot.
-              </p>
+            <div>
+              <label htmlFor="wc-exclusion" className="block text-xs text-[var(--text-secondary)]">
+                Excluded words
+              </label>
+              <div className="mt-1 flex gap-2">
+                <Input
+                  id="wc-exclusion"
+                  type="text"
+                  value={exclusionInput}
+                  onChange={(event) => setExclusionInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      addExclusion();
+                    }
+                  }}
+                />
+                <Button type="button" variant="outline" onClick={addExclusion} leftIcon={<Plus size={14} />}>
+                  Add
+                </Button>
+              </div>
+              {wordCloud.permanentExclusions.length > 0 ? (
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {wordCloud.permanentExclusions.map((word) => (
+                    <li
+                      key={word}
+                      className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs"
+                      style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                    >
+                      {word}
+                      <button type="button" onClick={() => removeExclusion(word)} aria-label={`Remove ${word}`}>
+                        <X size={11} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-medium text-[var(--text-secondary)]">Map fields</p>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+              Click an available field below, then click a slot to assign it — or drag a field onto a slot.
+            </p>
 
-              <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Available fields</p>
-                  <ul className="mt-2 flex flex-wrap gap-1.5">
-                    {concepts.length === 0 ? (
-                      <li className="text-xs text-[var(--text-muted)]">No fields available for this project.</li>
-                    ) : (
-                      concepts.map((concept) => {
-                        const isArmed = armedConceptKey === concept.key;
-                        return (
-                          <li key={concept.id}>
-                            <button
-                              type="button"
-                              draggable
-                              onDragStart={(event) => event.dataTransfer.setData('text/plain', concept.key)}
-                              onClick={() => handleFieldClick(concept.key)}
-                              className="cursor-grab rounded-[var(--radius-tag)] border px-2.5 py-1 text-xs transition-colors active:cursor-grabbing"
-                              style={
-                                isArmed
-                                  ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                                  : { borderColor: 'var(--border)', color: 'var(--text-primary)' }
-                              }
-                            >
-                              {concept.displayLabel}
-                            </button>
-                          </li>
-                        );
-                      })
-                    )}
-                  </ul>
-                </div>
-
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Chart slots</p>
-                  <div className="mt-2 space-y-2">
-                    {slots.map((slot) => {
-                      const assignedKey = mappingsByRole[slot.role];
-                      const assignedConcept = assignedKey ? concepts.find((concept) => concept.key === assignedKey) : undefined;
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Available fields</p>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {concepts.length === 0 ? (
+                    <li className="text-xs text-[var(--text-muted)]">No fields available for this project.</li>
+                  ) : (
+                    concepts.map((concept) => {
+                      const isArmed = armedConceptKey === concept.key;
                       return (
-                        <div
-                          key={slot.role}
-                          onDragOver={(event) => event.preventDefault()}
-                          onDrop={(event) => handleSlotDrop(event, slot.role)}
-                          onClick={() => handleSlotClick(slot.role)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              handleSlotClick(slot.role);
+                        <li key={concept.id}>
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={(event) => event.dataTransfer.setData('text/plain', concept.key)}
+                            onClick={() => handleFieldClick(concept.key)}
+                            className="cursor-grab rounded-[var(--radius-tag)] border px-2.5 py-1 text-xs transition-colors active:cursor-grabbing"
+                            style={
+                              isArmed
+                                ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
+                                : { borderColor: 'var(--border)', color: 'var(--text-primary)' }
                             }
-                          }}
-                          role="button"
-                          tabIndex={0}
-                          className="flex cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-input)] border border-dashed px-3 py-2 text-sm transition-colors"
-                          style={{
-                            borderColor: assignedConcept ? 'var(--accent)' : armedConceptKey ? 'var(--accent)' : 'var(--border)',
-                            backgroundColor: assignedConcept ? 'var(--accent-soft)' : 'transparent',
-                          }}
-                        >
-                          <span className="text-[var(--text-secondary)]">
-                            {slot.label}
-                            {slot.required ? <span style={{ color: 'var(--red)' }}> *</span> : null}
-                          </span>
-                          {assignedConcept ? (
-                            <span className="flex items-center gap-1.5 font-medium text-[var(--accent)]">
-                              <Check size={13} />
-                              {assignedConcept.displayLabel}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-[var(--text-muted)]">Empty</span>
-                          )}
-                        </div>
+                          >
+                            {concept.displayLabel}
+                          </button>
+                        </li>
                       );
-                    })}
-                  </div>
+                    })
+                  )}
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Chart slots</p>
+                <div className="mt-2 space-y-2">
+                  {slots.map((slot) => {
+                    const assignedKey = mappingsByRole[slot.role];
+                    const assignedConcept = assignedKey ? concepts.find((concept) => concept.key === assignedKey) : undefined;
+                    return (
+                      <div
+                        key={slot.role}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => handleSlotDrop(event, slot.role)}
+                        onClick={() => handleSlotClick(slot.role)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleSlotClick(slot.role);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        className="flex cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-input)] border border-dashed px-3 py-2 text-sm transition-colors"
+                        style={{
+                          borderColor: assignedConcept ? 'var(--accent)' : armedConceptKey ? 'var(--accent)' : 'var(--border)',
+                          backgroundColor: assignedConcept ? 'var(--accent-soft)' : 'transparent',
+                        }}
+                      >
+                        <span className="text-[var(--text-secondary)]">
+                          {slot.label}
+                          {slot.required ? <span style={{ color: 'var(--red)' }}> *</span> : null}
+                        </span>
+                        {assignedConcept ? (
+                          <span className="flex items-center gap-1.5 font-medium text-[var(--accent)]">
+                            <Check size={13} />
+                            {assignedConcept.displayLabel}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[var(--text-muted)]">Empty</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          )}
-
-          <div className="mt-5">
-            <p className="text-sm font-medium text-[var(--text-secondary)]">Preview</p>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">Sample preview — connects to real data once this insight is saved.</p>
-            <div className="mt-2">
-              {PreviewRenderer ? (
-                <ErrorBoundary fallbackTitle="Preview unavailable">
-                  <PreviewRenderer categories={previewData.categories} series={previewData.series} values={previewData.values} />
-                </ErrorBoundary>
-              ) : (
-                <div className="flex flex-col items-center justify-center gap-1 rounded-[var(--radius-input)] border border-dashed border-[var(--border)] py-10 text-center">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Chart type coming online</p>
-                  <p className="text-xs text-[var(--text-muted)]">
-                    {CHART_TYPE_META[chartType].label} isn&apos;t wired up yet — you can still save this insight.
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
+        )}
 
-          {error ? <p className="mt-4 text-sm text-[var(--red)]">{error}</p> : null}
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSaving ? 'Saving…' : isEditing ? 'Save changes' : 'Create insight'}
-            </button>
+        <div>
+          <p className="text-sm font-medium text-[var(--text-secondary)]">Preview</p>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">Sample preview — connects to real data once this insight is saved.</p>
+          <div className="mt-2">
+            {PreviewRenderer ? (
+              <ErrorBoundary fallbackTitle="Preview unavailable">
+                <PreviewRenderer categories={previewData.categories} series={previewData.series} values={previewData.values} />
+              </ErrorBoundary>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-1 rounded-[var(--radius-input)] border border-dashed border-[var(--border)] py-10 text-center">
+                <p className="text-sm font-medium text-[var(--text-primary)]">Chart type coming online</p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  {CHART_TYPE_META[chartType].label} isn&apos;t wired up yet — you can still save this insight.
+                </p>
+              </div>
+            )}
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+      </form>
+    </Modal>
   );
 }
 

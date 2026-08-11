@@ -60,7 +60,7 @@ export default function TagSelectPopover({
   return (
     <div
       ref={containerRef}
-      className="absolute right-0 top-full z-20 mt-2 w-72 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-lg"
+      className="absolute left-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-md)]"
     >
       <p className="text-xs text-[var(--text-secondary)]">
         {selectedCount === undefined

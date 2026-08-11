@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Grid2x2, Grid3x3, List, Share2, X } from 'lucide-react';
+import { Grid2x2, Grid3x3, List, Share2 } from 'lucide-react';
 
 import {
   DEFAULT_USER_SETTINGS,
@@ -15,6 +15,13 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import AccessDeniedState from '../components/AccessDeniedState';
 import ArticlesGrid from '../components/ArticlesGrid';
+import Alert from '../components/ui/Alert';
+import Badge from '../components/ui/Badge';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Button from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import Modal from '../components/ui/Modal';
+import PageHeader, { PageBody } from '../components/ui/PageHeader';
 import { getApiErrorMessage } from '../lib/api-client';
 import { hideArticle, unhideArticle } from '../lib/articles-api';
 import { ChannelAccessError, fetchChannel, openChannel } from '../lib/channels-api';
@@ -88,50 +95,34 @@ function TagArticleModal({ userTags, isApplying, onApply, onClose }: TagArticleM
     : userTags;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add a tag</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <input
-          type="search"
-          autoFocus
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search tags…"
-          className="mt-3 h-9 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-        />
-        <div className="mt-3 space-y-0.5">
-          {visible.length === 0 ? (
-            <p className="py-6 text-center text-sm text-[var(--text-secondary)]">No matching tags.</p>
-          ) : (
-            visible.map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                disabled={isApplying}
-                onClick={() => onApply(tag)}
-                className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className="min-w-0 truncate">{tag.name}</span>
-                <span className="shrink-0 text-xs text-[var(--text-muted)]">{tag.articleCount}</span>
-              </button>
-            ))
-          )}
-        </div>
+    <Modal open onClose={onClose} title="Add a tag" size="sm" scrollable>
+      <Input
+        type="search"
+        autoFocus
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search tags…"
+        className="h-9 py-1.5"
+      />
+      <div className="mt-3 space-y-0.5">
+        {visible.length === 0 ? (
+          <p className="py-6 text-center text-sm text-[var(--text-secondary)]">No matching tags.</p>
+        ) : (
+          visible.map((tag) => (
+            <button
+              key={tag.id}
+              type="button"
+              disabled={isApplying}
+              onClick={() => onApply(tag)}
+              className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="min-w-0 truncate">{tag.name}</span>
+              <span className="shrink-0 text-xs text-[var(--text-muted)]">{tag.articleCount}</span>
+            </button>
+          ))
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -441,9 +432,9 @@ export default function ChannelDetailPage() {
 
   if (!id) {
     return (
-      <div className="mx-auto w-full max-w-7xl px-6 py-8">
-        <p className="text-sm text-[var(--red)]">Invalid channel id.</p>
-      </div>
+      <PageBody width="full">
+        <Alert variant="error">Invalid channel id.</Alert>
+      </PageBody>
     );
   }
 
@@ -452,14 +443,14 @@ export default function ChannelDetailPage() {
   // two either, by design (see channel.routes.ts's own comment on GET /:id and /:id/open).
   if (isAccessDenied) {
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 py-8">
+      <PageBody width="full" className="flex flex-1 flex-col">
         <AccessDeniedState
           title="This channel isn't available"
           description="It may not exist, or you may not have access to it."
           backTo="/channels"
           backLabel="Back to channels"
         />
-      </div>
+      </PageBody>
     );
   }
 
@@ -467,90 +458,73 @@ export default function ChannelDetailPage() {
   const typeLabel = (channelQuery.data?.type ?? opened?.type) === 'snapshot' ? 'Snapshot' : 'Dynamic';
   const groupName = channelQuery.data ? (groupNameById.get(channelQuery.data.groupId) ?? null) : null;
   const isHeaderLoading = openQuery.isLoading;
+  const resultSummary = isHeaderLoading
+    ? 'Loading…'
+    : `${total.toLocaleString()} result${total === 1 ? '' : 's'}`;
+  const description = [groupName, resultSummary].filter(Boolean).join(' · ');
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-6 py-8">
-      <Link to="/channels" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-        &larr; Back to channels
-      </Link>
+    <PageBody width="full">
+      <PageHeader
+        breadcrumbs={<Breadcrumbs items={[{ label: 'Channels', to: '/channels' }, { label: title ?? 'Channel' }]} />}
+        title={title ?? 'Channel'}
+        description={description}
+        actions={
+          <>
+            <Badge variant="accent">{typeLabel}</Badge>
+            <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
+              {VIEW_MODE_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const isActive = option.value === viewMode;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    title={option.label}
+                    onClick={() => handleViewModeChange(option.value)}
+                    className="flex h-7 w-7 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
+                    style={isActive ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' } : undefined}
+                  >
+                    <Icon size={15} strokeWidth={1.75} />
+                  </button>
+                );
+              })}
+            </div>
+            <Button variant="outline" size="sm" leftIcon={<Share2 size={14} />} onClick={() => void handleShare()}>
+              Share
+            </Button>
+          </>
+        }
+      />
 
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{title ?? 'Channel'}</h1>
-            <span
-              className="rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-medium"
-              style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-            >
-              {typeLabel}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            {groupName ? `${groupName} · ` : ''}
-            {isHeaderLoading ? 'Loading…' : `${total.toLocaleString()} result${total === 1 ? '' : 's'}`}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
-            {VIEW_MODE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              const isActive = option.value === viewMode;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  title={option.label}
-                  onClick={() => handleViewModeChange(option.value)}
-                  className="flex h-7 w-7 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
-                  style={isActive ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' } : undefined}
-                >
-                  <Icon size={15} strokeWidth={1.75} />
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => void handleShare()}
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-          >
-            <Share2 size={14} />
-            Share
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <ArticlesGrid
-          hits={hits}
-          viewMode={viewMode}
-          contentLines={contentLines}
-          isLoading={isGridLoading}
-          isError={isGridError}
-          errorMessage={gridErrorMessage}
-          onRetry={handleRetry}
-          hasActiveFilters={false}
-          onClearFilters={() => undefined}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          onSelectAllOnPage={handleSelectAllOnPage}
-          expandedIds={expandedIds}
-          onToggleExpand={handleToggleExpand}
-          onToggleExpandAll={handleToggleExpandAll}
-          concepts={concepts}
-          tagsById={tagsById}
-          canHide={canHide}
-          hidePendingId={hidePendingId}
-          onHideToggle={handleHideToggle}
-          onOpenTagPicker={setTagArticleId}
-          onTaxonomyValueClick={handleTaxonomyValueClick}
-          onTagChipClick={handleTagChipClick}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
-      </div>
+      <ArticlesGrid
+        hits={hits}
+        viewMode={viewMode}
+        contentLines={contentLines}
+        isLoading={isGridLoading}
+        isError={isGridError}
+        errorMessage={gridErrorMessage}
+        onRetry={handleRetry}
+        hasActiveFilters={false}
+        onClearFilters={() => undefined}
+        selectedIds={selectedIds}
+        onSelect={handleSelect}
+        onSelectAllOnPage={handleSelectAllOnPage}
+        expandedIds={expandedIds}
+        onToggleExpand={handleToggleExpand}
+        onToggleExpandAll={handleToggleExpandAll}
+        concepts={concepts}
+        tagsById={tagsById}
+        canHide={canHide}
+        hidePendingId={hidePendingId}
+        onHideToggle={handleHideToggle}
+        onOpenTagPicker={setTagArticleId}
+        onTaxonomyValueClick={handleTaxonomyValueClick}
+        onTagChipClick={handleTagChipClick}
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
 
       {tagArticleId ? (
         <TagArticleModal
@@ -560,6 +534,6 @@ export default function ChannelDetailPage() {
           onClose={() => setTagArticleId(null)}
         />
       ) : null}
-    </div>
+    </PageBody>
   );
 }

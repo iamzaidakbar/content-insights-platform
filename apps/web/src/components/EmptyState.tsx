@@ -15,16 +15,15 @@ interface EmptyStateProps {
 // (Groups, Saved Searches, Channels, Admin Members) instead of each hand-rolling its own.
 export default function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div
-        className="flex h-14 w-14 items-center justify-center rounded-full text-[var(--text-muted)]"
-        style={{ backgroundColor: 'var(--bg-hover)' }}
-      >
-        <Icon size={26} strokeWidth={1.5} />
+    <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-muted)] shadow-[var(--shadow-sm)]">
+        <Icon size={22} strokeWidth={1.5} />
       </div>
-      <h3 className="mt-4 text-base font-semibold text-[var(--text-primary)]">{title}</h3>
-      {description ? <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p> : null}
-      {action ? <div className="mt-4">{action}</div> : null}
+      <h3 className="mt-5 text-sm font-semibold tracking-tight text-[var(--text-primary)]">{title}</h3>
+      {description ? (
+        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">{description}</p>
+      ) : null}
+      {action ? <div className="mt-5">{action}</div> : null}
     </div>
   );
 }

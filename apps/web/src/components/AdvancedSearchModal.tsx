@@ -21,6 +21,8 @@ import {
 
 import { describeAdvancedSearch, describeDateFilter } from '../lib/advanced-search';
 import { INPUT_CLASSNAME } from '../lib/form-styles';
+import Button from './ui/Button';
+import Modal from './ui/Modal';
 
 // ---------------------------------------------------------------------------------------
 // Rewritten for the Content Insights pivot to match packages/shared/src/types/search-
@@ -654,19 +656,6 @@ export default function AdvancedSearchModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-seed on the open transition
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) {
-    return null;
-  }
-
   function updateGroup(id: string, next: AdvancedSearchGroup) {
     setGroups((current) => current.map((g) => (g.id === id ? next : g)));
   }
@@ -690,91 +679,63 @@ export default function AdvancedSearchModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-[760px] rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-        data-testid="advanced-search-modal"
-      >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">Advanced Search</h2>
-            <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-              Build grouped conditions, combined with AND/OR, plus an optional date range.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close advanced search"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">
-          {groups.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">No groups yet — add one to start building a query.</p>
-          ) : (
-            <div className="space-y-2">
-              {groups.map((group, gi) => (
-                <div key={group.id}>
-                  <GroupCard
-                    group={group}
-                    index={gi}
-                    onChange={(next) => updateGroup(group.id, next)}
-                    onRemove={() => removeGroup(group.id)}
-                    concepts={concepts}
-                    facets={facets}
-                  />
-                  {gi < groups.length - 1 ? (
-                    <OperatorToggle
-                      value={group.operatorToNext}
-                      onChange={(operator) => setGroupOperator(group.id, operator)}
-                    />
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={addGroup}
-            className="flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
-          >
-            <Plus size={14} /> Add group
-          </button>
-
-          <DateRangeBlock value={draftDateFilter} onChange={setDraftDateFilter} />
-        </div>
-
-        <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] px-6 py-4">
-          <button type="button" onClick={handleClear} className="text-sm text-[var(--text-secondary)] hover:text-[var(--red)]">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Advanced Search"
+      description="Build grouped conditions, combined with AND/OR, plus an optional date range."
+      size="full"
+      scrollable
+      className="max-w-[760px]"
+      testId="advanced-search-modal"
+      footer={
+        <>
+          <Button variant="ghost" className="mr-auto text-[var(--text-secondary)] hover:text-[var(--red)]" onClick={handleClear}>
             Clear advanced search
-          </button>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-[var(--radius-button)] border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleApply}
-              className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
-            >
-              Apply
-            </button>
-          </div>
+          </Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleApply}>Apply</Button>
+        </>
+      }
+    >
+      {groups.length === 0 ? (
+        <p className="text-sm text-[var(--text-muted)]">No groups yet — add one to start building a query.</p>
+      ) : (
+        <div className="space-y-2">
+          {groups.map((group, gi) => (
+            <div key={group.id}>
+              <GroupCard
+                group={group}
+                index={gi}
+                onChange={(next) => updateGroup(group.id, next)}
+                onRemove={() => removeGroup(group.id)}
+                concepts={concepts}
+                facets={facets}
+              />
+              {gi < groups.length - 1 ? (
+                <OperatorToggle
+                  value={group.operatorToNext}
+                  onChange={(operator) => setGroupOperator(group.id, operator)}
+                />
+              ) : null}
+            </div>
+          ))}
         </div>
+      )}
+
+      <button
+        type="button"
+        onClick={addGroup}
+        className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
+      >
+        <Plus size={14} /> Add group
+      </button>
+
+      <div className="mt-4">
+        <DateRangeBlock value={draftDateFilter} onChange={setDraftDateFilter} />
       </div>
-    </div>
+    </Modal>
   );
 }

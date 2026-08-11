@@ -3,7 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../lib/api-client';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
+import Alert from '../components/ui/Alert';
+import Button from '../components/ui/Button';
+import { Card, CardBody } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
 
 interface LocationState {
   from?: { pathname: string };
@@ -48,70 +51,68 @@ export default function RegisterPage() {
             C
           </div>
           <div>
-            <h1 className="text-lg font-semibold">Create your organization</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Create your organization</h1>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">Starts a new workspace on Content Insights.</p>
           </div>
         </div>
 
-        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-8">
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="orgName" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Organization name
-              </label>
-              <input
-                id="orgName"
-                type="text"
-                autoComplete="organization"
-                required
-                value={orgName}
-                onChange={(event) => setOrgName(event.target.value)}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              />
-            </div>
+        <Card>
+          <CardBody className="p-6 sm:p-8">
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div>
+                <label htmlFor="orgName" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Organization name
+                </label>
+                <Input
+                  id="orgName"
+                  type="text"
+                  autoComplete="organization"
+                  required
+                  value={orgName}
+                  onChange={(event) => setOrgName(event.target.value)}
+                  className="mt-1"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              />
-            </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Email
+                </label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  className="mt-1"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              />
-            </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Password
+                </label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="mt-1"
+                />
+              </div>
 
-            {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+              {error ? <Alert variant="error">{error}</Alert> : null}
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isSubmitting ? 'Creating account…' : 'Create account'}
-            </button>
-          </form>
-        </div>
+              <Button type="submit" loading={isSubmitting} className="w-full">
+                {isSubmitting ? 'Creating account…' : 'Create account'}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
 
         <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
           Already have an account?{' '}

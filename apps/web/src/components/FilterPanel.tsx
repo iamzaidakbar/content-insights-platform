@@ -17,6 +17,8 @@ import {
   type UserTag,
 } from '@content-insights/shared';
 
+import Button from './ui/Button';
+
 // FilterPanel is a pure controlled component: it owns no filter state of its own (only
 // ephemeral, non-filter UI state — collapsed sections, the per-session facet sort-order
 // override, the user-tag search box). Every actual selection lives in `value`
@@ -593,20 +595,12 @@ export default function FilterPanel({
           </div>
 
           <div className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-3">
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className="h-9 flex-1 rounded-[var(--radius-button)] border border-[var(--border)] text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-            >
+            <Button type="button" variant="outline" onClick={handleClearAll} className="flex-1">
               Clear All
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
-            >
+            </Button>
+            <Button type="button" onClick={onClose}>
               Done
-            </button>
+            </Button>
           </div>
         </div>
       </div>

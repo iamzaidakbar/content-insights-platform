@@ -10,10 +10,10 @@ export function SettingsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-6">
-      <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
+    <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-[var(--shadow-sm)]">
+      <h2 className="text-sm font-semibold text-[var(--text-primary)]">{title}</h2>
       {description ? <p className="mt-1 text-sm text-[var(--text-secondary)]">{description}</p> : null}
-      <div className="mt-6 space-y-5">{children}</div>
+      <div className="mt-4 space-y-4">{children}</div>
     </section>
   );
 }

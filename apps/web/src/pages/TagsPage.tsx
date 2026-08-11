@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -9,8 +9,19 @@ import { USER_TAG_NAME_MAX_LENGTH, type Permission, type UserTag } from '@conten
 import EmptyState from '../components/EmptyState';
 import Toggle from '../components/Toggle';
 import { useAuth } from '../auth/AuthContext';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  ConfirmDialog,
+  Input,
+  Modal,
+  PageBody,
+  PageHeader,
+} from '../components/ui';
 import { getApiErrorMessage } from '../lib/api-client';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { fetchGroup, fetchGroups } from '../lib/groups-api';
 import { fetchRoles } from '../lib/roles-api';
 import { hasScopedPermission } from '../lib/scoped-permissions';
@@ -25,47 +36,6 @@ import {
 } from '../lib/user-tags-api';
 
 const SKELETON_ROW_COUNT = 4;
-
-// ---------------------------------------------------------------------------------------
-// Shared dialog chrome — same fixed-overlay treatment used across the app's per-row action
-// modals (AddMemberModal, GroupsPage's NewGroupModal, SavedQueriesModal's own Dialog).
-// ---------------------------------------------------------------------------------------
-function Dialog({
-  title,
-  onClose,
-  children,
-  widthClassName = 'max-w-sm',
-  testId,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-  widthClassName?: string;
-  testId?: string;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        data-testid={testId}
-        className={`w-full ${widthClassName} rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 function RenameDialog({ tag, onClose, onRenamed }: { tag: UserTag; onClose: () => void; onRenamed: () => void }) {
   const [name, setName] = useState(tag.name);
@@ -92,43 +62,41 @@ function RenameDialog({ tag, onClose, onRenamed }: { tag: UserTag; onClose: () =
   }
 
   return (
-    <Dialog title="Rename tag" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-3">
+    <Modal
+      open
+      onClose={onClose}
+      title="Rename tag"
+      size="sm"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="rename-tag-form" loading={renameMutation.isPending}>
+            Save
+          </Button>
+        </>
+      }
+    >
+      <form id="rename-tag-form" onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <input
+          <Input
             autoFocus
             value={name}
             onChange={(event) => setName(event.target.value)}
             maxLength={USER_TAG_NAME_MAX_LENGTH}
-            className={INPUT_CLASSNAME}
           />
           <p className="mt-1 text-right text-xs text-[var(--text-muted)]">
             {name.length}/{USER_TAG_NAME_MAX_LENGTH}
           </p>
         </div>
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={renameMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {renameMutation.isPending ? 'Saving…' : 'Save'}
-          </button>
-        </div>
+        {error ? <p className="text-sm text-[var(--error)]">{error}</p> : null}
       </form>
-    </Dialog>
+    </Modal>
   );
 }
 
-function DeleteConfirmDialog({
+function DeleteTagDialog({
   tag,
   onClose,
   onDeleted,
@@ -137,8 +105,6 @@ function DeleteConfirmDialog({
   onClose: () => void;
   onDeleted: () => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
-
   const deleteMutation = useMutation({
     mutationFn: () => deleteUserTag(tag.id),
     onSuccess: () => {
@@ -146,34 +112,21 @@ function DeleteConfirmDialog({
       toast.success('Tag deleted and removed from every article that used it.');
       onClose();
     },
-    onError: (err) => setError(getApiErrorMessage(err, 'Unable to delete this tag.')),
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Unable to delete this tag.')),
   });
 
   return (
-    <Dialog title="Delete tag?" onClose={onClose} testId="delete-tag-dialog">
-      <p className="text-sm text-[var(--text-secondary)]">
-        &quot;{tag.name}&quot; will be permanently removed, including from every article that carries it. This cannot
-        be undone.
-      </p>
-      {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
-      <div className="mt-5 flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          className="rounded-[var(--radius-button)] bg-[var(--red)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-        </button>
-      </div>
-    </Dialog>
+    <ConfirmDialog
+      open
+      onClose={onClose}
+      onConfirm={() => deleteMutation.mutate()}
+      title="Delete tag?"
+      description={`"${tag.name}" will be permanently removed, including from every article that carries it. This cannot be undone.`}
+      confirmLabel="Delete"
+      destructive
+      loading={deleteMutation.isPending}
+      testId="delete-tag-dialog"
+    />
   );
 }
 
@@ -233,7 +186,31 @@ function ShareDialog({
   });
 
   return (
-    <Dialog title={`Share "${tag.name}"`} onClose={onClose} widthClassName="max-w-md">
+    <Modal
+      open
+      onClose={onClose}
+      title={`Share "${tag.name}"`}
+      size="md"
+      scrollable
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setError(null);
+              shareMutation.mutate();
+            }}
+            disabled={!hasSelection}
+            loading={shareMutation.isPending}
+          >
+            Share
+          </Button>
+        </>
+      }
+    >
       <div className="space-y-4">
         <div>
           <p className="text-xs font-medium text-[var(--text-secondary)]">Currently shared with</p>
@@ -257,7 +234,7 @@ function ShareDialog({
                     onClick={() => revokeMutation.mutate(grant.groupId)}
                     disabled={revokeMutation.isPending}
                     aria-label={`Stop sharing with ${grant.groupName}`}
-                    className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--red)] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <X size={13} />
                   </button>
@@ -312,30 +289,9 @@ function ShareDialog({
           )}
         </div>
 
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            Close
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              shareMutation.mutate();
-            }}
-            disabled={!hasSelection || shareMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {shareMutation.isPending ? 'Sharing…' : 'Share'}
-          </button>
-        </div>
+        {error ? <p className="text-sm text-[var(--error)]">{error}</p> : null}
       </div>
-    </Dialog>
+    </Modal>
   );
 }
 
@@ -459,15 +415,14 @@ export default function TagsPage() {
   const showEmptyState = !tagsQuery.isLoading && !tagsQuery.isError && tags.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
-      <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Tags</h1>
-      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-        Organize articles with tags. Public tags are visible and usable org-wide; private tags are visible only to
-        their owner group unless explicitly shared into others.
-      </p>
+    <PageBody width="sm">
+      <PageHeader
+        title="Tags"
+        description="Organize articles with tags. Public tags are visible and usable org-wide; private tags are visible only to their owner group unless explicitly shared into others."
+      />
 
       {currentGroupId === null ? (
-        <p className="mt-6 text-sm text-[var(--text-secondary)]">
+        <p className="mb-5 text-sm text-[var(--text-secondary)]">
           Select a current group from{' '}
           <Link to="/articles" className="text-[var(--accent)] hover:underline">
             Articles
@@ -475,66 +430,67 @@ export default function TagsPage() {
           before creating tags.
         </p>
       ) : canCreateTag ? (
-        <form
-          onSubmit={handleCreateSubmit}
-          className="mt-6 space-y-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-4"
-        >
-          <p className="text-xs text-[var(--text-secondary)]">
-            Creating in:{' '}
-            <span className="font-medium text-[var(--text-primary)]">
-              {currentGroupQuery.data?.name ?? '…'}
-            </span>
-          </p>
+        <Card className="mb-5">
+          <CardBody className="space-y-3">
+            <form onSubmit={handleCreateSubmit} className="space-y-3">
+              <p className="text-xs text-[var(--text-secondary)]">
+                Creating in:{' '}
+                <span className="font-medium text-[var(--text-primary)]">
+                  {currentGroupQuery.data?.name ?? '…'}
+                </span>
+              </p>
 
-          <div>
-            <label htmlFor="tag-name" className="block text-xs text-[var(--text-secondary)]">
-              Name
-            </label>
-            <input
-              id="tag-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={USER_TAG_NAME_MAX_LENGTH}
-              className={`mt-1 ${INPUT_CLASSNAME}`}
-              placeholder="e.g. earnings-call"
-              required
-            />
-            <p className="mt-1 text-right text-xs text-[var(--text-muted)]">
-              {name.length}/{USER_TAG_NAME_MAX_LENGTH}
-            </p>
-          </div>
+              <div>
+                <label htmlFor="tag-name" className="block text-xs text-[var(--text-secondary)]">
+                  Name
+                </label>
+                <Input
+                  id="tag-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={USER_TAG_NAME_MAX_LENGTH}
+                  className="mt-1"
+                  placeholder="e.g. earnings-call"
+                  required
+                />
+                <p className="mt-1 text-right text-xs text-[var(--text-muted)]">
+                  {name.length}/{USER_TAG_NAME_MAX_LENGTH}
+                </p>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <Toggle checked={isPrivateDraft} onChange={setIsPrivateDraft} label="Make this tag private" />
-            <span className="text-sm text-[var(--text-primary)]">{isPrivateDraft ? 'Private' : 'Public'}</span>
-          </div>
-          <p className="text-xs text-[var(--text-muted)]">
-            {isPrivateDraft
-              ? 'Only members of your current group will be able to see or use this tag, unless it is shared into other groups.'
-              : 'Every member of your organization will be able to see and use this tag.'}
-          </p>
+              <div className="flex items-center gap-2">
+                <Toggle checked={isPrivateDraft} onChange={setIsPrivateDraft} label="Make this tag private" />
+                <span className="text-sm text-[var(--text-primary)]">{isPrivateDraft ? 'Private' : 'Public'}</span>
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">
+                {isPrivateDraft
+                  ? 'Only members of your current group will be able to see or use this tag, unless it is shared into other groups.'
+                  : 'Every member of your organization will be able to see and use this tag.'}
+              </p>
 
-          <button
-            type="submit"
-            disabled={createMutation.isPending || !name.trim()}
-            className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
-          >
-            {createMutation.isPending ? 'Creating…' : 'Create tag'}
-          </button>
-        </form>
+              <Button type="submit" disabled={!name.trim()} loading={createMutation.isPending}>
+                {createMutation.isPending ? 'Creating…' : 'Create tag'}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
       ) : null}
 
       {tagsQuery.isError ? (
-        <p className="mt-6 text-sm text-[var(--red)]">{getApiErrorMessage(tagsQuery.error, 'Unable to load tags.')}</p>
+        <Alert variant="error" className="mb-5">
+          {getApiErrorMessage(tagsQuery.error, 'Unable to load tags.')}
+        </Alert>
       ) : null}
 
-      <div className="mt-6">
+      <div>
         {tagsQuery.isLoading ? (
-          <ul className="rounded-[var(--radius-card)] border border-[var(--border)]">
-            {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-              <SkeletonRow key={index} />
-            ))}
-          </ul>
+          <Card>
+            <ul>
+              {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+                <SkeletonRow key={index} />
+              ))}
+            </ul>
+          </Card>
         ) : showEmptyState ? (
           <EmptyState
             icon={TagIcon}
@@ -542,122 +498,120 @@ export default function TagsPage() {
             description={canCreateTag ? 'Create a tag to start organizing articles.' : undefined}
           />
         ) : (
-          <ul className="divide-y divide-[var(--border)] rounded-[var(--radius-card)] border border-[var(--border)]">
-            {tags.map((tag) => {
-              const canManage = hasTagPermission(tag, 'user-tags:manage');
-              const canPublish = hasTagPermission(tag, 'user-tags:publish');
-              const canShare = hasTagPermission(tag, 'user-tags:shareIntoGroups');
-              const isTogglingThis =
-                privacyMutation.isPending && privacyMutation.variables?.id === tag.id;
-              const isPublishingThis = publishMutation.isPending && publishMutation.variables === tag.id;
+          <Card>
+            <ul className="divide-y divide-[var(--border)]">
+              {tags.map((tag) => {
+                const canManage = hasTagPermission(tag, 'user-tags:manage');
+                const canPublish = hasTagPermission(tag, 'user-tags:publish');
+                const canShare = hasTagPermission(tag, 'user-tags:shareIntoGroups');
+                const isTogglingThis =
+                  privacyMutation.isPending && privacyMutation.variables?.id === tag.id;
+                const isPublishingThis = publishMutation.isPending && publishMutation.variables === tag.id;
 
-              return (
-                <li key={tag.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {tag.isPrivate ? (
-                        <Lock size={13} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
-                      ) : (
-                        <Globe size={13} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
-                      )}
-                      <span className="font-medium text-[var(--text-primary)]">{tag.name}</span>
-                      {tag.isPublished ? (
-                        <span className="flex items-center gap-1 rounded-full bg-[var(--green)]/15 px-2 py-0.5 text-xs font-medium text-[var(--green)]">
-                          <BadgeCheck size={11} />
-                          Published
+                return (
+                  <li key={tag.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {tag.isPrivate ? (
+                          <Lock size={13} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+                        ) : (
+                          <Globe size={13} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+                        )}
+                        <span className="font-medium text-[var(--text-primary)]">{tag.name}</span>
+                        {tag.isPublished ? (
+                          <Badge variant="success" className="gap-1">
+                            <BadgeCheck size={11} />
+                            Published
+                          </Badge>
+                        ) : null}
+                        <span className="text-xs text-[var(--text-muted)]">
+                          {tag.articleCount} article{tag.articleCount === 1 ? '' : 's'}
                         </span>
+                      </div>
+
+                      <p className="text-xs text-[var(--text-secondary)]">
+                        Owner group: <span className="text-[var(--text-primary)]">{tag.ownerGroupName}</span>
+                      </p>
+
+                      {canManage ? (
+                        <div className={isTogglingThis ? 'pointer-events-none opacity-60' : undefined}>
+                          <div className="flex items-center gap-2">
+                            <Toggle
+                              checked={tag.isPrivate}
+                              onChange={(next) => privacyMutation.mutate({ id: tag.id, isPrivate: next })}
+                              label={`Make "${tag.name}" ${tag.isPrivate ? 'public' : 'private'}`}
+                            />
+                            <span className="text-sm text-[var(--text-primary)]">
+                              {tag.isPrivate ? 'Private' : 'Public'}
+                            </span>
+                          </div>
+                        </div>
                       ) : null}
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {tag.articleCount} article{tag.articleCount === 1 ? '' : 's'}
-                      </span>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        {tag.isPrivate
+                          ? `Only members of ${tag.ownerGroupName} can see or use this tag, unless shared into other groups below.`
+                          : 'Visible and usable by everyone in the organization.'}
+                      </p>
+
+                      {tag.sharedWithGroups.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {tag.sharedWithGroups.map((grant) => (
+                            <Badge key={grant.groupId} variant="default">
+                              {grant.groupName}
+                              {' · '}
+                              {[grant.canUse ? 'Use' : null, grant.canDelete ? 'Delete' : null]
+                                .filter(Boolean)
+                                .join('/') || 'No access'}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
 
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      Owner group: <span className="text-[var(--text-primary)]">{tag.ownerGroupName}</span>
-                    </p>
-
-                    {canManage ? (
-                      <div className={isTogglingThis ? 'pointer-events-none opacity-60' : undefined}>
-                        <div className="flex items-center gap-2">
-                          <Toggle
-                            checked={tag.isPrivate}
-                            onChange={(next) => privacyMutation.mutate({ id: tag.id, isPrivate: next })}
-                            label={`Make "${tag.name}" ${tag.isPrivate ? 'public' : 'private'}`}
-                          />
-                          <span className="text-sm text-[var(--text-primary)]">
-                            {tag.isPrivate ? 'Private' : 'Public'}
-                          </span>
-                        </div>
-                      </div>
-                    ) : null}
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {tag.isPrivate
-                        ? `Only members of ${tag.ownerGroupName} can see or use this tag, unless shared into other groups below.`
-                        : 'Visible and usable by everyone in the organization.'}
-                    </p>
-
-                    {tag.sharedWithGroups.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {tag.sharedWithGroups.map((grant) => (
-                          <span
-                            key={grant.groupId}
-                            className="rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-medium"
-                            style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-                          >
-                            {grant.groupName}
-                            {' · '}
-                            {[grant.canUse ? 'Use' : null, grant.canDelete ? 'Delete' : null]
-                              .filter(Boolean)
-                              .join('/') || 'No access'}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                    {canManage ? (
-                      <button
-                        type="button"
-                        onClick={() => setRenaming(tag)}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                      >
-                        Rename
-                      </button>
-                    ) : null}
-                    {canShare ? (
-                      <button
-                        type="button"
-                        onClick={() => setSharing(tag)}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                      >
-                        Share
-                      </button>
-                    ) : null}
-                    {canPublish && !tag.isPublished ? (
-                      <button
-                        type="button"
-                        onClick={() => publishMutation.mutate(tag.id)}
-                        disabled={isPublishingThis}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isPublishingThis ? 'Publishing…' : 'Publish'}
-                      </button>
-                    ) : null}
-                    {canManage ? (
-                      <button
-                        type="button"
-                        onClick={() => setDeleting(tag)}
-                        className="text-[var(--red)] hover:underline"
-                      >
-                        Delete
-                      </button>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                      {canManage ? (
+                        <button
+                          type="button"
+                          onClick={() => setRenaming(tag)}
+                          className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          Rename
+                        </button>
+                      ) : null}
+                      {canShare ? (
+                        <button
+                          type="button"
+                          onClick={() => setSharing(tag)}
+                          className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          Share
+                        </button>
+                      ) : null}
+                      {canPublish && !tag.isPublished ? (
+                        <button
+                          type="button"
+                          onClick={() => publishMutation.mutate(tag.id)}
+                          disabled={isPublishingThis}
+                          className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isPublishingThis ? 'Publishing…' : 'Publish'}
+                        </button>
+                      ) : null}
+                      {canManage ? (
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(tag)}
+                          className="text-[var(--error)] hover:underline"
+                        >
+                          Delete
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
         )}
       </div>
 
@@ -673,8 +627,8 @@ export default function TagsPage() {
         />
       ) : null}
       {deleting ? (
-        <DeleteConfirmDialog tag={deleting} onClose={() => setDeleting(null)} onDeleted={handleDeleted} />
+        <DeleteTagDialog tag={deleting} onClose={() => setDeleting(null)} onDeleted={handleDeleted} />
       ) : null}
-    </div>
+    </PageBody>
   );
 }

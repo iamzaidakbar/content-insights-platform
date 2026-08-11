@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
 
 import { DASHBOARD_MAX_INSIGHTS } from '@content-insights/shared';
@@ -9,10 +9,16 @@ import { useAuth } from '../auth/AuthContext';
 import AddInsightModal from '../components/dashboards/AddInsightModal';
 import DashboardGrid from '../components/dashboards/DashboardGrid';
 import EmptyState from '../components/EmptyState';
+import Alert from '../components/ui/Alert';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Button from '../components/ui/Button';
+import IconButton from '../components/ui/IconButton';
+import { Input } from '../components/ui/Input';
+import PageHeader, { PageBody } from '../components/ui/PageHeader';
+import Skeleton from '../components/ui/Skeleton';
 import { useClickOutside } from '../hooks/useClickOutside';
 import { getApiErrorMessage } from '../lib/api-client';
 import { deleteDashboard, fetchDashboard, updateDashboard } from '../lib/dashboards-api';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { fetchGroup } from '../lib/groups-api';
 import { fetchRoles } from '../lib/roles-api';
 import { hasScopedPermission } from '../lib/scoped-permissions';
@@ -76,105 +82,92 @@ export default function DashboardDetailPage() {
 
   if (!id) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-4 py-12">
-        <p className="text-sm text-[var(--red)]">Invalid dashboard id.</p>
-      </div>
+      <PageBody width="xl">
+        <Alert variant="error">Invalid dashboard id.</Alert>
+      </PageBody>
     );
   }
 
+  const headerTitle = dashboard?.name ?? 'Dashboard';
+
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-12">
-      <Link to="/dashboards" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-        &larr; Back to dashboards
-      </Link>
-
-      <div className="mt-2 flex items-start justify-between gap-3">
-        {isRenaming ? (
-          <form
-            className="flex flex-1 items-center gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (nameDraft.trim()) renameMutation.mutate(nameDraft.trim());
-            }}
-          >
-            <input
-              autoFocus
-              value={nameDraft}
-              onChange={(event) => setNameDraft(event.target.value)}
-              className={INPUT_CLASSNAME}
-            />
-            <button
-              type="submit"
-              disabled={renameMutation.isPending}
-              className="shrink-0 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+    <PageBody width="xl">
+      <PageHeader
+        breadcrumbs={
+          <Breadcrumbs items={[{ label: 'Dashboards', to: '/dashboards' }, { label: headerTitle }]} />
+        }
+        title={isRenaming ? 'Rename dashboard' : headerTitle}
+        actions={
+          isRenaming ? (
+            <form
+              className="flex flex-wrap items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (nameDraft.trim()) renameMutation.mutate(nameDraft.trim());
+              }}
             >
-              Save
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsRenaming(false)}
-              className="shrink-0 rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              Cancel
-            </button>
-          </form>
-        ) : (
-          <h1 className="min-w-0 truncate text-2xl font-semibold text-[var(--text-primary)]">
-            {dashboard?.name ?? 'Dashboard'}
-          </h1>
-        )}
-
-        {canManage && dashboard && !isRenaming ? (
-          <div className="relative shrink-0" ref={menuRef}>
-            <button
-              type="button"
-              onClick={() => setIsMenuOpen((open) => !open)}
-              aria-label="Dashboard actions"
-              className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-            >
-              <MoreVertical size={18} />
-            </button>
-            {isMenuOpen ? (
-              <div className="absolute right-0 z-10 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 text-sm shadow-lg">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNameDraft(dashboard.name);
-                    setIsRenaming(true);
-                    setIsMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                >
-                  <Pencil size={14} /> Rename
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    if (window.confirm('Delete this dashboard? This cannot be undone.')) {
-                      deleteMutation.mutate();
-                    }
-                  }}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--red)] hover:bg-[var(--bg-hover)]"
-                >
-                  <Trash2 size={14} /> Delete dashboard
-                </button>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+              <Input
+                autoFocus
+                value={nameDraft}
+                onChange={(event) => setNameDraft(event.target.value)}
+                className="h-9 max-w-xs py-1.5"
+              />
+              <Button type="submit" size="sm" loading={renameMutation.isPending}>
+                Save
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsRenaming(false)}>
+                Cancel
+              </Button>
+            </form>
+          ) : canManage && dashboard ? (
+            <div className="relative shrink-0" ref={menuRef}>
+              <IconButton
+                icon={MoreVertical}
+                label="Dashboard actions"
+                onClick={() => setIsMenuOpen((open) => !open)}
+              />
+              {isMenuOpen ? (
+                <div className="absolute right-0 z-10 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 text-sm shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNameDraft(dashboard.name);
+                      setIsRenaming(true);
+                      setIsMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                  >
+                    <Pencil size={14} /> Rename
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      if (window.confirm('Delete this dashboard? This cannot be undone.')) {
+                        deleteMutation.mutate();
+                      }
+                    }}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--error)] hover:bg-[var(--bg-hover)]"
+                  >
+                    <Trash2 size={14} /> Delete dashboard
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null
+        }
+      />
 
       {dashboardQuery.isError ? (
-        <p className="mt-6 text-sm text-[var(--red)]">
+        <Alert variant="error" className="mb-4">
           {getApiErrorMessage(dashboardQuery.error, 'Unable to load this dashboard.')}
-        </p>
+        </Alert>
       ) : null}
 
       {dashboardQuery.isLoading ? (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="h-48 animate-pulse rounded-[var(--radius-card)] bg-[var(--bg-hover)]" />
+            <Skeleton key={index} className="h-48 w-full" />
           ))}
         </div>
       ) : dashboard && dashboard.insights.length === 0 ? (
@@ -182,7 +175,7 @@ export default function DashboardDetailPage() {
           <button
             type="button"
             onClick={() => setIsAddingInsight(true)}
-            className="mt-10 flex w-full flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border-2 border-dashed border-[var(--border)] py-16 text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border-2 border-dashed border-[var(--border)] py-14 text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
             <LayoutDashboard size={28} />
             <span className="text-sm font-medium">Add an insight</span>
@@ -191,15 +184,13 @@ export default function DashboardDetailPage() {
           <EmptyState icon={LayoutDashboard} title="No insights yet" />
         )
       ) : dashboard ? (
-        <div className="mt-6">
-          <DashboardGrid
-            dashboardId={dashboard.id}
-            insights={dashboard.insights}
-            layout={dashboard.layout}
-            canManage={canManage}
-            onAddInsight={() => setIsAddingInsight(true)}
-          />
-        </div>
+        <DashboardGrid
+          dashboardId={dashboard.id}
+          insights={dashboard.insights}
+          layout={dashboard.layout}
+          canManage={canManage}
+          onAddInsight={() => setIsAddingInsight(true)}
+        />
       ) : null}
 
       {isAddingInsight && dashboard ? (
@@ -214,6 +205,6 @@ export default function DashboardDetailPage() {
           }}
         />
       ) : null}
-    </div>
+    </PageBody>
   );
 }

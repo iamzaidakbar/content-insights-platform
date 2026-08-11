@@ -43,13 +43,13 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
   const tokens = getPageTokens(page, totalPages);
 
   return (
-    <nav className="flex items-center gap-1" aria-label="Pagination">
+    <nav className="flex items-center gap-0.5" aria-label="Pagination">
       <button
         type="button"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
         aria-label="Previous page"
-        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ChevronLeft size={16} />
       </button>
@@ -58,7 +58,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
         token === 'ellipsis' ? (
           <span
             key={`ellipsis-${index}`}
-            className="flex h-9 w-9 items-center justify-center text-sm text-[var(--text-muted)]"
+            className="flex h-8 w-8 items-center justify-center text-sm text-[var(--text-muted)]"
           >
             …
           </span>
@@ -68,9 +68,9 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
             type="button"
             onClick={() => onPageChange(token)}
             aria-current={token === page ? 'page' : undefined}
-            className={`flex h-9 min-w-9 items-center justify-center rounded-[var(--radius-button)] px-2 text-sm transition-colors ${
+            className={`flex h-8 min-w-8 items-center justify-center rounded-[var(--radius-button)] px-2 text-sm transition-colors ${
               token === page
-                ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
+                ? 'bg-[var(--accent)] font-medium text-white'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
             }`}
           >
@@ -84,7 +84,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
         disabled={page >= totalPages}
         onClick={() => onPageChange(page + 1)}
         aria-label="Next page"
-        className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <ChevronRight size={16} />
       </button>

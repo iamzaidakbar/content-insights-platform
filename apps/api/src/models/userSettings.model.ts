@@ -31,7 +31,7 @@ const userSettingsSchema = new mongoose.Schema<IUserSettings>(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     orgId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
-    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'dark' },
+    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'light' },
     dateFormat: { type: String, enum: DATE_FORMATS, default: 'MMM D, YYYY' },
     facetSortOrder: {
       type: String,

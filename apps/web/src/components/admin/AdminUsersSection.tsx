@@ -9,7 +9,6 @@ import { useAuth } from '../../auth/AuthContext';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/api-client';
 import { formatDate } from '../../lib/format';
-import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import {
   createUser,
   deactivateUser,
@@ -19,7 +18,13 @@ import {
 } from '../../lib/users-api';
 import EmptyState from '../EmptyState';
 import Pagination from '../Pagination';
-import { SettingsSection } from '../settings/SettingsSection';
+import Alert from '../ui/Alert';
+import Button from '../ui/Button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import { Input } from '../ui/Input';
+import Modal from '../ui/Modal';
+import Skeleton from '../ui/Skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 const DEBOUNCE_MS = 300;
 const SKELETON_ROW_COUNT = 5;
@@ -54,42 +59,31 @@ function TemporaryPasswordDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Account created</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          A temporary password was generated for <span className="text-[var(--text-primary)]">{email}</span>. It is
-          shown only this once — copy it now and share it with them out of band. It cannot be retrieved again.
-        </p>
+    <Modal open onClose={onClose} title="Account created" size="sm">
+      <p className="text-sm text-[var(--text-secondary)]">
+        A temporary password was generated for <span className="text-[var(--text-primary)]">{email}</span>. It is
+        shown only this once — copy it now and share it with them out of band. It cannot be retrieved again.
+      </p>
 
-        <div className="mt-4 flex items-center gap-2">
-          <code className="flex-1 truncate rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)]">
-            {password}
-          </code>
-          <button
-            type="button"
-            onClick={() => void handleCopy()}
-            aria-label="Copy temporary password"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-button)] border border-[var(--border)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            {copied ? <Check size={16} className="text-[var(--green)]" /> : <Copy size={16} />}
-          </button>
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-          >
-            Done
-          </button>
-        </div>
+      <div className="mt-4 flex items-center gap-2">
+        <code className="flex-1 truncate rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)]">
+          {password}
+        </code>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label="Copy temporary password"
+          onClick={() => void handleCopy()}
+          className="h-9 w-9 shrink-0 px-0"
+        >
+          {copied ? <Check size={16} className="text-[var(--green)]" /> : <Copy size={16} />}
+        </Button>
       </div>
-    </div>
+
+      <div className="mt-5 flex justify-end">
+        <Button onClick={onClose}>Done</Button>
+      </div>
+    </Modal>
   );
 }
 
@@ -132,66 +126,55 @@ function CreateUserModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">New user</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          A temporary password is generated automatically — there is no email delivery, so you will need to share
-          it with them yourself.
-        </p>
-        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="new-user-email" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Email
-            </label>
-            <input
-              id="new-user-email"
-              type="email"
-              required
-              autoFocus
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className={`mt-1 ${INPUT_CLASSNAME}`}
-            />
-          </div>
+    <Modal
+      open
+      onClose={onClose}
+      title="New user"
+      description="A temporary password is generated automatically — there is no email delivery, so you will need to share it with them yourself."
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="create-user-form" loading={createMutation.isPending}>
+            Create user
+          </Button>
+        </>
+      }
+    >
+      <form id="create-user-form" className="space-y-3" onSubmit={handleSubmit}>
+        <div>
+          <label htmlFor="new-user-email" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Email
+          </label>
+          <Input
+            id="new-user-email"
+            type="email"
+            required
+            autoFocus
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="mt-1"
+          />
+        </div>
 
-          <div>
-            <label htmlFor="new-user-name" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Display name <span className="text-[var(--text-muted)]">(optional)</span>
-            </label>
-            <input
-              id="new-user-name"
-              type="text"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              className={`mt-1 ${INPUT_CLASSNAME}`}
-            />
-          </div>
+        <div>
+          <label htmlFor="new-user-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Display name <span className="text-[var(--text-muted)]">(optional)</span>
+          </label>
+          <Input
+            id="new-user-name"
+            type="text"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+            className="mt-1"
+          />
+        </div>
 
-          {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-
-          <div className="flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createMutation.isPending}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {createMutation.isPending ? 'Creating…' : 'Create user'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {error ? <Alert variant="error">{error}</Alert> : null}
+      </form>
+    </Modal>
   );
 }
 
@@ -211,36 +194,32 @@ function DeleteUserDialog({ target, onClose }: { target: User; onClose: () => vo
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Delete user?</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          <span className="text-[var(--text-primary)]">{target.email}</span> will be permanently removed, along
-          with every role assignment they hold. This cannot be undone.
-        </p>
-        {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
-        <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="Delete user?"
+      size="sm"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose} disabled={deleteMutation.isPending}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            className="rounded-[var(--radius-button)] bg-[var(--red)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {deleteMutation.isPending ? 'Deleting…' : 'Delete user'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button variant="destructive" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+            Delete user
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-[var(--text-secondary)]">
+        <span className="text-[var(--text-primary)]">{target.email}</span> will be permanently removed, along with
+        every role assignment they hold. This cannot be undone.
+      </p>
+      {error ? (
+        <Alert variant="error" className="mt-3">
+          {error}
+        </Alert>
+      ) : null}
+    </Modal>
   );
 }
 
@@ -307,79 +286,77 @@ export default function AdminUsersSection() {
   const showEmptyState = !usersQuery.isLoading && !usersQuery.isError && users.length === 0;
 
   return (
-    <SettingsSection
-      title="Users"
-      description="Every account in your organization. Role assignments are managed from Role Assignments."
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <input
-          type="text"
-          value={rawQuery}
-          onChange={(event) => {
-            setRawQuery(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Search by email…"
-          className={`max-w-xs ${INPUT_CLASSNAME}`}
-          aria-label="Search users by email"
-        />
-        {canManage ? (
-          <button
-            type="button"
-            onClick={() => setIsCreating(true)}
-            className="flex items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-          >
-            <UserPlus size={15} />
-            New user
-          </button>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Users</CardTitle>
+        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+          Every account in your organization. Role assignments are managed from Role Assignments.
+        </p>
+      </CardHeader>
+      <CardBody className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Input
+            type="text"
+            value={rawQuery}
+            onChange={(event) => {
+              setRawQuery(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by email…"
+            className="max-w-xs"
+            aria-label="Search users by email"
+          />
+          {canManage ? (
+            <Button size="sm" leftIcon={<UserPlus size={15} />} onClick={() => setIsCreating(true)}>
+              New user
+            </Button>
+          ) : null}
+        </div>
+
+        {usersQuery.isError ? (
+          <Alert variant="error">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</Alert>
         ) : null}
-      </div>
 
-      {usersQuery.isError ? (
-        <p className="text-sm text-[var(--red)]">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</p>
-      ) : null}
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
-              <th className="pb-2 pr-4 font-medium">Email</th>
-              <th className="pb-2 pr-4 font-medium">Status</th>
-              <th className="pb-2 pr-4 font-medium">Created</th>
-              {canDelete ? <th className="pb-2 font-medium">Actions</th> : null}
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH>Email</TH>
+              <TH>Status</TH>
+              <TH>Created</TH>
+              {canDelete ? <TH>Actions</TH> : null}
+            </TR>
+          </THead>
+          <TBody>
             {usersQuery.isLoading
               ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                  <tr key={index} className="h-12 border-b border-[var(--border)]">
-                    <td className="py-3 pr-4">
-                      <div className="h-4 w-48 animate-pulse rounded bg-[var(--bg-hover)]" />
-                    </td>
-                    <td className="py-3 pr-4">
-                      <div className="h-4 w-10 animate-pulse rounded bg-[var(--bg-hover)]" />
-                    </td>
-                    <td className="py-3 pr-4">
-                      <div className="h-4 w-24 animate-pulse rounded bg-[var(--bg-hover)]" />
-                    </td>
+                  <TR key={index}>
+                    <TD>
+                      <Skeleton className="h-4 w-48" />
+                    </TD>
+                    <TD>
+                      <Skeleton className="h-4 w-10" />
+                    </TD>
+                    <TD>
+                      <Skeleton className="h-4 w-24" />
+                    </TD>
                     {canDelete ? (
-                      <td className="py-3">
-                        <div className="h-4 w-20 animate-pulse rounded bg-[var(--bg-hover)]" />
-                      </td>
+                      <TD>
+                        <Skeleton className="h-4 w-20" />
+                      </TD>
                     ) : null}
-                  </tr>
+                  </TR>
                 ))
               : users.map((orgUser) => {
                   const isSelf = currentUser?.id === orgUser.id;
                   return (
-                    <tr key={orgUser.id} className="h-12 border-b border-[var(--border)]">
-                      <td className="py-3 pr-4">
+                    <TR key={orgUser.id}>
+                      <TD>
                         <p className="text-[var(--text-primary)]">{orgUser.email}</p>
                         {orgUser.displayName ? (
                           <p className="text-xs text-[var(--text-muted)]">{orgUser.displayName}</p>
                         ) : null}
-                      </td>
-                      <td className="py-3 pr-4">
+                      </TD>
+                      <TD>
                         <div className="flex items-center gap-2">
                           <StatusToggle
                             target={orgUser}
@@ -391,26 +368,26 @@ export default function AdminUsersSection() {
                             {orgUser.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
-                      </td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{formatDate(orgUser.createdAt)}</td>
+                      </TD>
+                      <TD className="text-[var(--text-secondary)]">{formatDate(orgUser.createdAt)}</TD>
                       {canDelete ? (
-                        <td className="py-3">
+                        <TD>
                           <button
                             type="button"
                             onClick={() => setDeleting(orgUser)}
                             disabled={isSelf}
                             title={isSelf ? "You can't delete your own account" : 'Delete this user'}
-                            className="text-xs text-[var(--red)] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
+                            className="text-xs text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
                           >
                             Delete
                           </button>
-                        </td>
+                        </TD>
                       ) : null}
-                    </tr>
+                    </TR>
                   );
                 })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
 
         {showEmptyState ? (
           <EmptyState
@@ -419,31 +396,31 @@ export default function AdminUsersSection() {
             description={debouncedQuery ? 'Try a different search.' : undefined}
           />
         ) : null}
-      </div>
 
-      {usersQuery.data && usersQuery.data.totalPages > 1 ? (
-        <div className="flex justify-end">
-          <Pagination page={page} totalPages={usersQuery.data.totalPages} onPageChange={setPage} />
-        </div>
-      ) : null}
+        {usersQuery.data && usersQuery.data.totalPages > 1 ? (
+          <div className="flex justify-end">
+            <Pagination page={page} totalPages={usersQuery.data.totalPages} onPageChange={setPage} />
+          </div>
+        ) : null}
 
-      {isCreating ? (
-        <CreateUserModal
-          onClose={() => setIsCreating(false)}
-          onCreated={(email, password) => {
-            setIsCreating(false);
-            setPasswordReveal({ email, password });
-          }}
-        />
-      ) : null}
-      {passwordReveal ? (
-        <TemporaryPasswordDialog
-          email={passwordReveal.email}
-          password={passwordReveal.password}
-          onClose={() => setPasswordReveal(null)}
-        />
-      ) : null}
-      {deleting ? <DeleteUserDialog target={deleting} onClose={() => setDeleting(null)} /> : null}
-    </SettingsSection>
+        {isCreating ? (
+          <CreateUserModal
+            onClose={() => setIsCreating(false)}
+            onCreated={(email, password) => {
+              setIsCreating(false);
+              setPasswordReveal({ email, password });
+            }}
+          />
+        ) : null}
+        {passwordReveal ? (
+          <TemporaryPasswordDialog
+            email={passwordReveal.email}
+            password={passwordReveal.password}
+            onClose={() => setPasswordReveal(null)}
+          />
+        ) : null}
+        {deleting ? <DeleteUserDialog target={deleting} onClose={() => setDeleting(null)} /> : null}
+      </CardBody>
+    </Card>
   );
 }

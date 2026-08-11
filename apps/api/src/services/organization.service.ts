@@ -92,7 +92,7 @@ export async function createOrganization(
         throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create user');
       }
 
-      // Schema defaults (theme: 'dark', fontSize: 'medium', etc.) apply automatically —
+      // Schema defaults (theme: 'light', etc.) apply automatically —
       // no need to spell them out here, same as leaving `appearance`/`search`/
       // `notifications` unset lets each subdocument's own field defaults kick in.
       const [userSettings] = await UserSettingsModel.create(

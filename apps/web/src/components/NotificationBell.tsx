@@ -86,7 +86,7 @@ export default function NotificationBell() {
 
       {isOpen ? (
         <div
-          className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] shadow-xl"
+          className="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--shadow-md)]"
           role="dialog"
           aria-label="Notifications"
         >

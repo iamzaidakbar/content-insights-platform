@@ -9,7 +9,6 @@ import { useAuth } from '../../auth/AuthContext';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../../lib/api-client';
 import { formatDate } from '../../lib/format';
-import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import { fetchAllGroups } from '../../lib/groups-api';
 import { fetchRoles } from '../../lib/roles-api';
 import {
@@ -21,7 +20,13 @@ import {
 import { assignUserRole, fetchOrgUsers, revokeUserRoleAssignment, updateRoleAssignmentEndDate } from '../../lib/users-api';
 import EmptyState from '../EmptyState';
 import Pagination from '../Pagination';
-import { SETTINGS_SELECT_CLASSNAME, SettingsSection } from '../settings/SettingsSection';
+import Alert from '../ui/Alert';
+import Button from '../ui/Button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import { Input, Select } from '../ui/Input';
+import Modal from '../ui/Modal';
+import Skeleton from '../ui/Skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 const DEBOUNCE_MS = 300;
 const SKELETON_ROW_COUNT = 5;
@@ -99,7 +104,7 @@ function AssignmentChip({
             onClick={() => removeMutation.mutate()}
             disabled={removeMutation.isPending}
             title="Application Admin access is always global and can't be time-bound — remove it to revoke immediately"
-            className="text-[var(--text-muted)] hover:text-[var(--red)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-[var(--text-muted)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={11} />
           </button>
@@ -109,7 +114,7 @@ function AssignmentChip({
             onClick={() => endMutation.mutate()}
             disabled={endMutation.isPending}
             title="End this assignment now"
-            className="font-medium text-[var(--text-muted)] hover:text-[var(--red)] disabled:cursor-not-allowed disabled:opacity-50"
+            className="font-medium text-[var(--text-muted)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             End
           </button>
@@ -188,122 +193,110 @@ function AssignRoleModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Assign role</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          To <span className="text-[var(--text-primary)]">{targetUser.email}</span>
-        </p>
-
-        <div className="mt-4 space-y-4">
-          <div>
-            <label htmlFor="assign-role" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Role
-            </label>
-            <select
-              id="assign-role"
-              value={roleId}
-              onChange={(event) => {
-                setRoleId(event.target.value);
-                setScope('');
-              }}
-              className={`mt-1 w-full ${SETTINGS_SELECT_CLASSNAME}`}
+    <Modal
+      open
+      onClose={onClose}
+      title="Assign role"
+      description={`To ${targetUser.email}`}
+      size="md"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <span title={disabledReason ?? undefined}>
+            <Button
+              onClick={handleSubmit}
+              disabled={!roleId || !roleAllowed || !scopeAllowed}
+              loading={assignMutation.isPending}
             >
-              <option value="">Select a role…</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              Assign role
+            </Button>
+          </span>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <div>
+          <label htmlFor="assign-role" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Role
+          </label>
+          <Select
+            id="assign-role"
+            value={roleId}
+            onChange={(event) => {
+              setRoleId(event.target.value);
+              setScope('');
+            }}
+            className="mt-1"
+          >
+            <option value="">Select a role…</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </Select>
+        </div>
 
-          <div>
-            <label htmlFor="assign-scope" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Scope
-            </label>
-            <select
-              id="assign-scope"
-              value={isAppAdmin ? '' : scope}
-              disabled={isAppAdmin}
-              onChange={(event) => setScope(event.target.value)}
-              className={`mt-1 w-full ${SETTINGS_SELECT_CLASSNAME} disabled:cursor-not-allowed disabled:opacity-60`}
-            >
-              {canUseGlobalScope || isAppAdmin ? <option value="">All (org-wide)</option> : null}
-              {assignableGroups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-            {isAppAdmin ? (
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                Application Admin is always granted at global scope.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="assign-start" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Start date <span className="text-[var(--text-muted)]">(optional)</span>
-              </label>
-              <input
-                id="assign-start"
-                type="date"
-                value={startDate}
-                disabled={isAppAdmin}
-                onChange={(event) => setStartDate(event.target.value)}
-                className={`mt-1 w-full ${INPUT_CLASSNAME} disabled:cursor-not-allowed disabled:opacity-60`}
-              />
-            </div>
-            <div>
-              <label htmlFor="assign-end" className="block text-sm font-medium text-[var(--text-secondary)]">
-                End date <span className="text-[var(--text-muted)]">(optional)</span>
-              </label>
-              <input
-                id="assign-end"
-                type="date"
-                value={endDate}
-                disabled={isAppAdmin}
-                onChange={(event) => setEndDate(event.target.value)}
-                className={`mt-1 w-full ${INPUT_CLASSNAME} disabled:cursor-not-allowed disabled:opacity-60`}
-              />
-            </div>
-          </div>
+        <div>
+          <label htmlFor="assign-scope" className="block text-sm font-medium text-[var(--text-secondary)]">
+            Scope
+          </label>
+          <Select
+            id="assign-scope"
+            value={isAppAdmin ? '' : scope}
+            disabled={isAppAdmin}
+            onChange={(event) => setScope(event.target.value)}
+            className="mt-1"
+          >
+            {canUseGlobalScope || isAppAdmin ? <option value="">All (org-wide)</option> : null}
+            {assignableGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </Select>
           {isAppAdmin ? (
-            <p className="-mt-2 text-xs text-[var(--text-muted)]">
-              Application Admin access can never be time-bound.
-            </p>
+            <p className="mt-1 text-xs text-[var(--text-muted)]">Application Admin is always granted at global scope.</p>
           ) : null}
+        </div>
 
-          {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
-
-          <div className="flex items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              Cancel
-            </button>
-            <span title={disabledReason ?? undefined}>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!roleId || !roleAllowed || !scopeAllowed || assignMutation.isPending}
-                className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {assignMutation.isPending ? 'Assigning…' : 'Assign role'}
-              </button>
-            </span>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="assign-start" className="block text-sm font-medium text-[var(--text-secondary)]">
+              Start date <span className="text-[var(--text-muted)]">(optional)</span>
+            </label>
+            <Input
+              id="assign-start"
+              type="date"
+              value={startDate}
+              disabled={isAppAdmin}
+              onChange={(event) => setStartDate(event.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label htmlFor="assign-end" className="block text-sm font-medium text-[var(--text-secondary)]">
+              End date <span className="text-[var(--text-muted)]">(optional)</span>
+            </label>
+            <Input
+              id="assign-end"
+              type="date"
+              value={endDate}
+              disabled={isAppAdmin}
+              onChange={(event) => setEndDate(event.target.value)}
+              className="mt-1"
+            />
           </div>
         </div>
+        {isAppAdmin ? (
+          <p className="-mt-1 text-xs text-[var(--text-muted)]">Application Admin access can never be time-bound.</p>
+        ) : null}
+
+        {error ? <Alert variant="error">{error}</Alert> : null}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -327,57 +320,61 @@ export default function AdminMembersSection() {
   const showEmptyState = !usersQuery.isLoading && !usersQuery.isError && users.length === 0;
 
   return (
-    <SettingsSection
-      title="Role Assignments"
-      description="Grant a role scoped to a group, or globally (“All”) — dates are optional and, except for Application Admin, may bound when an assignment starts or automatically lapses."
-    >
-      <input
-        type="text"
-        value={rawQuery}
-        onChange={(event) => {
-          setRawQuery(event.target.value);
-          setPage(1);
-        }}
-        placeholder="Search by email…"
-        className={`max-w-xs ${INPUT_CLASSNAME}`}
-        aria-label="Search users by email"
-      />
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Role Assignments</CardTitle>
+        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+          Grant a role scoped to a group, or globally (“All”) — dates are optional and, except for Application Admin,
+          may bound when an assignment starts or automatically lapses.
+        </p>
+      </CardHeader>
+      <CardBody className="space-y-4">
+        <Input
+          type="text"
+          value={rawQuery}
+          onChange={(event) => {
+            setRawQuery(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Search by email…"
+          className="max-w-xs"
+          aria-label="Search users by email"
+        />
 
-      {usersQuery.isError ? (
-        <p className="text-sm text-[var(--red)]">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</p>
-      ) : null}
-      {rolesQuery.isError ? (
-        <p className="text-sm text-[var(--red)]">{getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}</p>
-      ) : null}
+        {usersQuery.isError ? (
+          <Alert variant="error">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</Alert>
+        ) : null}
+        {rolesQuery.isError ? (
+          <Alert variant="error">{getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}</Alert>
+        ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
-              <th className="pb-2 pr-4 font-medium">Email</th>
-              <th className="pb-2 pr-4 font-medium">Assignments</th>
-              <th className="pb-2 font-medium">&nbsp;</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH>Email</TH>
+              <TH>Assignments</TH>
+              <TH>&nbsp;</TH>
+            </TR>
+          </THead>
+          <TBody>
             {usersQuery.isLoading
               ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                  <tr key={index} className="border-b border-[var(--border)]">
-                    <td className="py-3 pr-4">
-                      <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-hover)]" />
-                    </td>
-                    <td className="py-3 pr-4">
-                      <div className="h-4 w-56 animate-pulse rounded bg-[var(--bg-hover)]" />
-                    </td>
-                    <td className="py-3">
-                      <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
-                    </td>
-                  </tr>
+                  <TR key={index}>
+                    <TD>
+                      <Skeleton className="h-4 w-40" />
+                    </TD>
+                    <TD>
+                      <Skeleton className="h-4 w-56" />
+                    </TD>
+                    <TD>
+                      <Skeleton className="h-4 w-16" />
+                    </TD>
+                  </TR>
                 ))
               : users.map((orgUser) => (
-                  <tr key={orgUser.id} className="border-b border-[var(--border)] align-top">
-                    <td className="py-3 pr-4 text-[var(--text-primary)]">{orgUser.email}</td>
-                    <td className="py-3 pr-4">
+                  <TR key={orgUser.id} className="align-top">
+                    <TD>{orgUser.email}</TD>
+                    <TD>
                       {orgUser.roleAssignments.length === 0 ? (
                         <span className="text-xs text-[var(--text-muted)]">No role assignments</span>
                       ) : (
@@ -392,8 +389,8 @@ export default function AdminMembersSection() {
                           ))}
                         </div>
                       )}
-                    </td>
-                    <td className="py-3">
+                    </TD>
+                    <TD>
                       <button
                         type="button"
                         onClick={() => setAssigningTo(orgUser)}
@@ -402,29 +399,29 @@ export default function AdminMembersSection() {
                         <Plus size={13} />
                         Assign
                       </button>
-                    </td>
-                  </tr>
+                    </TD>
+                  </TR>
                 ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
 
         {showEmptyState ? <EmptyState icon={UserCog} title="No users found" /> : null}
-      </div>
 
-      {usersQuery.data && usersQuery.data.totalPages > 1 ? (
-        <div className="flex justify-end">
-          <Pagination page={page} totalPages={usersQuery.data.totalPages} onPageChange={setPage} />
-        </div>
-      ) : null}
+        {usersQuery.data && usersQuery.data.totalPages > 1 ? (
+          <div className="flex justify-end">
+            <Pagination page={page} totalPages={usersQuery.data.totalPages} onPageChange={setPage} />
+          </div>
+        ) : null}
 
-      {assigningTo ? (
-        <AssignRoleModal
-          targetUser={assigningTo}
-          roles={roles}
-          groups={groups}
-          onClose={() => setAssigningTo(null)}
-        />
-      ) : null}
-    </SettingsSection>
+        {assigningTo ? (
+          <AssignRoleModal
+            targetUser={assigningTo}
+            roles={roles}
+            groups={groups}
+            onClose={() => setAssigningTo(null)}
+          />
+        ) : null}
+      </CardBody>
+    </Card>
   );
 }

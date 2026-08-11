@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../../auth/AuthContext';
+import Button from '../ui/Button';
+import { Input } from '../ui/Input';
+import Modal from '../ui/Modal';
 import { getApiErrorMessage } from '../../lib/api-client';
 import { changePassword } from '../../lib/auth-api';
 import { deleteMe, updateMe } from '../../lib/users-api';
@@ -205,45 +208,42 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border-2 bg-[var(--bg-surface)] p-6"
-        style={{ borderColor: 'var(--red)' }}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-base font-semibold text-[var(--text-primary)]">Delete account</h2>
-        <p className="mt-2 text-sm text-[var(--text-secondary)]">
-          This permanently deletes your account and cannot be undone. Type{' '}
-          <strong className="text-[var(--text-primary)]">{user?.email}</strong> to confirm.
-        </p>
-        <input
-          type="text"
-          autoFocus
-          value={confirmEmail}
-          onChange={(event) => setConfirmEmail(event.target.value)}
-          placeholder={user?.email}
-          className={`mt-3 ${INPUT_CLASSNAME}`}
-        />
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-9 rounded-[var(--radius-button)] border border-[var(--border)] px-4 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
-          >
+    <Modal
+      open
+      onClose={onClose}
+      title="Delete account"
+      size="sm"
+      className="border-2 border-[var(--red)]"
+      footer={
+        <>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="destructive"
             onClick={() => void handleDelete()}
-            disabled={!canDelete || isDeleting}
-            className="h-9 rounded-[var(--radius-button)] px-4 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ backgroundColor: 'var(--red)' }}
+            disabled={!canDelete}
+            loading={isDeleting}
           >
-            {isDeleting ? 'Deleting…' : 'Delete account'}
-          </button>
-        </div>
-      </div>
-    </div>
+            Delete account
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-[var(--text-secondary)]">
+        This permanently deletes your account and cannot be undone. Type{' '}
+        <strong className="text-[var(--text-primary)]">{user?.email}</strong> to confirm.
+      </p>
+      <Input
+        type="text"
+        autoFocus
+        value={confirmEmail}
+        onChange={(event) => setConfirmEmail(event.target.value)}
+        placeholder={user?.email}
+        className="mt-3"
+      />
+    </Modal>
   );
 }
 

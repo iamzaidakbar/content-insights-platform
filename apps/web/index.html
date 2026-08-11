@@ -1,31 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Content Insights Platform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <script>
-      // Applies the cached theme/font-size synchronously, before the app JS loads or
-      // paints anything — avoids a flash of the wrong theme while SettingsContext boots
-      // and fetches the real settings from the API. Mirrors (but doesn't replace) the
-      // same logic SettingsContext runs once it's mounted; must stay a plain inline
-      // script (not a module) so it runs before first paint.
+      // Applies the cached theme synchronously before first paint to avoid FOUC.
+      // Cache shape is flat UserSettingsDefaults (theme at top level). Falls back
+      // to nested appearance.theme for any stale pre-pivot cache entries.
       (function () {
         try {
           var raw = localStorage.getItem('ci-settings-cache');
           var cached = raw ? JSON.parse(raw) : null;
-          var theme = cached && cached.appearance ? cached.appearance.theme : 'dark';
-          var fontSize = cached && cached.appearance ? cached.appearance.fontSize : 'medium';
+          var theme =
+            (cached && cached.theme) ||
+            (cached && cached.appearance && cached.appearance.theme) ||
+            'light';
           var resolvedTheme =
             theme === 'system'
               ? window.matchMedia('(prefers-color-scheme: light)').matches
                 ? 'light'
                 : 'dark'
-              : theme || 'dark';
+              : theme === 'dark'
+                ? 'dark'
+                : 'light';
           document.documentElement.setAttribute('data-theme', resolvedTheme);
-          document.documentElement.setAttribute('data-font-size', fontSize || 'medium');
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.setAttribute('data-theme', 'light');
         }
       })();
     </script>

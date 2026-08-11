@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import InsightBuilderModal from '../components/insights/InsightBuilderModal';
+import { Alert, Button, Card, IconButton, PageBody, PageHeader } from '../components/ui';
 import { getApiErrorMessage } from '../lib/api-client';
 import { fetchConcepts } from '../lib/concepts-api';
 import { formatDate } from '../lib/format';
@@ -111,108 +112,98 @@ export default function InsightsPage() {
   const canCreate = groupOptions.length > 0;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-12">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Insights</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Saved charts built from an Articles search — yours, and your groups&apos;.
-          </p>
-        </div>
-        {canCreate ? (
-          <button
-            type="button"
-            onClick={() => setIsCreating(true)}
-            className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-          >
-            <Plus size={14} />
-            New insight
-          </button>
-        ) : null}
-      </div>
+    <PageBody width="md">
+      <PageHeader
+        title="Insights"
+        description="Saved charts built from an Articles search — yours, and your groups'."
+        actions={
+          canCreate ? (
+            <Button type="button" onClick={() => setIsCreating(true)} leftIcon={<Plus size={14} />}>
+              New insight
+            </Button>
+          ) : null
+        }
+      />
 
       {insightsQuery.isError ? (
-        <p className="mt-6 text-sm text-[var(--red)]">{getApiErrorMessage(insightsQuery.error, 'Unable to load insights.')}</p>
+        <Alert variant="error" className="mb-5">
+          {getApiErrorMessage(insightsQuery.error, 'Unable to load insights.')}
+        </Alert>
       ) : null}
 
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
-              <th className="pb-2 pr-4 font-medium">Name</th>
-              <th className="pb-2 pr-4 font-medium">Chart type</th>
-              <th className="pb-2 pr-4 font-medium">Owner</th>
-              <th className="pb-2 pr-4 font-medium">Last updated</th>
-              <th className="pb-2 font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {insightsQuery.isLoading
-              ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => <SkeletonRow key={index} />)
-              : insights.map((insight) => (
-                  <tr key={insight.id} className="h-11 border-b border-[var(--border)]">
-                    <td className="py-3 pr-4">
-                      <button
-                        type="button"
-                        onClick={() => setEditingInsight(insight)}
-                        className="text-left font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
-                        title="Open"
-                      >
-                        {insight.name}
-                      </button>
-                    </td>
-                    <td className="py-3 pr-4 text-[var(--text-secondary)]">{CHART_TYPE_META[insight.chartType].label}</td>
-                    <td className="py-3 pr-4 text-[var(--text-secondary)]">{insight.ownerEmail}</td>
-                    <td className="py-3 pr-4 text-[var(--text-secondary)]">{formatDate(insight.updatedAt)}</td>
-                    <td className="py-3">
-                      {canManage(insight) ? (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setEditingInsight(insight)}
-                            aria-label={`Edit ${insight.name}`}
-                            className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(insight)}
-                            disabled={deleteMutation.isPending}
-                            aria-label={`Delete ${insight.name}`}
-                            className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--red)] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-[var(--text-muted)]">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+      <Card>
+        <div className="overflow-x-auto px-4 py-2">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+                <th className="pb-2 pr-4 font-medium">Name</th>
+                <th className="pb-2 pr-4 font-medium">Chart type</th>
+                <th className="pb-2 pr-4 font-medium">Owner</th>
+                <th className="pb-2 pr-4 font-medium">Last updated</th>
+                <th className="pb-2 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {insightsQuery.isLoading
+                ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => <SkeletonRow key={index} />)
+                : insights.map((insight) => (
+                    <tr key={insight.id} className="h-11 border-b border-[var(--border)] last:border-b-0">
+                      <td className="py-3 pr-4">
+                        <button
+                          type="button"
+                          onClick={() => setEditingInsight(insight)}
+                          className="text-left font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                          title="Open"
+                        >
+                          {insight.name}
+                        </button>
+                      </td>
+                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{CHART_TYPE_META[insight.chartType].label}</td>
+                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{insight.ownerEmail}</td>
+                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{formatDate(insight.updatedAt)}</td>
+                      <td className="py-3">
+                        {canManage(insight) ? (
+                          <div className="flex items-center gap-1">
+                            <IconButton
+                              icon={Pencil}
+                              label={`Edit ${insight.name}`}
+                              size="sm"
+                              onClick={() => setEditingInsight(insight)}
+                            />
+                            <IconButton
+                              icon={Trash2}
+                              label={`Delete ${insight.name}`}
+                              size="sm"
+                              onClick={() => handleDelete(insight)}
+                              disabled={deleteMutation.isPending}
+                              className="hover:text-[var(--error)]"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[var(--text-muted)]">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
 
-        {showEmptyState ? (
-          <EmptyState
-            icon={BarChart3}
-            title="No insights yet"
-            description={canCreate ? 'Build a chart from an Articles search to see it here.' : undefined}
-            action={
-              canCreate ? (
-                <button
-                  type="button"
-                  onClick={() => setIsCreating(true)}
-                  className="flex h-9 items-center rounded-[var(--radius-button)] border border-[var(--border)] px-4 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-                >
-                  Create your first insight
-                </button>
-              ) : undefined
-            }
-          />
-        ) : null}
-      </div>
+          {showEmptyState ? (
+            <EmptyState
+              icon={BarChart3}
+              title="No insights yet"
+              description={canCreate ? 'Build a chart from an Articles search to see it here.' : undefined}
+              action={
+                canCreate ? (
+                  <Button type="button" variant="outline" onClick={() => setIsCreating(true)}>
+                    Create your first insight
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : null}
+        </div>
+      </Card>
 
       {insightsQuery.data && insightsQuery.data.totalPages > 1 ? (
         <div className="mt-4 flex justify-end">
@@ -239,6 +230,6 @@ export default function InsightsPage() {
           onClose={() => setEditingInsight(null)}
         />
       ) : null}
-    </div>
+    </PageBody>
   );
 }

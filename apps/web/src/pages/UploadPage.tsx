@@ -12,8 +12,8 @@ import { CheckCircle2 } from 'lucide-react';
 
 import type { ApiResponse, Article } from '@content-insights/shared';
 
+import { Alert, Breadcrumbs, Button, Card, CardBody, Input, PageBody, PageHeader, Select, Textarea } from '../components/ui';
 import { apiClient, getApiErrorMessage } from '../lib/api-client';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { formatDate } from '../lib/format';
 import { fetchProjects } from '../lib/projects-api';
 
@@ -198,191 +198,196 @@ export default function UploadPage() {
   const wordCount = createdArticle?.body ? createdArticle.body.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-12">
-      <div className="w-full max-w-xl">
-        <Link to="/articles" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-          &larr; Back to articles
-        </Link>
+    <PageBody width="sm">
+      <PageHeader
+        title="Add an article"
+        description={`Manually add a File System article from a local file. ${ACCEPTED_TYPES_LABEL} files up to ${MAX_FILE_SIZE_LABEL} are supported.`}
+        breadcrumbs={
+          <Breadcrumbs
+            items={[
+              { label: 'Articles', to: '/articles' },
+              { label: 'Upload' },
+            ]}
+          />
+        }
+      />
 
-        <h1 className="mt-4 text-2xl font-semibold text-[var(--text-primary)]">Add an article</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          Manually add a File System article from a local file. {ACCEPTED_TYPES_LABEL} files up to{' '}
-          {MAX_FILE_SIZE_LABEL} are supported.
-        </p>
-
-        {createdArticle === null ? (
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Title
-              </label>
-              <input
-                id="title"
-                type="text"
-                required
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="project" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Project
-              </label>
-              <select
-                id="project"
-                value={projectId}
-                onChange={(event) => setProjectId(event.target.value)}
-                required
-                disabled={isBlocked}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              >
-                <option value="">Select a project…</option>
-                {projectOptions.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              {isBlocked ? (
-                <p className="mt-1 text-xs text-[var(--red)]">
-                  You do not have access to any project. Ask an admin to grant you project access.
-                </p>
-              ) : null}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+      {createdArticle === null ? (
+        <Card>
+          <CardBody className="p-5 sm:p-6">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="domain" className="block text-sm font-medium text-[var(--text-secondary)]">
-                  Source / domain <span className="text-[var(--text-muted)]">(optional)</span>
+                <label htmlFor="title" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Title
                 </label>
-                <input
-                  id="domain"
+                <Input
+                  id="title"
                   type="text"
-                  placeholder="e.g. nytimes.com"
-                  value={domain}
-                  onChange={(event) => setDomain(event.target.value)}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                  required
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="mt-1"
                 />
               </div>
+
               <div>
-                <label htmlFor="publishedAt" className="block text-sm font-medium text-[var(--text-secondary)]">
-                  Published date <span className="text-[var(--text-muted)]">(optional)</span>
+                <label htmlFor="project" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Project
                 </label>
-                <input
-                  id="publishedAt"
-                  type="date"
-                  value={publishedAt}
-                  onChange={(event) => setPublishedAt(event.target.value)}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
-                />
+                <Select
+                  id="project"
+                  value={projectId}
+                  onChange={(event) => setProjectId(event.target.value)}
+                  required
+                  disabled={isBlocked}
+                  className="mt-1"
+                >
+                  <option value="">Select a project…</option>
+                  {projectOptions.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </Select>
+                {isBlocked ? (
+                  <p className="mt-1 text-xs text-[var(--error)]">
+                    You do not have access to any project. Ask an admin to grant you project access.
+                  </p>
+                ) : null}
               </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="url" className="block text-sm font-medium text-[var(--text-secondary)]">
-                  Source URL <span className="text-[var(--text-muted)]">(optional)</span>
-                </label>
-                <input
-                  id="url"
-                  type="url"
-                  placeholder="https://example.com/article"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
-                />
-              </div>
-              <div>
-                <label htmlFor="authors" className="block text-sm font-medium text-[var(--text-secondary)]">
-                  Authors <span className="text-[var(--text-muted)]">(optional)</span>
-                </label>
-                <input
-                  id="authors"
-                  type="text"
-                  placeholder="Jane Doe, John Smith"
-                  value={authors}
-                  onChange={(event) => setAuthors(event.target.value)}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="summary" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Summary <span className="text-[var(--text-muted)]">(optional)</span>
-              </label>
-              <textarea
-                id="summary"
-                rows={3}
-                value={summary}
-                onChange={(event) => setSummary(event.target.value)}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
-              />
-            </div>
-
-            <div>
-              <span className="block text-sm font-medium text-[var(--text-secondary)]">File</span>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => fileInputRef.current?.click()}
-                onKeyDown={handleBrowseKeyDown}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`mt-1 cursor-pointer rounded-[var(--radius-card)] border-2 border-dashed px-6 py-10 text-center transition-colors ${
-                  isDraggingOver
-                    ? 'border-[var(--accent)] bg-[var(--bg-hover)]'
-                    : 'border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]'
-                }`}
-              >
-                <p className="text-sm text-[var(--text-secondary)]">
-                  {file ? file.name : 'Drag and drop a file here, or click to browse'}
-                </p>
-                <p className="mt-1 text-xs text-[var(--text-muted)]">
-                  {ACCEPTED_TYPES_LABEL} — up to {MAX_FILE_SIZE_LABEL}
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={ALLOWED_EXTENSIONS.join(',')}
-                  className="hidden"
-                  onChange={handleFileInputChange}
-                />
-              </div>
-              {fileError ? <p className="mt-1 text-sm text-[var(--red)]">{fileError}</p> : null}
-            </div>
-
-            {isUploading ? (
-              <div>
-                <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-hover)]">
-                  <div
-                    className="h-full bg-[var(--accent)] transition-all"
-                    style={{ width: `${uploadProgress}%` }}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="domain" className="block text-sm font-medium text-[var(--text-secondary)]">
+                    Source / domain <span className="text-[var(--text-muted)]">(optional)</span>
+                  </label>
+                  <Input
+                    id="domain"
+                    type="text"
+                    placeholder="e.g. nytimes.com"
+                    value={domain}
+                    onChange={(event) => setDomain(event.target.value)}
+                    className="mt-1"
                   />
                 </div>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                  {uploadProgress < 100 ? `${uploadProgress}%` : 'Processing…'}
-                </p>
+                <div>
+                  <label htmlFor="publishedAt" className="block text-sm font-medium text-[var(--text-secondary)]">
+                    Published date <span className="text-[var(--text-muted)]">(optional)</span>
+                  </label>
+                  <Input
+                    id="publishedAt"
+                    type="date"
+                    value={publishedAt}
+                    onChange={(event) => setPublishedAt(event.target.value)}
+                    className="mt-1"
+                  />
+                </div>
               </div>
-            ) : null}
 
-            {uploadError ? <p className="text-sm text-[var(--red)]">{uploadError}</p> : null}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="url" className="block text-sm font-medium text-[var(--text-secondary)]">
+                    Source URL <span className="text-[var(--text-muted)]">(optional)</span>
+                  </label>
+                  <Input
+                    id="url"
+                    type="url"
+                    placeholder="https://example.com/article"
+                    value={url}
+                    onChange={(event) => setUrl(event.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="authors" className="block text-sm font-medium text-[var(--text-secondary)]">
+                    Authors <span className="text-[var(--text-muted)]">(optional)</span>
+                  </label>
+                  <Input
+                    id="authors"
+                    type="text"
+                    placeholder="Jane Doe, John Smith"
+                    value={authors}
+                    onChange={(event) => setAuthors(event.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={isUploading || isBlocked}
-              className="w-full rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isUploading ? 'Uploading…' : 'Add article'}
-            </button>
-          </form>
-        ) : (
-          <div className="mt-6 space-y-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+              <div>
+                <label htmlFor="summary" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Summary <span className="text-[var(--text-muted)]">(optional)</span>
+                </label>
+                <Textarea
+                  id="summary"
+                  rows={3}
+                  value={summary}
+                  onChange={(event) => setSummary(event.target.value)}
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <span className="block text-sm font-medium text-[var(--text-secondary)]">File</span>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={handleBrowseKeyDown}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`mt-1 cursor-pointer rounded-[var(--radius-card)] border-2 border-dashed px-6 py-10 text-center transition-colors ${
+                    isDraggingOver
+                      ? 'border-[var(--accent)] bg-[var(--bg-hover)]'
+                      : 'border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]'
+                  }`}
+                >
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {file ? file.name : 'Drag and drop a file here, or click to browse'}
+                  </p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                    {ACCEPTED_TYPES_LABEL} — up to {MAX_FILE_SIZE_LABEL}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={ALLOWED_EXTENSIONS.join(',')}
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                  />
+                </div>
+                {fileError ? <p className="mt-1 text-sm text-[var(--error)]">{fileError}</p> : null}
+              </div>
+
+              {isUploading ? (
+                <div>
+                  <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-hover)]">
+                    <div
+                      className="h-full bg-[var(--accent)] transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                    {uploadProgress < 100 ? `${uploadProgress}%` : 'Processing…'}
+                  </p>
+                </div>
+              ) : null}
+
+              {uploadError ? (
+                <Alert variant="error">{uploadError}</Alert>
+              ) : null}
+
+              <Button type="submit" className="w-full" disabled={isBlocked} loading={isUploading}>
+                {isUploading ? 'Uploading…' : 'Add article'}
+              </Button>
+            </form>
+          </CardBody>
+        </Card>
+      ) : (
+        <Card>
+          <CardBody className="space-y-4 p-5 sm:p-6">
             <div className="flex items-start gap-3">
-              <CheckCircle2 size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--green)' }} />
+              <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[var(--success)]" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-[var(--text-primary)]">{createdArticle.title}</p>
                 <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
@@ -392,28 +397,22 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <p className="text-sm" style={{ color: 'var(--green)' }}>
-              Article added.
-            </p>
+            <p className="text-sm text-[var(--success)]">Article added.</p>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Link
                 to={`/articles/${createdArticle.id}`}
-                className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
               >
                 View article
               </Link>
-              <button
-                type="button"
-                onClick={resetForAnotherUpload}
-                className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-              >
+              <Button type="button" variant="outline" onClick={resetForAnotherUpload}>
                 Add another
-              </button>
+              </Button>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
+          </CardBody>
+        </Card>
+      )}
+    </PageBody>
   );
 }

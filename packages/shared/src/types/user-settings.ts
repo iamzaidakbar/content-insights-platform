@@ -28,7 +28,7 @@ export type UserSettingsDefaults = Omit<UserSettings, 'id' | 'userId' | 'orgId' 
 // Single source of truth for defaults — used both to seed a new UserSettings document on
 // user creation and to answer GET /api/settings/defaults.
 export const DEFAULT_USER_SETTINGS: UserSettingsDefaults = {
-  theme: 'dark',
+  theme: 'light',
   dateFormat: 'MMM D, YYYY',
   facetSortOrder: 'countDesc',
   hideZeroCountFacets: false,

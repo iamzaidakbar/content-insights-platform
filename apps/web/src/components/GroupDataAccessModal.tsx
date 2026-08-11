@@ -18,6 +18,7 @@ import {
 import { fetchAllProjects } from '../lib/projects-api';
 import { fetchSavedSearches } from '../lib/saved-searches-api';
 import { SETTINGS_SELECT_CLASSNAME } from './settings/SettingsSection';
+import Modal from './ui/Modal';
 
 // ---------------------------------------------------------------------------------------
 // The Data Access modal is the UI for GroupDataAccess (packages/shared/src/types/group.ts)
@@ -755,66 +756,44 @@ export default function GroupDataAccessModal({ group, onClose }: { group: Group;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10" onClick={onClose}>
-      <div
-        className="w-full max-w-2xl rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">Data access</h2>
-            <p className="text-xs text-[var(--text-secondary)]">{liveGroup.name}</p>
-          </div>
+    <Modal open onClose={onClose} title="Data access" description={liveGroup.name} size="xl" scrollable>
+      <div className="-mx-5 -mt-4 mb-4 flex gap-1 border-b border-[var(--border)] px-5">
+        {TABS.map((item) => (
           <button
+            key={item.key}
             type="button"
-            onClick={onClose}
-            aria-label="Close data access"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            onClick={() => setTab(item.key)}
+            className={`rounded-t-[var(--radius-button)] px-3 py-2.5 text-sm font-medium transition-colors ${
+              tab === item.key
+                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
           >
-            <X size={18} />
+            {item.label}
           </button>
-        </div>
-
-        <div className="flex gap-1 border-b border-[var(--border)] px-4 pt-2">
-          {TABS.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setTab(item.key)}
-              className={`rounded-t-[var(--radius-button)] px-3 py-2 text-sm font-medium transition-colors ${
-                tab === item.key
-                  ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
-          {/* All four tabs stay mounted (CSS-hidden, not unmounted) so an in-progress, unsaved
-              edit in one (e.g. a staged hard-filter grant) survives switching tabs and back —
-              same convention as AdminPage/SettingsPage's own sub-nav. */}
-          <div className={tab === 'projects' ? '' : 'hidden'}>
-            <ProjectsTab group={liveGroup} onSaved={handleSaved} />
-          </div>
-          <div className={tab === 'hard' ? '' : 'hidden'}>
-            <HardFiltersTab
-              group={liveGroup}
-              grantedProjects={grantedProjects}
-              allProjects={allProjects}
-              onSaved={handleSaved}
-            />
-          </div>
-          <div className={tab === 'soft' ? '' : 'hidden'}>
-            <SoftFiltersTab group={liveGroup} grantedProjects={grantedProjects} onSaved={handleSaved} />
-          </div>
-          <div className={tab === 'default' ? '' : 'hidden'}>
-            <DefaultQueryTab group={liveGroup} grantedProjects={grantedProjects} />
-          </div>
-        </div>
+        ))}
       </div>
-    </div>
+
+      {/* All four tabs stay mounted (CSS-hidden, not unmounted) so an in-progress, unsaved
+          edit in one (e.g. a staged hard-filter grant) survives switching tabs and back —
+          same convention as AdminPage/SettingsPage's own sub-nav. */}
+      <div className={tab === 'projects' ? '' : 'hidden'}>
+        <ProjectsTab group={liveGroup} onSaved={handleSaved} />
+      </div>
+      <div className={tab === 'hard' ? '' : 'hidden'}>
+        <HardFiltersTab
+          group={liveGroup}
+          grantedProjects={grantedProjects}
+          allProjects={allProjects}
+          onSaved={handleSaved}
+        />
+      </div>
+      <div className={tab === 'soft' ? '' : 'hidden'}>
+        <SoftFiltersTab group={liveGroup} grantedProjects={grantedProjects} onSaved={handleSaved} />
+      </div>
+      <div className={tab === 'default' ? '' : 'hidden'}>
+        <DefaultQueryTab group={liveGroup} grantedProjects={grantedProjects} />
+      </div>
+    </Modal>
   );
 }

@@ -14,7 +14,12 @@ import { getApiErrorMessage } from '../../lib/api-client';
 import { fetchAuditLog } from '../../lib/audit-api';
 import { fetchProjects } from '../../lib/projects-api';
 import { formatDate } from '../../lib/format';
-import { SETTINGS_SELECT_CLASSNAME } from '../settings/SettingsSection';
+import Alert from '../ui/Alert';
+import Button from '../ui/Button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import { Input, Select } from '../ui/Input';
+import Skeleton from '../ui/Skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 // Matches AuditEntityType (packages/shared/src/types/audit.ts) exactly — the pre-pivot
 // list here ('document', 'incident') no longer exists on that union at all.
@@ -205,161 +210,157 @@ export default function AdminAuditSection() {
   }
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-[var(--text-primary)]">Audit log</h2>
-      <p className="mt-1 text-sm text-[var(--text-secondary)]">
-        Immutable record of authentication, article, and admin activity — who did what, when, and (for article
-        hide/unhide) exactly which articles.
-      </p>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Audit log</CardTitle>
+        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+          Immutable record of authentication, article, and admin activity — who did what, when, and (for article
+          hide/unhide) exactly which articles.
+        </p>
+      </CardHeader>
+      <CardBody className="space-y-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            Action
+            <Select
+              value={action}
+              onChange={(e) => resetToFirstPage(setAction)(e.target.value as AuditAction | '')}
+              aria-label="Filter by action"
+              className="w-auto min-w-[10rem] py-1.5"
+            >
+              <option value="">All actions</option>
+              {AUDIT_ACTIONS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </Select>
+          </label>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
-          Action
-          <select
-            value={action}
-            onChange={(e) => resetToFirstPage(setAction)(e.target.value as AuditAction | '')}
-            className={SETTINGS_SELECT_CLASSNAME}
-            aria-label="Filter by action"
-          >
-            <option value="">All actions</option>
-            {AUDIT_ACTIONS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            Entity type
+            <Select
+              value={entityType}
+              onChange={(e) => resetToFirstPage(setEntityType)(e.target.value as AuditEntityType | '')}
+              aria-label="Filter by entity type"
+              className="w-auto min-w-[10rem] py-1.5"
+            >
+              <option value="">All entity types</option>
+              {ENTITY_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </label>
 
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
-          Entity type
-          <select
-            value={entityType}
-            onChange={(e) => resetToFirstPage(setEntityType)(e.target.value as AuditEntityType | '')}
-            className={SETTINGS_SELECT_CLASSNAME}
-            aria-label="Filter by entity type"
-          >
-            <option value="">All entity types</option>
-            {ENTITY_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            Project
+            <Select
+              value={projectId}
+              onChange={(e) => resetToFirstPage(setProjectId)(e.target.value)}
+              aria-label="Filter by project"
+              className="w-auto min-w-[10rem] py-1.5"
+            >
+              <option value="">All projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </Select>
+          </label>
 
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
-          Project
-          <select
-            value={projectId}
-            onChange={(e) => resetToFirstPage(setProjectId)(e.target.value)}
-            className={SETTINGS_SELECT_CLASSNAME}
-            aria-label="Filter by project"
-          >
-            <option value="">All projects</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            From
+            <Input
+              type="date"
+              value={fromDate}
+              onChange={(e) => resetToFirstPage(setFromDate)(e.target.value)}
+              aria-label="Filter from date"
+              className="w-auto py-1.5"
+            />
+          </label>
 
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
-          From
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => resetToFirstPage(setFromDate)(e.target.value)}
-            className={SETTINGS_SELECT_CLASSNAME}
-            aria-label="Filter from date"
-          />
-        </label>
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            To
+            <Input
+              type="date"
+              value={toDate}
+              onChange={(e) => resetToFirstPage(setToDate)(e.target.value)}
+              aria-label="Filter to date"
+              className="w-auto py-1.5"
+            />
+          </label>
 
-        <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
-          To
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => resetToFirstPage(setToDate)(e.target.value)}
-            className={SETTINGS_SELECT_CLASSNAME}
-            aria-label="Filter to date"
-          />
-        </label>
+          {action || entityType || projectId || fromDate || toDate ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setAction('');
+                setEntityType('');
+                setProjectId('');
+                setFromDate('');
+                setToDate('');
+                setPage(1);
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
 
-        {action || entityType || projectId || fromDate || toDate ? (
-          <button
-            type="button"
-            onClick={() => {
-              setAction('');
-              setEntityType('');
-              setProjectId('');
-              setFromDate('');
-              setToDate('');
-              setPage(1);
-            }}
-            className="h-9 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-xs text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)]"
-          >
-            Clear filters
-          </button>
-        ) : null}
-      </div>
-
-      <div className="mt-6">
         {auditQuery.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-[var(--bg-hover)]" />
+              <Skeleton key={i} className="h-10 w-full" />
             ))}
           </div>
         ) : auditQuery.isError ? (
-          <p className="text-sm text-[var(--red)]">
-            {getApiErrorMessage(auditQuery.error, 'Unable to load the audit log.')}
-          </p>
+          <Alert variant="error">{getApiErrorMessage(auditQuery.error, 'Unable to load the audit log.')}</Alert>
         ) : items.length === 0 ? (
           <p className="py-8 text-center text-sm text-[var(--text-muted)]">No audit entries match these filters.</p>
         ) : (
           <>
-            <div className="overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border)]">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="px-3 py-2.5 font-medium">Date</th>
-                    <th className="px-3 py-2.5 font-medium">Account</th>
-                    <th className="px-3 py-2.5 font-medium">Project</th>
-                    <th className="px-3 py-2.5 font-medium">Activity</th>
-                    <th className="px-3 py-2.5 font-medium">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((entry) => (
-                    <tr key={entry.id} className="border-b border-[var(--border)] align-top last:border-b-0">
-                      <td className="whitespace-nowrap px-3 py-2.5 text-[var(--text-secondary)]">
-                        {formatDate(entry.createdAt)}
-                      </td>
-                      <td className="px-3 py-2.5 text-[var(--text-primary)]">{entry.actorEmail}</td>
-                      <td className="px-3 py-2.5 text-[var(--text-secondary)]">
-                        {entry.projectId ? (projectNameById.get(entry.projectId) ?? `${entry.projectId.slice(0, 8)}…`) : '—'}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <span className="font-mono text-xs text-[var(--text-primary)]">{entry.action}</span>
-                        <span className="ml-1.5 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
-                          {entry.entityType}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <AuditDetailsCell entry={entry} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-4 flex justify-end">
+            <Table>
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>Date</TH>
+                  <TH>Account</TH>
+                  <TH>Project</TH>
+                  <TH>Activity</TH>
+                  <TH>Details</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {items.map((entry) => (
+                  <TR key={entry.id} className="align-top">
+                    <TD className="whitespace-nowrap text-[var(--text-secondary)]">{formatDate(entry.createdAt)}</TD>
+                    <TD>{entry.actorEmail}</TD>
+                    <TD className="text-[var(--text-secondary)]">
+                      {entry.projectId ? (projectNameById.get(entry.projectId) ?? `${entry.projectId.slice(0, 8)}…`) : '—'}
+                    </TD>
+                    <TD>
+                      <span className="font-mono text-xs text-[var(--text-primary)]">{entry.action}</span>
+                      <span className="ml-1.5 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
+                        {entry.entityType}
+                      </span>
+                    </TD>
+                    <TD>
+                      <AuditDetailsCell entry={entry} />
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+            <div className="flex justify-end">
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </>
         )}
-      </div>
-    </div>
+      </CardBody>
+    </Card>
   );
 }

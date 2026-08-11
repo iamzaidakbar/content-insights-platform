@@ -8,8 +8,10 @@ import type { TeamsShareArticleRef, TeamsShareRecord } from '@content-insights/s
 import { getApiErrorMessage } from '../../lib/api-client';
 import { fetchGlobalSettings } from '../../lib/global-settings-api';
 import { formatDate } from '../../lib/format';
-import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import { shareToTeams, TEAMS_MAX_ARTICLES_PER_SHARE, TEAMS_MESSAGE_MAX_LENGTH } from '../../lib/teams-api';
+import Button from '../ui/Button';
+import { Textarea } from '../ui/Input';
+import Modal from '../ui/Modal';
 import Toggle from '../Toggle';
 
 const MAX_VISIBLE_ARTICLE_PREVIEW = 5;
@@ -106,14 +108,12 @@ function ArticlePreviewList({ articles, useAppDeepLink }: { articles: TeamsShare
 function ConfirmationView({
   record,
   articleCount,
-  onClose,
 }: {
   record: TeamsShareRecord;
   articleCount: number;
-  onClose: () => void;
 }) {
   return (
-    <div className="px-6 py-6">
+    <div>
       <div className="flex items-start gap-3 rounded-[var(--radius-input)] border border-[var(--green)] bg-[var(--accent-soft)] p-4">
         <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[var(--green)]" />
         <div>
@@ -153,16 +153,6 @@ function ConfirmationView({
           <dd className="font-mono text-xs text-[var(--text-muted)]">{record.id}</dd>
         </div>
       </dl>
-
-      <div className="mt-6 flex justify-end">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-[var(--radius-button)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-        >
-          Done
-        </button>
-      </div>
     </div>
   );
 }
@@ -201,15 +191,6 @@ export default function TeamsShareModal({ isOpen, onClose, articles, onShared }:
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   // GET /settings/global is gated on global-settings:manage, which most users sharing an
   // article won't hold — that 403 is expected and silently ignored (queries don't
   // auto-toast, only mutations do; see query-client.ts), falling back to the client-side
@@ -237,126 +218,105 @@ export default function TeamsShareModal({ isOpen, onClose, articles, onShared }:
     meta: { skipToast: true },
   });
 
-  if (!isOpen) {
-    return null;
-  }
-
   const isBulk = articles.length > 1;
   const title = isBulk ? `Share ${articles.length} articles to Microsoft Teams` : 'Share to Microsoft Teams';
   const canSubmit = articles.length > 0 && !overCap && !shareMutation.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10" onClick={onClose}>
-      <div
-        data-testid="teams-share-modal"
-        className="w-full max-w-lg rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {shareRecord ? (
-          <ConfirmationView record={shareRecord} articleCount={articles.length} onClose={onClose} />
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={title}
+      size="lg"
+      scrollable
+      testId="teams-share-modal"
+      footer={
+        shareRecord ? (
+          <Button onClick={onClose}>Done</Button>
         ) : (
-          <div className="max-h-[75vh] space-y-4 overflow-y-auto px-6 py-5">
-            <div className="flex items-start gap-2 rounded-[var(--radius-input)] border border-[var(--amber)] bg-[var(--accent-soft)] p-3 text-xs leading-relaxed text-[var(--text-secondary)]">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--amber)]" />
-              <p>
-                This records the share for now — no live Microsoft Teams connection is configured in this
-                environment. Nothing will actually be posted to a Teams channel.
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">
-                {isBulk ? `Articles (${articles.length})` : 'Article'}
-              </p>
-              <ArticlePreviewList articles={articles} useAppDeepLink={useAppDeepLink} />
-            </div>
-
-            {overCap ? (
-              <p className="rounded-[var(--radius-input)] border border-[var(--red)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--red)]">
-                This share includes {articles.length} articles, which exceeds your organization&apos;s limit of{' '}
-                {maxArticlesPerShare} articles per Teams share. Remove some articles before sharing.
-              </p>
-            ) : null}
-
-            <div>
-              <label htmlFor="teams-share-message" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Message <span className="text-xs font-normal text-[var(--text-muted)]">(optional)</span>
-              </label>
-              <textarea
-                id="teams-share-message"
-                rows={4}
-                maxLength={TEAMS_MESSAGE_MAX_LENGTH}
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                placeholder="Add context for the people you're sharing with…"
-                className={`mt-1 resize-none ${INPUT_CLASSNAME}`}
-              />
-              <p
-                className={`mt-1 text-right text-xs ${
-                  message.length >= TEAMS_MESSAGE_MAX_LENGTH ? 'text-[var(--red)]' : 'text-[var(--text-muted)]'
-                }`}
-              >
-                {message.length} / {TEAMS_MESSAGE_MAX_LENGTH}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)]">
-                Mentions <span className="text-xs font-normal text-[var(--text-muted)]">(optional — no directory lookup, just names)</span>
-              </label>
-              <div className="mt-1">
-                <MentionsInput mentions={mentions} onChange={setMentions} />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 rounded-[var(--radius-input)] border border-[var(--border)] p-3">
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {useAppDeepLink ? 'Sharing app deep links' : 'Sharing original source URLs'}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
-                  {useAppDeepLink
-                    ? 'Recipients open each article inside this app.'
-                    : "Recipients open each article's original source page directly."}
-                </p>
-              </div>
-              <Toggle checked={useAppDeepLink} onChange={setUseAppDeepLink} label="Use app deep links" />
-            </div>
-          </div>
-        )}
-
-        {shareRecord ? null : (
-          <div className="flex justify-end gap-3 border-t border-[var(--border)] px-6 py-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
+          <>
+            <Button variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => shareMutation.mutate()}
-              disabled={!canSubmit}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {shareMutation.isPending ? 'Sharing…' : 'Share to Teams'}
-            </button>
+            </Button>
+            <Button onClick={() => shareMutation.mutate()} disabled={!canSubmit} loading={shareMutation.isPending}>
+              Share to Teams
+            </Button>
+          </>
+        )
+      }
+    >
+      {shareRecord ? (
+        <ConfirmationView record={shareRecord} articleCount={articles.length} />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-start gap-2 rounded-[var(--radius-input)] border border-[var(--amber)] bg-[var(--accent-soft)] p-3 text-xs leading-relaxed text-[var(--text-secondary)]">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--amber)]" />
+            <p>
+              This records the share for now — no live Microsoft Teams connection is configured in this
+              environment. Nothing will actually be posted to a Teams channel.
+            </p>
           </div>
-        )}
-      </div>
-    </div>
+
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">
+              {isBulk ? `Articles (${articles.length})` : 'Article'}
+            </p>
+            <ArticlePreviewList articles={articles} useAppDeepLink={useAppDeepLink} />
+          </div>
+
+          {overCap ? (
+            <p className="rounded-[var(--radius-input)] border border-[var(--red)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--red)]">
+              This share includes {articles.length} articles, which exceeds your organization&apos;s limit of{' '}
+              {maxArticlesPerShare} articles per Teams share. Remove some articles before sharing.
+            </p>
+          ) : null}
+
+          <div>
+            <label htmlFor="teams-share-message" className="block text-sm font-medium text-[var(--text-secondary)]">
+              Message <span className="text-xs font-normal text-[var(--text-muted)]">(optional)</span>
+            </label>
+            <Textarea
+              id="teams-share-message"
+              rows={4}
+              maxLength={TEAMS_MESSAGE_MAX_LENGTH}
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              placeholder="Add context for the people you're sharing with…"
+              className="mt-1 resize-none"
+            />
+            <p
+              className={`mt-1 text-right text-xs ${
+                message.length >= TEAMS_MESSAGE_MAX_LENGTH ? 'text-[var(--red)]' : 'text-[var(--text-muted)]'
+              }`}
+            >
+              {message.length} / {TEAMS_MESSAGE_MAX_LENGTH}
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-secondary)]">
+              Mentions <span className="text-xs font-normal text-[var(--text-muted)]">(optional — no directory lookup, just names)</span>
+            </label>
+            <div className="mt-1">
+              <MentionsInput mentions={mentions} onChange={setMentions} />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-[var(--radius-input)] border border-[var(--border)] p-3">
+            <div>
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                {useAppDeepLink ? 'Sharing app deep links' : 'Sharing original source URLs'}
+              </p>
+              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                {useAppDeepLink
+                  ? 'Recipients open each article inside this app.'
+                  : "Recipients open each article's original source page directly."}
+              </p>
+            </div>
+            <Toggle checked={useAppDeepLink} onChange={setUseAppDeepLink} label="Use app deep links" />
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

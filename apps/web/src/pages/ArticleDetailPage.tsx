@@ -1,16 +1,14 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   Calendar,
-  ChevronRight,
   Download,
   ExternalLink,
   Eye,
   EyeOff,
   Globe,
-  Loader2,
   Plus,
   Search,
   Tag as TagIcon,
@@ -23,6 +21,15 @@ import type { Article, ArticleAsset, UserTag } from '@content-insights/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import ArticleAssetViewer from '../components/ArticleAssetViewer';
+import Alert from '../components/ui/Alert';
+import Badge from '../components/ui/Badge';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Button from '../components/ui/Button';
+import { Card, CardBody, CardTitle } from '../components/ui/Card';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { Input } from '../components/ui/Input';
+import PageHeader, { PageBody } from '../components/ui/PageHeader';
+import Skeleton from '../components/ui/Skeleton';
 import { getApiErrorMessage } from '../lib/api-client';
 import { bulkArticleOperation, downloadArticle, fetchArticle, hideArticle, unhideArticle } from '../lib/articles-api';
 import { fetchConcepts } from '../lib/concepts-api';
@@ -47,13 +54,15 @@ const SOURCE_TYPE_LABEL: Record<Article['sourceType'], string> = {
 
 function SectionCard({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-5">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
-        {icon}
-        {title}
-      </h2>
-      <div className="mt-4">{children}</div>
-    </section>
+    <Card>
+      <CardBody className="p-4">
+        <CardTitle className="flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+        <div className="mt-3">{children}</div>
+      </CardBody>
+    </Card>
   );
 }
 
@@ -72,7 +81,7 @@ function renderBodyParagraphs(text: string): React.ReactNode[] | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   return trimmed.split(/\n{2,}/).map((paragraph, index) => (
-    <p key={index} className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-[var(--text-primary)] first:mt-0">
+    <p key={index} className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-primary)] first:mt-0">
       {paragraph.trim()}
     </p>
   ));
@@ -119,13 +128,13 @@ function AddTagPopover({ candidateTags, isBusy, onSelectTag, onCreateTag, onClos
     >
       <div className="relative">
         <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-        <input
+        <Input
           type="search"
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search or create a tag…"
-          className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          className="h-8 py-1.5 pl-8 pr-2"
         />
       </div>
 
@@ -280,9 +289,9 @@ export default function ArticleDetailPage() {
 
   if (!id) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-6 py-8">
-        <p className="text-sm text-[var(--red)]">Invalid article id.</p>
-      </div>
+      <PageBody width="xl">
+        <Alert variant="error">Invalid article id.</Alert>
+      </PageBody>
     );
   }
 
@@ -292,24 +301,25 @@ export default function ArticleDetailPage() {
 
   if (articleQuery.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-6xl px-6 py-8">
-        <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-hover)]" />
-        <div className="mt-4 h-8 w-1/2 animate-pulse rounded bg-[var(--bg-hover)]" />
-        <div className="mt-6 h-64 animate-pulse rounded-[var(--radius-card)] bg-[var(--bg-hover)]" />
-      </div>
+      <PageBody width="xl">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="mt-3 h-8 w-1/2" />
+        <Skeleton className="mt-5 h-64 w-full" />
+      </PageBody>
     );
   }
 
   if (articleQuery.isError || !article) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-6 py-8">
-        <Link to={crumbPath} className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-          &larr; Back to {crumbLabel}
-        </Link>
-        <p className="mt-6 text-sm text-[var(--red)]">
+      <PageBody width="xl">
+        <PageHeader
+          breadcrumbs={<Breadcrumbs items={[{ label: crumbLabel, to: crumbPath }, { label: 'Article' }]} />}
+          title="Article unavailable"
+        />
+        <Alert variant="error">
           {getApiErrorMessage(articleQuery.error, 'Article not found or you do not have access to it.')}
-        </p>
-      </div>
+        </Alert>
+      </PageBody>
     );
   }
 
@@ -343,124 +353,98 @@ export default function ArticleDetailPage() {
   const isHideBusy = hideMutation.isPending;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
-        <Link to={crumbPath} className="hover:text-[var(--text-primary)]">
-          {crumbLabel}
-        </Link>
-        <ChevronRight size={14} className="shrink-0 text-[var(--text-muted)]" />
-        <span className="min-w-0 truncate text-[var(--text-primary)]">{article.title}</span>
-      </nav>
-
-      {/* Header */}
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{article.title}</h1>
-            {article.hidden ? (
-              <span className="rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-medium text-[var(--red)]">
-                Hidden
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[var(--text-secondary)]">
+    <PageBody width="xl">
+      <PageHeader
+        breadcrumbs={
+          <Breadcrumbs
+            items={[
+              { label: crumbLabel, to: crumbPath },
+              { label: article.title },
+            ]}
+          />
+        }
+        title={article.title}
+        actions={
+          <>
+            {article.hidden ? <Badge variant="error">Hidden</Badge> : null}
             {article.url ? (
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[var(--accent)] hover:underline"
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<ExternalLink size={15} />}
+                onClick={() => window.open(article.url!, '_blank', 'noopener,noreferrer')}
               >
-                <Globe size={14} className="shrink-0" />
-                {article.domain}
-              </a>
-            ) : (
-              <span className="flex items-center gap-1.5">
-                <Globe size={14} className="shrink-0" />
-                {article.domain}
-              </span>
-            )}
-            <span className="flex items-center gap-1.5">
-              <Calendar size={14} className="shrink-0" />
-              {formatDate(article.publishedAt)}
-            </span>
-            {article.authors.length > 0 ? (
-              <span className="flex items-center gap-1.5">
-                <UsersIcon size={14} className="shrink-0" />
-                {article.authors.join(', ')}
-              </span>
+                Open full article
+              </Button>
             ) : null}
-            <span className="rounded-[var(--radius-tag)] bg-[var(--bg-hover)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
-              {SOURCE_TYPE_LABEL[article.sourceType]}
-            </span>
-          </div>
-        </div>
+            {sourceAsset ? (
+              <Button variant="outline" size="sm" leftIcon={<Download size={15} />} onClick={() => void handleDownloadAsset(sourceAsset)}>
+                Download
+              </Button>
+            ) : null}
+            {pdfAsset ? (
+              <Button variant="outline" size="sm" leftIcon={<Download size={15} />} onClick={() => void handleDownloadAsset(pdfAsset)}>
+                Download PDF
+              </Button>
+            ) : null}
+            {canHide ? (
+              <Button
+                variant={article.hidden ? 'outline' : 'destructive'}
+                size="sm"
+                leftIcon={article.hidden ? <Eye size={15} /> : <EyeOff size={15} />}
+                onClick={() => setPendingHideAction(article.hidden ? 'unhide' : 'hide')}
+              >
+                {article.hidden ? 'Unhide' : 'Hide'}
+              </Button>
+            ) : null}
+          </>
+        }
+      />
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {article.url ? (
-            <a
-              href={article.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-            >
-              <ExternalLink size={15} />
-              Open full article
-            </a>
-          ) : null}
-          {sourceAsset ? (
-            <button
-              type="button"
-              onClick={() => void handleDownloadAsset(sourceAsset)}
-              className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-            >
-              <Download size={15} />
-              Download
-            </button>
-          ) : null}
-          {pdfAsset ? (
-            <button
-              type="button"
-              onClick={() => void handleDownloadAsset(pdfAsset)}
-              className="flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-            >
-              <Download size={15} />
-              Download PDF
-            </button>
-          ) : null}
-          {canHide ? (
-            <button
-              type="button"
-              onClick={() => setPendingHideAction(article.hidden ? 'unhide' : 'hide')}
-              className={`flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border px-3 text-sm transition-colors ${
-                article.hidden
-                  ? 'border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--accent)]'
-                  : 'border-[var(--red)] text-[var(--red)] hover:bg-[var(--bg-hover)]'
-              }`}
-            >
-              {article.hidden ? <Eye size={15} /> : <EyeOff size={15} />}
-              {article.hidden ? 'Unhide' : 'Hide'}
-            </button>
-          ) : null}
-        </div>
+      <div className="-mt-2 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[var(--text-secondary)]">
+        {article.url ? (
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-[var(--accent)] hover:underline"
+          >
+            <Globe size={14} className="shrink-0" />
+            {article.domain}
+          </a>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <Globe size={14} className="shrink-0" />
+            {article.domain}
+          </span>
+        )}
+        <span className="flex items-center gap-1.5">
+          <Calendar size={14} className="shrink-0" />
+          {formatDate(article.publishedAt)}
+        </span>
+        {article.authors.length > 0 ? (
+          <span className="flex items-center gap-1.5">
+            <UsersIcon size={14} className="shrink-0" />
+            {article.authors.join(', ')}
+          </span>
+        ) : null}
+        <Badge variant="default">{SOURCE_TYPE_LABEL[article.sourceType]}</Badge>
       </div>
 
       {article.hidden && article.hiddenAt ? (
-        <p className="mt-3 rounded-[var(--radius-input)] bg-red-500/10 px-3 py-2 text-sm text-[var(--red)]">
-          Hidden {formatDate(article.hiddenAt)} — excluded from default search results and lists, but still
-          reachable directly by anyone who can already open this page.
-        </p>
+        <Alert variant="warning" className="mb-4">
+          Hidden {formatDate(article.hiddenAt)} — excluded from default search results and lists, but still reachable
+          directly by anyone who can already open this page.
+        </Alert>
       ) : null}
 
-      {/* Original file/image preview — only when there's a native binary asset to show. */}
       {hasPreviewableAsset ? (
-        <div className="mt-6">
+        <div className="mb-5">
           <ArticleAssetViewer article={article} onDownload={(asset) => void handleDownloadAsset(asset)} />
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Full reading content */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <SectionCard title="Article">
             {renderBodyParagraphs(article.body) ?? (
@@ -472,8 +456,7 @@ export default function ArticleDetailPage() {
           </SectionCard>
         </div>
 
-        {/* Metadata sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <SectionCard title="Details">
             <div className="divide-y divide-[var(--border)]">
               <MetaRow label="Domain" value={article.domain} />
@@ -495,12 +478,9 @@ export default function ArticleDetailPage() {
                     <p className="text-xs text-[var(--text-secondary)]">{conceptByKey.get(key)?.displayLabel ?? key}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {values.map((value) => (
-                        <span
-                          key={value}
-                          className="rounded-[var(--radius-tag)] border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--text-secondary)]"
-                        >
+                        <Badge key={value} variant="default">
                           {value}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -539,14 +519,9 @@ export default function ArticleDetailPage() {
 
             {canManageTags ? (
               <div className="relative mt-3 inline-block">
-                <button
-                  type="button"
-                  onClick={() => setIsAddTagOpen((open) => !open)}
-                  className="flex h-8 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-                >
-                  <Plus size={14} />
+                <Button variant="outline" size="sm" leftIcon={<Plus size={14} />} onClick={() => setIsAddTagOpen((open) => !open)}>
                   Add tag
-                </button>
+                </Button>
                 {isAddTagOpen ? (
                   <AddTagPopover
                     candidateTags={candidateTags}
@@ -562,51 +537,24 @@ export default function ArticleDetailPage() {
         </div>
       </div>
 
-      {/* Hide/unhide confirmation */}
-      {pendingHideAction ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => (isHideBusy ? undefined : setPendingHideAction(null))}
-          role="dialog"
-          aria-modal="true"
-          aria-label={pendingHideAction === 'hide' ? 'Confirm hide' : 'Confirm unhide'}
-        >
-          <div
-            className="w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              {pendingHideAction === 'hide' ? 'Hide this article?' : 'Unhide this article?'}
-            </h2>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">
-              {pendingHideAction === 'hide'
-                ? 'Hidden articles are excluded from default search results and lists, but remain reachable directly by anyone who can already open this page.'
-                : 'This article will reappear in default search results and lists.'}
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setPendingHideAction(null)}
-                disabled={isHideBusy}
-                className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-hover)] disabled:opacity-60"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => hideMutation.mutate(pendingHideAction)}
-                disabled={isHideBusy}
-                className={`flex items-center gap-1.5 rounded-[var(--radius-button)] px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 ${
-                  pendingHideAction === 'hide' ? 'bg-[var(--red)] hover:opacity-90' : 'bg-[var(--accent)] hover:bg-[var(--accent-hover)]'
-                }`}
-              >
-                {isHideBusy ? <Loader2 size={14} className="animate-spin" /> : null}
-                {pendingHideAction === 'hide' ? 'Hide' : 'Unhide'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
+      <ConfirmDialog
+        open={pendingHideAction !== null}
+        onClose={() => {
+          if (!isHideBusy) setPendingHideAction(null);
+        }}
+        onConfirm={() => {
+          if (pendingHideAction) hideMutation.mutate(pendingHideAction);
+        }}
+        title={pendingHideAction === 'hide' ? 'Hide this article?' : 'Unhide this article?'}
+        description={
+          pendingHideAction === 'hide'
+            ? 'Hidden articles are excluded from default search results and lists, but remain reachable directly by anyone who can already open this page.'
+            : 'This article will reappear in default search results and lists.'
+        }
+        confirmLabel={pendingHideAction === 'hide' ? 'Hide' : 'Unhide'}
+        destructive={pendingHideAction === 'hide'}
+        loading={isHideBusy}
+      />
+    </PageBody>
   );
 }

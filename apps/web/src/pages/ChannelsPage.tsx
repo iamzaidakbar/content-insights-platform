@@ -9,6 +9,7 @@ import type { SavedSearchType, SavedSearchWithViewerState } from '@content-insig
 import { useAuth } from '../auth/AuthContext';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
+import { Alert, Badge, Button, Card, IconButton, PageBody, PageHeader, Select, Tabs } from '../components/ui';
 import { getApiErrorMessage } from '../lib/api-client';
 import { fetchChannels, type ChannelListSort } from '../lib/channels-api';
 import { formatDate } from '../lib/format';
@@ -16,9 +17,9 @@ import { fetchGroups } from '../lib/groups-api';
 
 const SKELETON_ROW_COUNT = 6;
 
-const CHANNEL_TABS: { value: SavedSearchType; label: string }[] = [
-  { value: 'dynamic', label: 'Dynamic' },
-  { value: 'snapshot', label: 'Snapshot' },
+const CHANNEL_TABS: { id: SavedSearchType; label: string }[] = [
+  { id: 'dynamic', label: 'Dynamic' },
+  { id: 'snapshot', label: 'Snapshot' },
 ];
 
 const SORT_LABELS: Record<ChannelListSort, string> = {
@@ -45,17 +46,6 @@ async function copyChannelLink(channelId: string, projectId: string | null, grou
   } catch {
     toast.error('Unable to copy link.');
   }
-}
-
-function NewBadge() {
-  return (
-    <span
-      className="inline-flex items-center rounded-[var(--radius-tag)] px-1.5 py-0.5 text-[11px] font-semibold"
-      style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }}
-    >
-      New
-    </span>
-  );
 }
 
 export default function ChannelsPage() {
@@ -91,141 +81,120 @@ export default function ChannelsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-12">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Channels</h1>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Saved searches exposed as channels across your groups. Promote one from Saved Searches.
-          </p>
-        </div>
-        {groups.length > 0 ? (
-          <select
-            value={groupFilter}
-            onChange={(event) => {
-              setGroupFilter(event.target.value);
-              setPage(1);
-            }}
-            aria-label="Filter by group"
-            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-          >
-            <option value="">All groups</option>
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-        ) : null}
-      </div>
+    <PageBody width="md">
+      <PageHeader
+        title="Channels"
+        description="Saved searches exposed as channels across your groups. Promote one from Saved Searches."
+        actions={
+          groups.length > 0 ? (
+            <Select
+              value={groupFilter}
+              onChange={(event) => {
+                setGroupFilter(event.target.value);
+                setPage(1);
+              }}
+              aria-label="Filter by group"
+              className="h-9 w-auto min-w-[10rem] py-0"
+            >
+              <option value="">All groups</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </Select>
+          ) : null
+        }
+      />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-6 border-b border-[var(--border)]" role="tablist">
-          {CHANNEL_TABS.map((tab) => {
-            const isActive = tab.value === type;
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => handleTabChange(tab.value)}
-                className={`border-b-2 pb-3 text-sm transition-colors ${
-                  isActive
-                    ? 'border-[var(--accent)] font-semibold text-[var(--text-primary)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <Tabs items={CHANNEL_TABS} value={type} onChange={handleTabChange} className="flex-1" />
+        <Button
           type="button"
+          variant="outline"
+          size="md"
           onClick={toggleSort}
-          className="mb-1 flex h-9 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+          leftIcon={sort === 'lastViewed_desc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />}
         >
-          {sort === 'lastViewed_desc' ? <ArrowDownAZ size={14} /> : <ArrowUpAZ size={14} />}
           {SORT_LABELS[sort]}
-        </button>
+        </Button>
       </div>
 
       {channelsQuery.isError ? (
-        <p className="mt-6 text-sm text-[var(--red)]">
+        <Alert variant="error" className="mb-4">
           {getApiErrorMessage(channelsQuery.error, 'Unable to load channels.')}
-        </p>
+        </Alert>
       ) : null}
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
-              <th className="pb-2 pr-4 font-medium">Name</th>
-              <th className="pb-2 pr-4 font-medium">Group</th>
-              <th className="pb-2 pr-4 font-medium">Last opened</th>
-              <th className="pb-2 pr-4 font-medium"></th>
-              <th className="pb-2 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {channelsQuery.isLoading
-              ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                  <tr key={index} className="h-12 border-b border-[var(--border)]">
-                    <td className="py-3 pr-4"><div className="h-4 w-44 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                    <td className="py-3 pr-4"><div className="h-4 w-24 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                    <td className="py-3 pr-4"><div className="h-4 w-28 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                    <td className="py-3 pr-4"><div className="h-4 w-8 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                    <td className="py-3"><div className="h-4 w-8 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                  </tr>
-                ))
-              : channels.map((channel) => (
-                  <tr key={channel.id} className="h-12 border-b border-[var(--border)]">
-                    <td className="py-3 pr-4 text-[var(--text-primary)]">
-                      <Link to={`/channels/${channel.id}`} className="hover:text-[var(--accent)]">
-                        {displayName(channel)}
-                      </Link>
-                    </td>
-                    <td className="py-3 pr-4 text-[var(--text-secondary)]">
-                      {groupNameById.get(channel.groupId) ?? '—'}
-                    </td>
-                    <td className="py-3 pr-4 text-[var(--text-secondary)]">
-                      {channel.viewerState.lastViewedAt ? formatDate(channel.viewerState.lastViewedAt) : 'Never'}
-                    </td>
-                    <td className="py-3 pr-4">{channel.viewerState.hasNewArticles ? <NewBadge /> : null}</td>
-                    <td className="py-3">
-                      <button
-                        type="button"
-                        title="Copy channel link"
-                        aria-label="Copy channel link"
-                        onClick={() =>
-                          void copyChannelLink(channel.id, user?.currentProjectId ?? null, user?.currentGroupId ?? null)
-                        }
-                        className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                      >
-                        <Share2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </table>
+      <Card>
+        <div className="overflow-x-auto px-4 py-2">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+                <th className="pb-2 pr-4 font-medium">Name</th>
+                <th className="pb-2 pr-4 font-medium">Group</th>
+                <th className="pb-2 pr-4 font-medium">Last opened</th>
+                <th className="pb-2 pr-4 font-medium"></th>
+                <th className="pb-2 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {channelsQuery.isLoading
+                ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+                    <tr key={index} className="h-12 border-b border-[var(--border)]">
+                      <td className="py-3 pr-4"><div className="h-4 w-44 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
+                      <td className="py-3 pr-4"><div className="h-4 w-24 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
+                      <td className="py-3 pr-4"><div className="h-4 w-28 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
+                      <td className="py-3 pr-4"><div className="h-4 w-8 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
+                      <td className="py-3"><div className="h-4 w-8 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
+                    </tr>
+                  ))
+                : channels.map((channel) => (
+                    <tr key={channel.id} className="h-12 border-b border-[var(--border)] last:border-b-0">
+                      <td className="py-3 pr-4 text-[var(--text-primary)]">
+                        <Link to={`/channels/${channel.id}`} className="hover:text-[var(--accent)]">
+                          {displayName(channel)}
+                        </Link>
+                      </td>
+                      <td className="py-3 pr-4 text-[var(--text-secondary)]">
+                        {groupNameById.get(channel.groupId) ?? '—'}
+                      </td>
+                      <td className="py-3 pr-4 text-[var(--text-secondary)]">
+                        {channel.viewerState.lastViewedAt ? formatDate(channel.viewerState.lastViewedAt) : 'Never'}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {channel.viewerState.hasNewArticles ? <Badge variant="accent">New</Badge> : null}
+                      </td>
+                      <td className="py-3">
+                        <IconButton
+                          icon={Share2}
+                          label="Copy channel link"
+                          size="sm"
+                          onClick={() =>
+                            void copyChannelLink(channel.id, user?.currentProjectId ?? null, user?.currentGroupId ?? null)
+                          }
+                        />
+                      </td>
+                    </tr>
+                  ))}
+            </tbody>
+          </table>
 
-        {showEmptyState ? (
-          <EmptyState
-            icon={Rss}
-            title={type === 'dynamic' ? 'No dynamic channels yet' : 'No snapshot channels yet'}
-            description="Promote a saved search to a channel to see it here."
-          />
-        ) : null}
-      </div>
+          {showEmptyState ? (
+            <EmptyState
+              icon={Rss}
+              title={type === 'dynamic' ? 'No dynamic channels yet' : 'No snapshot channels yet'}
+              description="Promote a saved search to a channel to see it here."
+            />
+          ) : null}
+        </div>
+      </Card>
 
       {channelsQuery.data && channelsQuery.data.totalPages > 1 ? (
         <div className="mt-4 flex justify-end">
           <Pagination page={page} totalPages={channelsQuery.data.totalPages} onPageChange={setPage} />
         </div>
       ) : null}
-    </div>
+    </PageBody>
   );
 }

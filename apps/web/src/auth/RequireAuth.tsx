@@ -4,9 +4,6 @@ import { useAuth } from './AuthContext';
 
 interface RequireAuthProps {
   permission?: string;
-  // Alternate to `permission` for routes reachable by any of several distinct permissions
-  // (e.g. /admin, whose internal sections each gate on a different one) — passes if the
-  // viewer holds '*' or any single entry, same OR semantics AppShell's own nav gating uses.
   anyOf?: string[];
 }
 
@@ -16,8 +13,8 @@ export default function RequireAuth({ permission, anyOf }: RequireAuthProps) {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
-        <p className="text-slate-400">Loading…</p>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
+        <p className="text-sm text-[var(--text-secondary)]">Loading…</p>
       </div>
     );
   }
@@ -32,10 +29,10 @@ export default function RequireAuth({ permission, anyOf }: RequireAuthProps) {
 
   if (!passesSingle || !passesAnyOf) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Forbidden</h1>
-          <p className="mt-2 text-slate-400">You don&apos;t have permission to view this page.</p>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">You don&apos;t have permission to view this page.</p>
         </div>
       </div>
     );

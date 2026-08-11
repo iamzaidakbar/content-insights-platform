@@ -8,6 +8,7 @@ import AdminMembersSection from '../components/admin/AdminMembersSection';
 import AdminRolesSection from '../components/admin/AdminRolesSection';
 import AdminUsersSection from '../components/admin/AdminUsersSection';
 import OrganizationSection from '../components/settings/OrganizationSection';
+import PageHeader, { PageBody } from '../components/ui/PageHeader';
 
 type SectionKey = 'organization' | 'users' | 'members' | 'roles' | 'entity-mapping' | 'audit';
 
@@ -84,16 +85,16 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl gap-8 px-6 py-10">
-      <nav className="w-[200px] shrink-0">
-        <h1 className="mb-4 px-3 text-2xl font-semibold text-[var(--text-primary)]">Admin</h1>
-        <div className="space-y-1">
+    <PageBody width="xl" className="flex gap-6">
+      <nav className="w-[180px] shrink-0">
+        <PageHeader title="Admin" className="mb-3 sm:mb-3" />
+        <div className="space-y-0.5">
           {visibleSections.map((section) => (
             <button
               key={section.key}
               type="button"
               onClick={() => selectSection(section.key)}
-              className={`block w-full rounded-[var(--radius-button)] px-3 py-2 text-left text-sm transition-colors ${
+              className={`block w-full rounded-[var(--radius-button)] px-2.5 py-1.5 text-left text-sm transition-colors ${
                 activeSection === section.key
                   ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
@@ -105,7 +106,7 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <div className="min-w-0 flex-1 pb-16">
+      <div className="min-w-0 flex-1 pb-10">
         <div className={activeSection === 'organization' ? '' : 'hidden'}>
           <OrganizationSection />
         </div>
@@ -125,6 +126,6 @@ export default function AdminPage() {
           <AdminAuditSection />
         </div>
       </div>
-    </div>
+    </PageBody>
   );
 }

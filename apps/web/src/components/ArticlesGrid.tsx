@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { ChevronsDownUp, ChevronsUpDown, FileSearch } from 'lucide-react';
 
 import type { Concept, ResultViewMode, SearchHit, UserTag } from '@content-insights/shared';
@@ -36,14 +37,25 @@ export interface ArticlesGridProps {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  /** When false, the parent owns pagination (e.g. sticky page footer). Default true. */
+  showPagination?: boolean;
 }
 
-function gridClassName(viewMode: ResultViewMode): string {
+/** Layout for the results container — inline gridTemplateColumns so columns always apply
+ *  (Tailwind cannot see dynamically interpolated arbitrary class names). */
+function resultsLayout(viewMode: ResultViewMode): { className: string; style?: CSSProperties } {
   if (viewMode === 'list') {
-    return 'flex flex-col gap-2';
+    return { className: 'flex flex-col gap-1.5' };
   }
   const columns = VIEW_MODE_COLUMNS[viewMode];
-  return `grid gap-3 [grid-template-columns:repeat(${columns},minmax(0,1fr))]`;
+  return {
+    className: 'gap-2.5 [&>*]:min-h-0',
+    style: {
+      display: 'grid',
+      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+      alignItems: 'stretch',
+    },
+  };
 }
 
 export default function ArticlesGrid({
@@ -73,15 +85,17 @@ export default function ArticlesGrid({
   page,
   totalPages,
   onPageChange,
+  showPagination = true,
 }: ArticlesGridProps) {
   const allOnPageSelected = hits.length > 0 && hits.every((hit) => selectedIds.has(hit.articleId));
   const allOnPageExpanded = hits.length > 0 && hits.every((hit) => expandedIds.has(hit.articleId));
+  const layout = resultsLayout(viewMode);
 
   function renderBody() {
     if (isLoading) {
       const skeletonCount = Math.min(hits.length || 12, viewMode === 'list' ? 10 : 12);
       return (
-        <div className={gridClassName(viewMode)}>
+        <div className={layout.className} style={layout.style} data-view-mode={viewMode}>
           {Array.from({ length: skeletonCount || 6 }, (_, index) => (
             <ArticleCardSkeleton key={index} viewMode={viewMode} contentLines={contentLines} />
           ))}
@@ -115,7 +129,7 @@ export default function ArticlesGrid({
     }
 
     return (
-      <div className={gridClassName(viewMode)}>
+      <div className={layout.className} style={layout.style} data-view-mode={viewMode}>
         {hits.map((hit) => (
           <ArticleCard
             key={hit.articleId}
@@ -143,23 +157,23 @@ export default function ArticlesGrid({
   return (
     <div>
       {!isLoading && !isError && hits.length > 0 ? (
-        <div className="mb-3 flex items-center justify-between gap-3 text-sm text-[var(--text-secondary)]">
+        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={allOnPageSelected}
               onChange={(event) => onSelectAllOnPage(event.target.checked)}
               aria-label="Select all articles on this page"
-              className="h-4 w-4 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+              className="h-3.5 w-3.5 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
             />
             <span>Select all on this page</span>
           </label>
           <button
             type="button"
             onClick={onToggleExpandAll}
-            className="flex items-center gap-1.5 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            className="flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
-            {allOnPageExpanded ? <ChevronsDownUp size={14} /> : <ChevronsUpDown size={14} />}
+            {allOnPageExpanded ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
             {allOnPageExpanded ? 'Collapse all' : 'Expand all'}
           </button>
         </div>
@@ -167,8 +181,8 @@ export default function ArticlesGrid({
 
       {renderBody()}
 
-      {!isLoading && !isError && hits.length > 0 ? (
-        <div className="mt-6 flex justify-end">
+      {showPagination && !isLoading && !isError && hits.length > 0 ? (
+        <div className="mt-4 flex justify-end">
           <Pagination page={page} totalPages={totalPages} onPageChange={onPageChange} />
         </div>
       ) : null}

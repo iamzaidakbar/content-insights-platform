@@ -6,6 +6,7 @@ import {
   Bookmark,
   LayoutDashboard,
   LogOut,
+  Menu,
   Newspaper,
   PanelLeftClose,
   PanelLeftOpen,
@@ -16,6 +17,7 @@ import {
   Tag,
   UserCog,
   Users,
+  X,
 } from 'lucide-react';
 
 import type { User } from '@content-insights/shared';
@@ -23,42 +25,28 @@ import type { User } from '@content-insights/shared';
 import { useAuth } from '../auth/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import NotificationBell from '../components/NotificationBell';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { cn } from '../lib/cn';
 
 interface NavItem {
   to: string;
   label: string;
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
-  // null = visible to every authenticated user (matches the linked page's own, looser,
-  // server-side access rule — e.g. GET /groups and /tags have no permission gate at all).
-  // A string[] hides the entry unless the viewer holds '*' or at least one of them — same
-  // flat org-wide `permissions` array + OR semantics AppShell already used for the old
-  // single '/admin' link, just applied per-entry now that admin destinations are split out.
   permissions: string[] | null;
 }
 
-// Primary nav: the three everyday destinations, always visible once authenticated.
 const MAIN_NAV_ITEMS: NavItem[] = [
   { to: '/articles', label: 'Articles', icon: Newspaper, permissions: null },
   { to: '/dashboards', label: 'Dashboards', icon: LayoutDashboard, permissions: null },
   { to: '/settings', label: 'Settings', icon: SettingsIcon, permissions: null },
 ];
 
-// Workspace nav: everything else a regular contributor still needs a persistent link to
-// (Saved Searches/Channels have their own share-link flows, but the list pages themselves
-// need a way in) — every seeded role reads at least these (see SYSTEM_ROLE_PERMISSIONS),
-// so unlike the admin cluster below these aren't worth per-entry gating.
 const WORKSPACE_NAV_ITEMS: NavItem[] = [
   { to: '/saved-searches', label: 'Saved Searches', icon: Bookmark, permissions: null },
   { to: '/channels', label: 'Channels', icon: Rss, permissions: null },
   { to: '/insights', label: 'Insights', icon: BarChart3, permissions: null },
 ];
 
-// Admin cluster — Users/Mapping/User Logs land inside AdminPage's internal sections (which
-// self-gate mutation buttons further; see AdminPage's own comment) and are hidden here
-// entirely for a viewer who holds none of the permissions that would make that section
-// useful. User Groups/User Tags are the existing standalone Groups/Tags pages, renamed to
-// match this cluster's naming and left ungated — their own routes have no view-level
-// permission requirement server-side (any org member may already reach them).
 const ADMIN_NAV_ITEMS: NavItem[] = [
   {
     to: '/admin?section=users',
@@ -97,6 +85,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin': 'Admin',
   '/profile': 'Profile',
 };
+
+const SIDEBAR_EXPANDED = 232;
+const SIDEBAR_COMPACT = 64;
+const MOBILE_BREAKPOINT = 1024;
 
 function pageTitleFor(pathname: string): string {
   if (PAGE_TITLES[pathname]) {
@@ -139,18 +131,6 @@ function initialsFromUser(user: User): string {
   return (first + second).toUpperCase();
 }
 
-function navLinkClassName(isActive: boolean, compact: boolean): string {
-  return [
-    'flex items-center gap-3 rounded-[var(--radius-button)] px-3 py-2.5 text-sm transition-colors',
-    compact ? 'justify-center' : '',
-    isActive
-      ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-medium'
-      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-  ]
-    .filter(Boolean)
-    .join(' ');
-}
-
 function isNavItemVisible(item: NavItem, permissions: string[]): boolean {
   if (item.permissions === null) {
     return true;
@@ -158,7 +138,26 @@ function isNavItemVisible(item: NavItem, permissions: string[]): boolean {
   return permissions.includes('*') || item.permissions.some((candidate) => permissions.includes(candidate));
 }
 
-function NavList({ items, compact }: { items: NavItem[]; compact: boolean }) {
+function NavSectionLabel({ label, compact }: { label: string; compact: boolean }) {
+  if (compact) {
+    return <div className="mx-2 my-2 h-px bg-[var(--border)]" aria-hidden />;
+  }
+  return (
+    <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+      {label}
+    </p>
+  );
+}
+
+function NavList({
+  items,
+  compact,
+  onNavigate,
+}: {
+  items: NavItem[];
+  compact: boolean;
+  onNavigate?: () => void;
+}) {
   return (
     <>
       {items.map((item) => {
@@ -168,10 +167,20 @@ function NavList({ items, compact }: { items: NavItem[]; compact: boolean }) {
             key={item.to}
             to={item.to}
             title={item.label}
-            className={({ isActive }) => navLinkClassName(isActive, compact)}
+            end={item.to === '/articles'}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-3 rounded-[var(--radius-button)] px-3 py-2 text-sm transition-colors',
+                compact && 'justify-center px-2',
+                isActive
+                  ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
+              )
+            }
           >
             <Icon size={18} strokeWidth={1.75} />
-            {!compact ? <span>{item.label}</span> : null}
+            {!compact ? <span className="truncate">{item.label}</span> : null}
           </NavLink>
         );
       })}
@@ -179,26 +188,12 @@ function NavList({ items, compact }: { items: NavItem[]; compact: boolean }) {
   );
 }
 
-// ---------------------------------------------------------------------------------------
-// Insights <-> Articles sync warning — a one-time-per-browser-session notice that leaving
-// the Articles list stops any Insight built from its current search from syncing to live
-// results (it keeps whatever snapshot it last saw). This app uses plain <Routes> rather
-// than a data router, so v6's `useBlocker`/`unstable_usePrompt` (which require one) aren't
-// available for a real "confirm before you leave" interstitial — that would need routing
-// this whole app onto createBrowserRouter, well beyond an integration/cleanup pass. This is
-// the lightweight, real alternative: AppShell wraps every authenticated route, so it can
-// watch for the one transition that matters (pathname was exactly /articles, now isn't) and
-// surface the same warning immediately after, gated by a sessionStorage flag so it fires at
-// most once per browser session regardless of how many times the user leaves and returns.
-// ---------------------------------------------------------------------------------------
 const INSIGHTS_SYNC_WARNING_KEY = 'ci:articles-leave-warning-shown';
 
 function hasShownInsightsSyncWarning(): boolean {
   try {
     return window.sessionStorage.getItem(INSIGHTS_SYNC_WARNING_KEY) === '1';
   } catch {
-    // Storage disabled (private browsing, hardened settings, etc.) — fail open to "not shown
-    // yet" rather than crash; worst case the notice can reappear across reloads that session.
     return false;
   }
 }
@@ -207,44 +202,8 @@ function markInsightsSyncWarningShown(): void {
   try {
     window.sessionStorage.setItem(INSIGHTS_SYNC_WARNING_KEY, '1');
   } catch {
-    // Same tolerance as the read above — nothing meaningful to recover into.
+    // ignore
   }
-}
-
-function InsightsSyncWarningModal({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onDismiss}>
-      <div
-        className="w-full max-w-sm rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start gap-3">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--amber)]"
-            style={{ backgroundColor: 'var(--accent-soft)' }}
-          >
-            <AlertTriangle size={18} strokeWidth={1.75} />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">You left Articles</h2>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              Any Insight you were building from that search stops syncing to live results until you reopen it from
-              Articles.
-            </p>
-          </div>
-        </div>
-        <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-          >
-            Got it
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function useInsightsSyncLeaveWarning(pathname: string): { isVisible: boolean; dismiss: () => void } {
@@ -263,22 +222,41 @@ function useInsightsSyncLeaveWarning(pathname: string): { isVisible: boolean; di
   return { isVisible, dismiss: () => setIsVisible(false) };
 }
 
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`).matches : true,
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`);
+    const onChange = () => setIsDesktop(media.matches);
+    onChange();
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
+
+  return isDesktop;
+}
+
 export default function AppShell() {
   const { user, permissions, logout } = useAuth();
   const location = useLocation();
+  const isDesktop = useIsDesktop();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  // Post-pivot UserSettings dropped the old appearance.compactSidebar field entirely (see
-  // apply-settings.ts's own comment) along with the rest of the pre-pivot appearance/search/
-  // notifications nesting — there's nothing left server-side to persist this against. Kept
-  // as plain client-only UI state instead of losing the collapse feature outright; it simply
-  // resets to expanded on reload rather than round-tripping through the API.
   const [compact, setCompact] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const sidebarWidth = compact ? 60 : 220;
   const pageTitle = pageTitleFor(location.pathname);
-
   const visibleAdminNavItems = ADMIN_NAV_ITEMS.filter((item) => isNavItemVisible(item, permissions));
   const insightsSyncWarning = useInsightsSyncLeaveWarning(location.pathname);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname, location.search]);
+
+  const sidebarWidth = isDesktop ? (compact ? SIDEBAR_COMPACT : SIDEBAR_EXPANDED) : 0;
+  const showExpandedLabels = isDesktop ? !compact : true;
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -289,83 +267,145 @@ export default function AppShell() {
     }
   }
 
-  return (
-    <div className="flex min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      <aside
-        style={{ width: sidebarWidth }}
-        className="flex shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-surface)] py-4 transition-[width] duration-150"
-      >
-        <div className={`flex items-center gap-2 px-3 pb-6 ${compact ? 'justify-center' : 'justify-between'}`}>
-          <div className="flex min-w-0 items-center gap-2">
-            <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-button)] font-bold text-white"
-              style={{ backgroundColor: 'var(--accent)' }}
-            >
-              C
-            </div>
-            {!compact ? <span className="truncate text-sm font-semibold">Content Insights</span> : null}
+  const sidebarContent = (
+    <>
+      <div className={cn('flex items-center gap-2 px-3 pb-4 pt-1', !showExpandedLabels && 'justify-center')}>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-sm font-bold text-white"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            C
           </div>
-          {!compact ? (
-            <button
-              type="button"
-              onClick={() => setCompact(true)}
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
-              className="shrink-0 rounded-[var(--radius-button)] p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-            >
-              <PanelLeftClose size={16} strokeWidth={1.75} />
-            </button>
+          {showExpandedLabels ? (
+            <span className="truncate text-sm font-semibold text-[var(--text-primary)]">Content Insights</span>
           ) : null}
         </div>
-        {compact ? (
+        {isDesktop && showExpandedLabels ? (
           <button
             type="button"
-            onClick={() => setCompact(false)}
-            title="Expand sidebar"
-            aria-label="Expand sidebar"
-            className="mx-auto mb-4 rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+            onClick={() => setCompact(true)}
+            title="Collapse sidebar"
+            aria-label="Collapse sidebar"
+            className="shrink-0 rounded-[var(--radius-button)] p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
           >
-            <PanelLeftOpen size={16} strokeWidth={1.75} />
+            <PanelLeftClose size={16} strokeWidth={1.75} />
           </button>
         ) : null}
-
-        <nav className="flex-1 space-y-1 px-2">
-          <NavList items={MAIN_NAV_ITEMS} compact={compact} />
-          <div className="my-2 h-px bg-[var(--border)]" />
-          <NavList items={WORKSPACE_NAV_ITEMS} compact={compact} />
-        </nav>
-
-        <div className="space-y-1 border-t border-[var(--border)] px-2 pt-2">
-          {visibleAdminNavItems.length > 0 ? <NavList items={visibleAdminNavItems} compact={compact} /> : null}
-
+        {!isDesktop ? (
           <button
             type="button"
-            title="Log out"
-            onClick={() => void handleLogout()}
-            disabled={isLoggingOut}
-            className={`flex w-full items-center gap-3 rounded-[var(--radius-button)] px-3 py-2.5 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--red)] disabled:opacity-60 ${compact ? 'justify-center' : ''}`}
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            className="rounded-[var(--radius-button)] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
           >
-            <LogOut size={18} strokeWidth={1.75} />
-            {!compact ? <span>Log out</span> : null}
+            <X size={18} />
           </button>
-        </div>
-      </aside>
+        ) : null}
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] px-6 py-3">
-          <h1 className="shrink-0 text-lg font-semibold">{pageTitle}</h1>
+      {isDesktop && compact ? (
+        <button
+          type="button"
+          onClick={() => setCompact(false)}
+          title="Expand sidebar"
+          aria-label="Expand sidebar"
+          className="mx-auto mb-2 rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        >
+          <PanelLeftOpen size={16} strokeWidth={1.75} />
+        </button>
+      ) : null}
 
-          <div className="flex shrink-0 items-center gap-3">
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
+        <NavSectionLabel label="Main" compact={!showExpandedLabels} />
+        <NavList items={MAIN_NAV_ITEMS} compact={!showExpandedLabels} onNavigate={() => setMobileOpen(false)} />
+
+        <NavSectionLabel label="Workspace" compact={!showExpandedLabels} />
+        <NavList items={WORKSPACE_NAV_ITEMS} compact={!showExpandedLabels} onNavigate={() => setMobileOpen(false)} />
+
+        {visibleAdminNavItems.length > 0 ? (
+          <>
+            <NavSectionLabel label="Admin" compact={!showExpandedLabels} />
+            <NavList
+              items={visibleAdminNavItems}
+              compact={!showExpandedLabels}
+              onNavigate={() => setMobileOpen(false)}
+            />
+          </>
+        ) : null}
+      </nav>
+
+      <div className="mt-auto border-t border-[var(--border)] px-2 pt-2">
+        <button
+          type="button"
+          title="Log out"
+          onClick={() => void handleLogout()}
+          disabled={isLoggingOut}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-[var(--radius-button)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--error)] disabled:opacity-60',
+            !showExpandedLabels && 'justify-center px-2',
+          )}
+        >
+          <LogOut size={18} strokeWidth={1.75} />
+          {showExpandedLabels ? <span>Log out</span> : null}
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      {/* Desktop sidebar */}
+      {isDesktop ? (
+        <aside
+          style={{ width: sidebarWidth }}
+          className="flex h-full shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] py-3 transition-[width] duration-150"
+        >
+          {sidebarContent}
+        </aside>
+      ) : null}
+
+      {/* Mobile overlay sidebar */}
+      {!isDesktop && mobileOpen ? (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/40"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-[min(280px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] py-3 shadow-[var(--shadow-md)]">
+            {sidebarContent}
+          </aside>
+        </>
+      ) : null}
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="z-10 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            {!isDesktop ? (
+              <button
+                type="button"
+                onClick={() => setMobileOpen(true)}
+                aria-label="Open menu"
+                className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              >
+                <Menu size={20} strokeWidth={1.75} />
+              </button>
+            ) : null}
+            <h1 className="truncate text-base font-semibold sm:text-lg">{pageTitle}</h1>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <NotificationBell />
-            <Link to="/profile" className="flex items-center gap-3" title="Profile">
+            <Link to="/profile" className="flex items-center gap-2.5 rounded-[var(--radius-button)] p-0.5 hover:bg-[var(--bg-hover)]" title="Profile">
               <div
-                className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 {user ? initialsFromUser(user) : '?'}
               </div>
               {user ? (
-                <div className="hidden text-sm leading-tight sm:block">
+                <div className="hidden text-sm leading-tight md:block">
                   <p className="font-medium text-[var(--text-primary)]">{resolveDisplayName(user)}</p>
                   <p className="text-xs text-[var(--text-secondary)]">{user.email}</p>
                 </div>
@@ -374,14 +414,23 @@ export default function AppShell() {
           </div>
         </header>
 
-        <main className="flex flex-1 flex-col overflow-y-auto">
+        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>
         </main>
       </div>
 
-      {insightsSyncWarning.isVisible ? <InsightsSyncWarningModal onDismiss={insightsSyncWarning.dismiss} /> : null}
+      <ConfirmDialog
+        open={insightsSyncWarning.isVisible}
+        onClose={insightsSyncWarning.dismiss}
+        onConfirm={insightsSyncWarning.dismiss}
+        title="You left Articles"
+        description="Any Insight you were building from that search stops syncing to live results until you reopen it from Articles."
+        confirmLabel="Got it"
+        showCancel={false}
+        icon={<AlertTriangle size={18} strokeWidth={1.75} />}
+      />
     </div>
   );
 }

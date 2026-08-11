@@ -10,6 +10,12 @@ import { useAuth } from '../auth/AuthContext';
 import AddMemberModal from '../components/AddMemberModal';
 import EmptyState from '../components/EmptyState';
 import GroupDataAccessModal from '../components/GroupDataAccessModal';
+import Alert from '../components/ui/Alert';
+import Breadcrumbs from '../components/ui/Breadcrumbs';
+import Button from '../components/ui/Button';
+import PageHeader, { PageBody } from '../components/ui/PageHeader';
+import Skeleton from '../components/ui/Skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../components/ui/Table';
 import { getApiErrorMessage } from '../lib/api-client';
 import { formatDate } from '../lib/format';
 import { fetchGroup } from '../lib/groups-api';
@@ -19,22 +25,24 @@ import { fetchOrgUsers, revokeUserRoleAssignment, updateRoleAssignmentEndDate } 
 
 const SKELETON_ROW_COUNT = 3;
 
-function SkeletonRow() {
+function SkeletonRow({ showActions }: { showActions: boolean }) {
   return (
-    <tr className="border-b border-[var(--border)]">
-      <td className="py-3 pr-4">
-        <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-hover)]" />
-      </td>
-      <td className="py-3 pr-4">
-        <div className="h-4 w-20 animate-pulse rounded bg-[var(--bg-hover)]" />
-      </td>
-      <td className="py-3 pr-4">
-        <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
-      </td>
-      <td className="py-3">
-        <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
-      </td>
-    </tr>
+    <TR>
+      <TD>
+        <Skeleton className="h-4 w-40" />
+      </TD>
+      <TD>
+        <Skeleton className="h-4 w-20" />
+      </TD>
+      <TD>
+        <Skeleton className="h-4 w-16" />
+      </TD>
+      {showActions ? (
+        <TD>
+          <Skeleton className="h-4 w-16" />
+        </TD>
+      ) : null}
+    </TR>
   );
 }
 
@@ -112,16 +120,16 @@ function MemberRow({
 
   return (
     <>
-      <tr className="h-11 border-b border-[var(--border)]">
-        <td className="py-3 pr-4 text-[var(--text-primary)]">{member.userEmail}</td>
-        <td className="py-3 pr-4 text-[var(--text-secondary)]">{member.roleName}</td>
-        <td className="py-3 pr-4 text-xs text-[var(--text-secondary)]">
+      <TR>
+        <TD>{member.userEmail}</TD>
+        <TD className="text-[var(--text-secondary)]">{member.roleName}</TD>
+        <TD className="text-xs text-[var(--text-secondary)]">
           {member.startDate ? formatDate(member.startDate) : 'Open'} –{' '}
           {member.endDate ? formatDate(member.endDate) : 'Open'}
           {!active ? <span className="ml-1.5 text-[var(--text-muted)]">(ended)</span> : null}
-        </td>
+        </TD>
         {canManage ? (
-          <td className="py-3">
+          <TD>
             <button
               type="button"
               onClick={() => setIsManaging((current) => !current)}
@@ -130,16 +138,16 @@ function MemberRow({
               Manage
               {isManaging ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
             </button>
-          </td>
+          </TD>
         ) : null}
-      </tr>
+      </TR>
       {canManage && isManaging ? (
-        <tr className="border-b border-[var(--border)] bg-[var(--bg-hover)]/40">
-          <td colSpan={4} className="px-4 py-3">
+        <TR className="bg-[var(--bg-hover)]/40 hover:bg-[var(--bg-hover)]/40">
+          <TD colSpan={4} className="px-3 py-3">
             {detailQuery.isLoading ? (
               <p className="text-xs text-[var(--text-muted)]">Loading…</p>
             ) : detailQuery.isError ? (
-              <p className="text-xs text-[var(--red)]">
+              <p className="text-xs text-[var(--error)]">
                 {getApiErrorMessage(
                   detailQuery.error,
                   "Unable to manage this membership here — try Admin → Role Assignments instead.",
@@ -157,7 +165,7 @@ function MemberRow({
                     onClick={() => removeMutation.mutate()}
                     disabled={removeMutation.isPending}
                     title="Application Admin access is always global and can't be time-bound — remove it to revoke immediately"
-                    className="font-medium text-[var(--red)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    className="font-medium text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {removeMutation.isPending ? 'Removing…' : 'Remove'}
                   </button>
@@ -167,15 +175,15 @@ function MemberRow({
                     onClick={() => endMutation.mutate()}
                     disabled={endMutation.isPending}
                     title="Ends this assignment as of today"
-                    className="font-medium text-[var(--red)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                    className="font-medium text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {endMutation.isPending ? 'Ending…' : 'End membership'}
                   </button>
                 )}
               </div>
             )}
-          </td>
-        </tr>
+          </TD>
+        </TR>
       ) : null}
     </>
   );
@@ -217,63 +225,59 @@ export default function GroupDetailPage() {
 
   if (!groupId) {
     return (
-      <div className="mx-auto w-full max-w-5xl px-4 py-12">
-        <p className="text-sm text-[var(--red)]">Invalid group id.</p>
-      </div>
+      <PageBody width="lg">
+        <Alert variant="error">Invalid group id.</Alert>
+      </PageBody>
     );
   }
 
+  const groupTitle = group?.name ?? 'Group';
+
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-12">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{group?.name ?? 'Group'}</h1>
-          {group?.description ? (
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">{group.description}</p>
-          ) : null}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {canManageDataAccess ? (
-            <button
-              type="button"
-              onClick={() => setIsManagingDataAccess(true)}
-              className="flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              <Lock size={14} />
-              Data access
-            </button>
-          ) : null}
-          {canManageMembers ? (
-            <button
-              type="button"
-              onClick={() => setIsAddingMember(true)}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
-            >
-              Add member
-            </button>
-          ) : null}
-        </div>
-      </div>
+    <PageBody width="lg">
+      <PageHeader
+        breadcrumbs={<Breadcrumbs items={[{ label: 'Groups', to: '/groups' }, { label: groupTitle }]} />}
+        title={groupTitle}
+        {...(group?.description ? { description: group.description } : {})}
+        actions={
+          <>
+            {canManageDataAccess ? (
+              <Button variant="outline" size="sm" leftIcon={<Lock size={14} />} onClick={() => setIsManagingDataAccess(true)}>
+                Data access
+              </Button>
+            ) : null}
+            {canManageMembers ? (
+              <Button size="sm" onClick={() => setIsAddingMember(true)}>
+                Add member
+              </Button>
+            ) : null}
+          </>
+        }
+      />
 
       {groupQuery.isError ? (
-        <p className="mt-6 text-sm text-[var(--red)]">
+        <Alert variant="error" className="mb-4">
           {getApiErrorMessage(groupQuery.error, 'Unable to load group.')}
-        </p>
+        </Alert>
       ) : null}
 
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
-              <th className="pb-2 pr-4 font-medium">Email</th>
-              <th className="pb-2 pr-4 font-medium">Role</th>
-              <th className="pb-2 pr-4 font-medium">Active dates</th>
-              {canManageMembers ? <th className="pb-2 font-medium">&nbsp;</th> : null}
-            </tr>
-          </thead>
-          <tbody>
+      {!groupQuery.isLoading && members.length === 0 ? (
+        <EmptyState icon={Users} title="No members yet" />
+      ) : (
+        <Table>
+          <THead>
+            <TR className="hover:bg-transparent">
+              <TH>Email</TH>
+              <TH>Role</TH>
+              <TH>Active dates</TH>
+              {canManageMembers ? <TH>&nbsp;</TH> : null}
+            </TR>
+          </THead>
+          <TBody>
             {groupQuery.isLoading
-              ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => <SkeletonRow key={index} />)
+              ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
+                  <SkeletonRow key={index} showActions={canManageMembers} />
+                ))
               : members.map((member) => (
                   <MemberRow
                     key={`${member.userId}-${member.roleId}`}
@@ -282,16 +286,12 @@ export default function GroupDetailPage() {
                     canManage={canManageMembers}
                   />
                 ))}
-          </tbody>
-        </table>
-
-        {!groupQuery.isLoading && members.length === 0 ? (
-          <EmptyState icon={Users} title="No members yet" />
-        ) : null}
-      </div>
+          </TBody>
+        </Table>
+      )}
 
       {group ? (
-        <p className="mt-6 text-xs text-[var(--text-muted)]">Created {formatDate(group.createdAt)}</p>
+        <p className="mt-4 text-xs text-[var(--text-muted)]">Created {formatDate(group.createdAt)}</p>
       ) : null}
 
       {isAddingMember && group ? (
@@ -300,6 +300,6 @@ export default function GroupDetailPage() {
       {isManagingDataAccess && group ? (
         <GroupDataAccessModal group={group} onClose={() => setIsManagingDataAccess(false)} />
       ) : null}
-    </div>
+    </PageBody>
   );
 }

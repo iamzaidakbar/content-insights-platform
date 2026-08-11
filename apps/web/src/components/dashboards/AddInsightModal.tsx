@@ -5,6 +5,8 @@ import type { Dashboard } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../../lib/api-client';
 import { updateDashboard } from '../../lib/dashboards-api';
+import Button from '../ui/Button';
+import Modal from '../ui/Modal';
 import InsightPickerList from './InsightPickerList';
 
 interface AddInsightModalProps {
@@ -46,50 +48,37 @@ export default function AddInsightModal({ dashboardId, currentInsightIds, remain
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add insight</h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          {remainingSlots} slot{remainingSlots === 1 ? '' : 's'} remaining on this dashboard.
-        </p>
-
-        <div className="mt-4">
-          <InsightPickerList
-            selectedIds={selectedIds}
-            onToggle={toggleInsight}
-            excludeInsightIds={currentInsightIds}
-            maxSelectable={remainingSlots}
-          />
-        </div>
-
-        {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
-
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <span className="text-xs text-[var(--text-muted)]">
+    <Modal
+      open
+      onClose={onClose}
+      title="Add insight"
+      description={`${remainingSlots} slot${remainingSlots === 1 ? '' : 's'} remaining on this dashboard.`}
+      size="md"
+      footer={
+        <>
+          <span className="mr-auto text-xs text-[var(--text-muted)]">
             {selectedIds.size}/{remainingSlots} selected
           </span>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => addMutation.mutate()}
-              disabled={selectedIds.size === 0 || addMutation.isPending}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {addMutation.isPending ? 'Adding…' : 'Add to dashboard'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => addMutation.mutate()}
+            disabled={selectedIds.size === 0}
+            loading={addMutation.isPending}
+          >
+            Add to dashboard
+          </Button>
+        </>
+      }
+    >
+      <InsightPickerList
+        selectedIds={selectedIds}
+        onToggle={toggleInsight}
+        excludeInsightIds={currentInsightIds}
+        maxSelectable={remainingSlots}
+      />
+      {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
+    </Modal>
   );
 }
