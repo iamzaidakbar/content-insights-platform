@@ -1,35 +1,40 @@
-export type ArticleTabKey = 'all' | 'news' | 'documents';
+import { SOURCE_TYPE_TABS, type SourceTypeTab } from '@content-insights/shared';
+
+// Re-exported for callers that used to import the page-local `ArticleTabKey` name —
+// it's now just an alias for the canonical FilterPanelState.sourceTypeTab type so this
+// component and ArticlesPage's filter state can never drift out of sync on the tab values.
+export type ArticleTabKey = SourceTypeTab;
 
 interface ArticleTabsProps {
-  active: ArticleTabKey;
-  onChange: (tab: ArticleTabKey) => void;
+  active: SourceTypeTab;
+  onChange: (tab: SourceTypeTab) => void;
 }
 
-const TABS: { key: ArticleTabKey; label: string }[] = [
-  { key: 'all', label: 'All Articles' },
-  { key: 'news', label: 'News' },
-  { key: 'documents', label: 'Documents' },
-];
+const TAB_LABELS: Record<SourceTypeTab, string> = {
+  all: 'All Articles',
+  news: 'News',
+  documents: 'Documents',
+};
 
 export default function ArticleTabs({ active, onChange }: ArticleTabsProps) {
   return (
     <div className="flex gap-6 border-b border-[var(--border)]" role="tablist">
-      {TABS.map((tab) => {
-        const isActive = tab.key === active;
+      {SOURCE_TYPE_TABS.map((tab) => {
+        const isActive = tab === active;
         return (
           <button
-            key={tab.key}
+            key={tab}
             type="button"
             role="tab"
             aria-selected={isActive}
-            onClick={() => onChange(tab.key)}
+            onClick={() => onChange(tab)}
             className={`border-b-2 pb-3 text-sm transition-colors ${
               isActive
                 ? 'border-[var(--accent)] font-semibold text-[var(--text-primary)]'
                 : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {tab.label}
+            {TAB_LABELS[tab]}
           </button>
         );
       })}

@@ -5,6 +5,7 @@ export interface Role {
   orgId: OrgId;
   name: string;
   permissions: string[];
+  isSystem: boolean;
   createdAt: string;
   updatedAt: string;
 }

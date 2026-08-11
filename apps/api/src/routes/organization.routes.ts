@@ -7,6 +7,7 @@ import {
   type UpdateOrganizationInput,
 } from '@content-insights/shared';
 
+import { audit } from '../lib/audit.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { AppError } from '../lib/errors.js';
 import { parseObjectIdParam } from '../lib/objectId.js';
@@ -68,14 +69,31 @@ organizationRouter.patch(
     const orgId = parseObjectIdParam(req.params.orgId, 'Organization not found', 'ORG_NOT_FOUND');
     assertOwnOrg(orgId, req.user.orgId);
 
-    const { name } = req.body as UpdateOrganizationInput;
+    const { name, ssoDomain } = req.body as UpdateOrganizationInput;
+    const set: Record<string, unknown> = {};
+    if (name !== undefined) set.name = name;
+    if (ssoDomain !== undefined && ssoDomain !== '') set.ssoDomain = ssoDomain;
+    const update: Record<string, unknown> = {
+      ...(Object.keys(set).length > 0 ? { $set: set } : {}),
+      ...(ssoDomain === '' ? { $unset: { ssoDomain: 1 } } : {}),
+    };
     const [org, memberCount] = await Promise.all([
-      OrganizationModel.findByIdAndUpdate(req.user.orgId, { name }, { new: true }),
+      OrganizationModel.findByIdAndUpdate(req.user.orgId, update, { new: true }),
       UserModel.countDocuments({ orgId: req.user.orgId }),
     ]);
     if (!org) {
       throw new AppError(404, 'ORG_NOT_FOUND', 'Organization not found');
     }
+
+    audit(req, {
+      action: 'org.update',
+      entityType: 'organization',
+      entityId: req.user.orgId,
+      details: {
+        ...(name !== undefined ? { name } : {}),
+        ...(ssoDomain !== undefined ? { ssoDomain } : {}),
+      },
+    });
 
     res.status(200).json(success(toOrganizationDetailDTO(org, memberCount) satisfies OrganizationDetail));
   }),

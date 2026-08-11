@@ -1,22 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 
-import type { Project, UserSummary } from '@content-insights/shared';
+import { asRoleId, type Group, type UserSummary } from '@content-insights/shared';
 
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { getApiErrorMessage } from '../lib/api-client';
-import { addProjectMember } from '../lib/projects-api';
+import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { fetchRoles } from '../lib/roles-api';
-import { searchUsers } from '../lib/users-api';
+import { APPLICATION_ADMIN_ROLE_NAME } from '../lib/scoped-permissions';
+import { assignUserRole, searchUsers } from '../lib/users-api';
 
 const DEBOUNCE_MS = 300;
 
 interface AddMemberModalProps {
-  project: Project;
+  group: Group;
   onClose: () => void;
 }
 
-export default function AddMemberModal({ project, onClose }: AddMemberModalProps) {
+// "Add member" is really "create a role assignment scoped to this group" — Group.members
+// has no direct write endpoint of its own; it's a read-model the API derives from every
+// User.roleAssignments that references this group (see Group.members's own comment in
+// @content-insights/shared). Application Admin is deliberately excluded from the role
+// picker below: it can only ever be assigned at global scope (validateRoleAssignmentInput,
+// apps/api/src/lib/permissions.ts) — grant it from Admin → Role Assignments instead, which
+// offers "All (org-wide)" as a scope.
+export default function AddMemberModal({ group, onClose }: AddMemberModalProps) {
   const queryClient = useQueryClient();
 
   const [rawQuery, setRawQuery] = useState('');
@@ -25,6 +34,8 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
 
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,21 +55,30 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
   });
 
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
-  const roles = rolesQuery.data ?? [];
+  // Application Admin can never be scoped to a single group (it's always global) — omitted
+  // here rather than shown-but-disabled, since there's no valid way to select it in this form.
+  const roles = (rolesQuery.data ?? []).filter((role) => role.name !== APPLICATION_ADMIN_ROLE_NAME);
 
   const addMemberMutation = useMutation({
     mutationFn: () => {
       if (!selectedUser || !selectedRoleId) {
         throw new Error('Select a user and a role.');
       }
-      return addProjectMember(project.id, { userId: selectedUser.id, roleId: selectedRoleId });
+      return assignUserRole(selectedUser.id, {
+        roleId: asRoleId(selectedRoleId),
+        groupId: group.id,
+        startDate: startDate || null,
+        endDate: endDate || null,
+      });
     },
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['project', project.id], updated);
-      void queryClient.invalidateQueries({ queryKey: ['projects-list'] });
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['group', group.id] });
+      void queryClient.invalidateQueries({ queryKey: ['groups-list'] });
+      toast.success('Member added.');
       onClose();
     },
     onError: (err) => setError(getApiErrorMessage(err, 'Unable to add member.')),
+    meta: { skipToast: true },
   });
 
   function handleSubmit() {
@@ -78,17 +98,20 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-md border border-slate-700 bg-slate-900 p-6"
+        className="w-full max-w-md rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-6"
         onClick={(event) => event.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-slate-100">Add member</h2>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">Add member</h2>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          To <span className="text-[var(--text-primary)]">{group.name}</span>
+        </p>
 
         <div className="mt-4">
-          <label htmlFor="member-search" className="block text-sm font-medium text-slate-300">
+          <label htmlFor="member-search" className="block text-sm font-medium text-[var(--text-secondary)]">
             Search users by email
           </label>
           <input
@@ -101,26 +124,26 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
               setSelectedUser(null);
             }}
             placeholder="e.g. jane@example.com"
-            className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
+            className={`mt-1 ${INPUT_CLASSNAME}`}
           />
 
           <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
             {usersQuery.isLoading ? (
-              <li className="px-2 py-1.5 text-xs text-slate-500">Searching…</li>
+              <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">Searching…</li>
             ) : usersQuery.isError ? (
-              <li className="px-2 py-1.5 text-xs text-red-400">Unable to search users.</li>
+              <li className="px-2 py-1.5 text-xs text-[var(--red)]">Unable to search users.</li>
             ) : trimmedQuery.length === 0 ? null : searchResults.length === 0 ? (
-              <li className="px-2 py-1.5 text-xs text-slate-500">No matching users.</li>
+              <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">No matching users.</li>
             ) : (
               searchResults.map((candidate) => (
                 <li key={candidate.id}>
                   <button
                     type="button"
                     onClick={() => setSelectedUser(candidate)}
-                    className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition ${
+                    className={`w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm transition-colors ${
                       selectedUser?.id === candidate.id
-                        ? 'bg-slate-800 text-slate-100'
-                        : 'text-slate-300 hover:bg-slate-800/60'
+                        ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
                     }`}
                   >
                     {candidate.email}
@@ -131,21 +154,21 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
           </ul>
 
           {selectedUser ? (
-            <p className="mt-2 text-xs text-slate-400">
-              Selected: <span className="text-slate-100">{selectedUser.email}</span>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">
+              Selected: <span className="text-[var(--text-primary)]">{selectedUser.email}</span>
             </p>
           ) : null}
         </div>
 
         <div className="mt-4">
-          <label htmlFor="member-role" className="block text-sm font-medium text-slate-300">
+          <label htmlFor="member-role" className="block text-sm font-medium text-[var(--text-secondary)]">
             Role
           </label>
           <select
             id="member-role"
             value={selectedRoleId}
             onChange={(event) => setSelectedRoleId(event.target.value)}
-            className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
+            className={`mt-1 ${INPUT_CLASSNAME}`}
           >
             <option value="">Select a role…</option>
             {roles.map((role) => (
@@ -154,15 +177,45 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            Need to grant Application Admin instead? That role is always global — use Admin → Role Assignments.
+          </p>
         </div>
 
-        {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="member-start" className="block text-sm font-medium text-[var(--text-secondary)]">
+              Start date <span className="text-[var(--text-muted)]">(optional)</span>
+            </label>
+            <input
+              id="member-start"
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              className={`mt-1 ${INPUT_CLASSNAME}`}
+            />
+          </div>
+          <div>
+            <label htmlFor="member-end" className="block text-sm font-medium text-[var(--text-secondary)]">
+              End date <span className="text-[var(--text-muted)]">(optional)</span>
+            </label>
+            <input
+              id="member-end"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              className={`mt-1 ${INPUT_CLASSNAME}`}
+            />
+          </div>
+        </div>
+
+        {error ? <p className="mt-4 text-sm text-[var(--red)]">{error}</p> : null}
 
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-100 transition hover:border-slate-500"
+            className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
           >
             Cancel
           </button>
@@ -170,7 +223,7 @@ export default function AddMemberModal({ project, onClose }: AddMemberModalProps
             type="button"
             onClick={handleSubmit}
             disabled={addMemberMutation.isPending}
-            className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {addMemberMutation.isPending ? 'Adding…' : 'Add member'}
           </button>

@@ -1,46 +1,71 @@
-export interface AdvancedSearchWords {
-  allWords: string;
-  exactPhrase: string;
-  anyWords: string;
-  noneWords: string;
+import type {
+  AdvancedSearch,
+  AdvancedSearchCondition,
+  AdvancedSearchGroup,
+  Concept,
+  DateFilterValue,
+  TaxonomyMatchLogic,
+} from '@content-insights/shared';
+
+// Plain-language description of an AdvancedSearch/DateFilterValue — used by
+// AdvancedSearchModal's own summary banner, and reusable anywhere else one needs to render
+// as text (e.g. a saved search's row). Split out from AdvancedSearchModal.tsx itself so that
+// component-only file doesn't also export plain functions (Fast Refresh only works when a
+// file exports just components — react-refresh/only-export-components).
+const MATCH_LOGIC_PHRASE: Record<TaxonomyMatchLogic, string> = {
+  all: 'all of',
+  exact: 'exactly',
+  any: 'any of',
+  none: 'none of',
+};
+
+function conceptLabel(key: string, concepts: Concept[]): string {
+  const concept = concepts.find((c) => c.key === key);
+  return concept ? concept.displayLabel || concept.name : key;
 }
 
-// Composes the 4 word fields into an Elasticsearch simple_query_string expression (see
-// apps/api/src/lib/search.ts, which switched from `multi_match` to `simple_query_string`
-// specifically so this composed syntax is honored natively): `+` requires a term, `"..."`
-// is an exact phrase, `(a|b)` is an OR group, `-` excludes a term.
-export function composeAdvancedSearchQuery(words: AdvancedSearchWords): string {
-  const parts: string[] = [];
+function describeCondition(condition: AdvancedSearchCondition, concepts: Concept[]): string {
+  const subject =
+    condition.mode === 'text'
+      ? 'Text'
+      : condition.mode === 'taxonomy'
+        ? conceptLabel(condition.conceptKey ?? '', concepts)
+        : (condition.conceptKeys ?? []).map((key) => conceptLabel(key, concepts)).join(' / ') || 'Concepts';
+  const values = condition.values.length > 0 ? condition.values.map((v) => `"${v}"`).join(', ') : '(no values yet)';
+  return `${subject} is ${MATCH_LOGIC_PHRASE[condition.matchLogic]} ${values}`;
+}
 
-  const allWords = words.allWords.trim();
-  if (allWords) {
-    parts.push(
-      allWords
-        .split(/\s+/)
-        .map((word) => `+${word}`)
-        .join(' '),
-    );
+function describeGroup(group: AdvancedSearchGroup, concepts: Concept[]): string {
+  let text = group.conditions.length > 0 ? describeCondition(group.conditions[0]!, concepts) : '';
+  for (let i = 1; i < group.conditions.length; i++) {
+    text += ` ${group.conditions[i - 1]!.operatorToNext} ${describeCondition(group.conditions[i]!, concepts)}`;
   }
+  return group.conditions.length > 1 ? `(${text})` : text;
+}
 
-  const exactPhrase = words.exactPhrase.trim();
-  if (exactPhrase) {
-    parts.push(`+"${exactPhrase.replace(/"/g, '')}"`);
+export function describeAdvancedSearch(advancedSearch: AdvancedSearch, concepts: Concept[] = []): string | null {
+  if (!advancedSearch.enabled || advancedSearch.groups.length === 0) return null;
+  let text = describeGroup(advancedSearch.groups[0]!, concepts);
+  for (let i = 1; i < advancedSearch.groups.length; i++) {
+    text += ` ${advancedSearch.groups[i - 1]!.operatorToNext} ${describeGroup(advancedSearch.groups[i]!, concepts)}`;
   }
+  return text;
+}
 
-  const anyWords = words.anyWords.trim().split(/\s+/).filter(Boolean);
-  if (anyWords.length > 0) {
-    parts.push(`(${anyWords.join('|')})`);
+export function describeDateFilter(dateFilter: DateFilterValue | null): string | null {
+  if (!dateFilter) return null;
+  switch (dateFilter.mode) {
+    case 'between': {
+      if (dateFilter.start && dateFilter.end) return `published between ${dateFilter.start} and ${dateFilter.end}`;
+      if (dateFilter.start) return `published on or after ${dateFilter.start}`;
+      if (dateFilter.end) return `published on or before ${dateFilter.end}`;
+      return null;
+    }
+    case 'untilNow':
+      return dateFilter.start ? `published from ${dateFilter.start} until now` : null;
+    case 'lastNDays':
+      return dateFilter.lastNDays
+        ? `published in the last ${dateFilter.lastNDays} day${dateFilter.lastNDays === 1 ? '' : 's'}`
+        : null;
   }
-
-  const noneWords = words.noneWords.trim();
-  if (noneWords) {
-    parts.push(
-      noneWords
-        .split(/\s+/)
-        .map((word) => `-${word}`)
-        .join(' '),
-    );
-  }
-
-  return parts.join(' ').trim();
 }

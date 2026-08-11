@@ -46,6 +46,39 @@ export const authRateLimiter = rateLimit({
   },
 });
 
+// Coarse global backstop: 1000 requests/minute per IP across the whole /api surface.
+// Generous enough that no legitimate SPA session hits it; it exists to blunt scripted
+// abuse on endpoints without a dedicated limiter. Mounted before any router in app.ts
+// (authenticate hasn't run yet, hence per-IP keying).
+export const apiRateLimiter = rateLimit({
+  windowMs: MINUTE_MS,
+  limit: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('rl:api:'),
+  handler: (req, res) => {
+    rateLimitedResponse(res, 'Too many requests. Please try again later.', req.id);
+  },
+});
+
+// 60 uploads/minute per ORG — uploads are the most expensive mutation (disk + queue +
+// ES indexing); runs after authenticate so the org key is available.
+export const uploadRateLimiter = rateLimit({
+  windowMs: MINUTE_MS,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('rl:upload:'),
+  keyGenerator: (req) => req.user?.orgId ?? ipKeyGenerator(req.ip ?? 'unknown'),
+  handler: (req, res) => {
+    rateLimitedResponse(
+      res,
+      'Too many uploads for this organization. Please try again later.',
+      req.id,
+    );
+  },
+});
+
 // 300 requests/minute per ORG (not per IP) — a shared office/NAT IP shouldn't throttle
 // every user in a different org, and one heavy org shouldn't be able to starve search
 // for everyone else sharing an IP. Falls back to IP-based keying only for the (should be

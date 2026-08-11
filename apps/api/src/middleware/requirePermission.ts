@@ -8,7 +8,7 @@ export function requirePermission(permissionKey: string): RequestHandler {
     _res: Response,
     next: NextFunction,
   ): void {
-    const permissions = req.user?.permissions ?? [];
+    const permissions = req.user?.globalPermissions ?? [];
     if (permissions.includes('*') || permissions.includes(permissionKey)) {
       next();
       return;

@@ -3,9 +3,10 @@ import mongoose from 'mongoose';
 import { ensureOrgIndexExists } from '../lib/elasticsearch.js';
 import { AppError, isDuplicateKeyError } from '../lib/errors.js';
 import { logger } from '../lib/logger.js';
+import { seedSystemRoles } from '../lib/role-seed.js';
 import { slugify } from '../lib/slug.js';
 import { OrganizationModel, type OrganizationDocument } from '../models/organization.model.js';
-import { RoleModel, type RoleDocument } from '../models/role.model.js';
+import type { RoleDocument } from '../models/role.model.js';
 import { UserModel, type UserDocument } from '../models/user.model.js';
 import { UserSettingsModel } from '../models/userSettings.model.js';
 
@@ -61,34 +62,28 @@ export async function createOrganization(
       if (!org) {
         throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create organization');
       }
-      // One batch create() call for all 3 seeded roles — still a single operation-in-flight
-      // under the session's sequencing rule (see the comment above). Mongoose 9 requires
-      // `ordered: true` explicitly whenever create() is called with both a session and
-      // multiple documents, or it throws "Cannot call `create()` with a session and multiple
-      // documents unless `ordered: true` is set" — harmless to set here since these 3 inserts
-      // have no cross-doc ordering dependency anyway.
-      const [adminRole, editorRole, viewerRole] = await RoleModel.create(
-        [
-          { orgId: org._id, name: 'admin', permissions: ['*'] },
-          {
-            orgId: org._id,
-            name: 'editor',
-            permissions: ['documents:read', 'documents:write', 'search:query'],
-          },
-          { orgId: org._id, name: 'viewer', permissions: ['documents:read', 'search:query'] },
-        ],
-        { session, ordered: true },
-      );
-      if (!adminRole || !editorRole || !viewerRole) {
-        throw new AppError(500, 'INTERNAL_ERROR', 'Failed to create roles');
+
+      // Every org gets all 6 canonical system roles up front (see lib/role-seed.ts's own
+      // idempotency comment — safe even if this ever runs again for the same org).
+      const rolesByName = await seedSystemRoles(org._id, { session });
+      const applicationAdminRole = rolesByName.get('Application Admin');
+      if (!applicationAdminRole) {
+        throw new AppError(500, 'INTERNAL_ERROR', 'Failed to seed system roles');
       }
+
       const [user] = await UserModel.create(
         [
           {
             email: normalizedEmail,
             passwordHash: input.passwordHash,
             orgId: org._id,
-            roles: [adminRole._id],
+            // The registering user is always the org's first Application Admin —
+            // global scope (groupId: null), never time-bound (see
+            // validateRoleAssignmentInput in lib/permissions.ts) — so a brand-new org is
+            // never left without an admin able to manage it.
+            roleAssignments: [
+              { roleId: applicationAdminRole._id, groupId: null, startDate: null, endDate: null },
+            ],
           },
         ],
         { session },
@@ -109,8 +104,9 @@ export async function createOrganization(
       }
 
       // `roles` here means "roles assigned to the registering user" (used by issueSession to
-      // build the JWT), not "every role seeded for the org" — only adminRole applies to user.
-      created = { user, org, roles: [adminRole] };
+      // build the JWT), not "every role seeded for the org" — only applicationAdminRole
+      // applies to the registering user.
+      created = { user, org, roles: [applicationAdminRole] };
     });
   } catch (err) {
     if (isDuplicateKeyError(err)) {

@@ -5,12 +5,10 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../auth/AuthContext';
 import { useDirtyDraft } from '../../hooks/useDirtyDraft';
 import { getApiErrorMessage } from '../../lib/api-client';
+import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import { fetchOrganization, updateOrganization } from '../../lib/organizations-api';
 import SettingsSaveBar from './SettingsSaveBar';
 import { SettingsSection } from './SettingsSection';
-
-const INPUT_CLASSNAME =
-  'w-full max-w-sm rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -77,7 +75,7 @@ export default function OrganizationSection() {
             type="text"
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            className={`mt-1 ${INPUT_CLASSNAME}`}
+            className={`mt-1 max-w-sm ${INPUT_CLASSNAME}`}
           />
         </div>
 

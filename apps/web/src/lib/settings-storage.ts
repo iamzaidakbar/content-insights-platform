@@ -9,12 +9,16 @@ export function readSettingsCache(): UserSettingsDefaults | null {
       return null;
     }
     const parsed: unknown = JSON.parse(raw);
+    // Guards against a stale pre-pivot cache entry (the old nested
+    // appearance/search/notifications shape) lingering in a returning user's browser —
+    // falls back to DEFAULT_USER_SETTINGS instead of feeding SettingsContext a shape it
+    // doesn't recognize.
     if (
       parsed &&
       typeof parsed === 'object' &&
-      'appearance' in parsed &&
-      'search' in parsed &&
-      'notifications' in parsed
+      'theme' in parsed &&
+      'dateFormat' in parsed &&
+      'cardContentLines' in parsed
     ) {
       return parsed as UserSettingsDefaults;
     }

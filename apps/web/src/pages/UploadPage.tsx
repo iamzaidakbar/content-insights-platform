@@ -6,21 +6,38 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 
-import type { ApiResponse, Document } from '@content-insights/shared';
+import type { ApiResponse, Article } from '@content-insights/shared';
 
 import { apiClient, getApiErrorMessage } from '../lib/api-client';
-import { fetchDocument } from '../lib/documents-api';
-import StatusBadge from '../components/StatusBadge';
+import { INPUT_CLASSNAME } from '../lib/form-styles';
+import { formatDate } from '../lib/format';
+import { fetchProjects } from '../lib/projects-api';
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
+// Mirrors article.routes.ts's ACCEPTED_MIME_TYPES/MAX_FILE_SIZE_BYTES exactly — this is the
+// File System upload path (POST /api/articles/upload), the only way to manually add an
+// Article; sourceType is forced to 'file_system' server-side regardless of what's sent here.
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt', '.csv', '.xlsx', '.md', '.html', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'text/plain',
+  'text/csv',
+  'application/csv',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/markdown',
+  'text/x-markdown',
+  'text/html',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
 ];
+const ACCEPTED_TYPES_LABEL = 'PDF, DOCX, TXT, CSV, XLSX, Markdown, HTML, JPEG, PNG, GIF, or WebP';
+const MAX_FILE_SIZE_LABEL = '200MB';
 
 function isAllowedFile(file: File): boolean {
   const dotIndex = file.name.lastIndexOf('.');
@@ -32,44 +49,36 @@ function isAllowedFile(file: File): boolean {
   return extensionOk && mimeOk;
 }
 
-function getMetadataError(metadata: Record<string, unknown>): string | null {
-  const value = metadata['error'];
-  return typeof value === 'string' ? value : null;
-}
-
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [domain, setDomain] = useState('');
+  const [publishedAt, setPublishedAt] = useState('');
+  const [url, setUrl] = useState('');
+  const [authors, setAuthors] = useState('');
+  const [summary, setSummary] = useState('');
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [documentId, setDocumentId] = useState<string | null>(null);
+  const [createdArticle, setCreatedArticle] = useState<Article | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const queryClient = useQueryClient();
 
-  const documentQuery = useQuery({
-    queryKey: ['document', documentId],
-    queryFn: () => {
-      if (!documentId) {
-        throw new Error('No document to poll.');
-      }
-      return fetchDocument(documentId);
-    },
-    enabled: documentId !== null,
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === 'indexed' || status === 'failed' ? false : 3000;
-    },
-  });
+  // GET /api/projects is already scoped server-side to what this caller may see (org-wide
+  // for projects:read/projects:manage, otherwise the union of their groups'
+  // dataAccess.projectIds) — no client-side re-filtering needed, unlike the old
+  // group-permission cross-reference this page used to do for Documents.
+  const projectsQuery = useQuery({ queryKey: ['projects-options'], queryFn: () => fetchProjects(1), staleTime: 60_000 });
+  const projectOptions = projectsQuery.data?.items ?? [];
+  const isBlocked = !projectsQuery.isLoading && projectOptions.length === 0;
 
   function applyFile(selected: File) {
     if (!isAllowedFile(selected)) {
       setFile(null);
-      setFileError('Only PDF, DOCX, or TXT files are supported.');
+      setFileError(`Unsupported file type. Accepted: ${ACCEPTED_TYPES_LABEL}.`);
       return;
     }
     setFileError(null);
@@ -120,21 +129,35 @@ export default function UploadPage() {
       return;
     }
     if (!isAllowedFile(file)) {
-      setFileError('Only PDF, DOCX, or TXT files are supported.');
+      setFileError(`Unsupported file type. Accepted: ${ACCEPTED_TYPES_LABEL}.`);
+      return;
+    }
+    if (!title.trim()) {
+      setUploadError('Title is required.');
+      return;
+    }
+    if (!projectId) {
+      setUploadError('Select a project to add this article to.');
       return;
     }
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('title', title);
-    if (projectId.trim()) {
-      formData.append('projectId', projectId.trim());
-    }
+    formData.append('title', title.trim());
+    formData.append('projectId', projectId);
+    if (domain.trim()) formData.append('domain', domain.trim());
+    if (summary.trim()) formData.append('summary', summary.trim());
+    if (url.trim()) formData.append('url', url.trim());
+    if (publishedAt) formData.append('publishedAt', publishedAt);
+    if (authors.trim()) formData.append('authors', authors.trim());
 
     setIsUploading(true);
     setUploadProgress(0);
     try {
-      const response = await apiClient.post<ApiResponse<Document>>('/documents/upload', formData, {
+      // Called directly through apiClient (not articles-api.ts's uploadArticle helper) so
+      // onUploadProgress can drive the progress bar below — the plain helper has no way to
+      // observe upload progress.
+      const response = await apiClient.post<ApiResponse<Article>>('/articles/upload', formData, {
         onUploadProgress: (progressEvent) => {
           const total = progressEvent.total;
           if (total) {
@@ -146,46 +169,51 @@ export default function UploadPage() {
       if (!body.success) {
         throw new Error(body.message);
       }
-      // Seed the poll query with the document we just got back, so the status
-      // panel renders immediately instead of flashing empty on the first poll.
-      queryClient.setQueryData(['document', body.data.id], body.data);
-      setDocumentId(body.data.id);
+      // POST /articles/upload is fully synchronous — text extraction and Elasticsearch
+      // indexing already happened server-side by the time this response arrives, so
+      // there's no separate "processing" status to poll (unlike the old Document flow).
+      setCreatedArticle(body.data);
     } catch (err) {
-      setUploadError(getApiErrorMessage(err, 'Unable to upload the document. Please try again.'));
+      setUploadError(getApiErrorMessage(err, 'Unable to upload the article. Please try again.'));
     } finally {
       setIsUploading(false);
     }
   }
 
   function resetForAnotherUpload() {
-    setDocumentId(null);
+    setCreatedArticle(null);
     setFile(null);
     setTitle('');
     setProjectId('');
+    setDomain('');
+    setPublishedAt('');
+    setUrl('');
+    setAuthors('');
+    setSummary('');
     setUploadProgress(0);
     setFileError(null);
     setUploadError(null);
   }
 
-  const status = documentQuery.data?.status;
-  const metadataError = documentQuery.data ? getMetadataError(documentQuery.data.metadata) : null;
+  const wordCount = createdArticle?.body ? createdArticle.body.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
     <div className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-xl">
-        <Link to="/documents" className="text-sm text-slate-400 underline">
-          &larr; Back to documents
+        <Link to="/articles" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          &larr; Back to articles
         </Link>
 
-        <h1 className="mt-4 text-2xl font-semibold">Upload a document</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          PDF, DOCX, or TXT files are indexed automatically after upload.
+        <h1 className="mt-4 text-2xl font-semibold text-[var(--text-primary)]">Add an article</h1>
+        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          Manually add a File System article from a local file. {ACCEPTED_TYPES_LABEL} files up to{' '}
+          {MAX_FILE_SIZE_LABEL} are supported.
         </p>
 
-        {documentId === null ? (
+        {createdArticle === null ? (
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-slate-300">
+              <label htmlFor="title" className="block text-sm font-medium text-[var(--text-secondary)]">
                 Title
               </label>
               <input
@@ -194,25 +222,108 @@ export default function UploadPage() {
                 required
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
+                className={`mt-1 ${INPUT_CLASSNAME}`}
               />
             </div>
 
             <div>
-              <label htmlFor="projectId" className="block text-sm font-medium text-slate-300">
-                Project ID <span className="text-slate-500">(optional)</span>
+              <label htmlFor="project" className="block text-sm font-medium text-[var(--text-secondary)]">
+                Project
               </label>
-              <input
-                id="projectId"
-                type="text"
+              <select
+                id="project"
                 value={projectId}
                 onChange={(event) => setProjectId(event.target.value)}
-                className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
+                required
+                disabled={isBlocked}
+                className={`mt-1 ${INPUT_CLASSNAME}`}
+              >
+                <option value="">Select a project…</option>
+                {projectOptions.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              {isBlocked ? (
+                <p className="mt-1 text-xs text-[var(--red)]">
+                  You do not have access to any project. Ask an admin to grant you project access.
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="domain" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Source / domain <span className="text-[var(--text-muted)]">(optional)</span>
+                </label>
+                <input
+                  id="domain"
+                  type="text"
+                  placeholder="e.g. nytimes.com"
+                  value={domain}
+                  onChange={(event) => setDomain(event.target.value)}
+                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                />
+              </div>
+              <div>
+                <label htmlFor="publishedAt" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Published date <span className="text-[var(--text-muted)]">(optional)</span>
+                </label>
+                <input
+                  id="publishedAt"
+                  type="date"
+                  value={publishedAt}
+                  onChange={(event) => setPublishedAt(event.target.value)}
+                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="url" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Source URL <span className="text-[var(--text-muted)]">(optional)</span>
+                </label>
+                <input
+                  id="url"
+                  type="url"
+                  placeholder="https://example.com/article"
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                />
+              </div>
+              <div>
+                <label htmlFor="authors" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  Authors <span className="text-[var(--text-muted)]">(optional)</span>
+                </label>
+                <input
+                  id="authors"
+                  type="text"
+                  placeholder="Jane Doe, John Smith"
+                  value={authors}
+                  onChange={(event) => setAuthors(event.target.value)}
+                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="summary" className="block text-sm font-medium text-[var(--text-secondary)]">
+                Summary <span className="text-[var(--text-muted)]">(optional)</span>
+              </label>
+              <textarea
+                id="summary"
+                rows={3}
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                className={`mt-1 ${INPUT_CLASSNAME}`}
               />
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-slate-300">File</span>
+              <span className="block text-sm font-medium text-[var(--text-secondary)]">File</span>
               <div
                 role="button"
                 tabIndex={0}
@@ -221,101 +332,85 @@ export default function UploadPage() {
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`mt-1 cursor-pointer rounded-md border-2 border-dashed px-6 py-10 text-center transition ${
+                className={`mt-1 cursor-pointer rounded-[var(--radius-card)] border-2 border-dashed px-6 py-10 text-center transition-colors ${
                   isDraggingOver
-                    ? 'border-slate-400 bg-slate-900'
-                    : 'border-slate-700 bg-slate-900/40 hover:border-slate-600'
+                    ? 'border-[var(--accent)] bg-[var(--bg-hover)]'
+                    : 'border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]'
                 }`}
               >
-                <p className="text-sm text-slate-300">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {file ? file.name : 'Drag and drop a file here, or click to browse'}
                 </p>
-                <p className="mt-1 text-xs text-slate-500">PDF, DOCX, or TXT</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  {ACCEPTED_TYPES_LABEL} — up to {MAX_FILE_SIZE_LABEL}
+                </p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                  accept={ALLOWED_EXTENSIONS.join(',')}
                   className="hidden"
                   onChange={handleFileInputChange}
                 />
               </div>
-              {fileError ? <p className="mt-1 text-sm text-red-400">{fileError}</p> : null}
+              {fileError ? <p className="mt-1 text-sm text-[var(--red)]">{fileError}</p> : null}
             </div>
 
             {isUploading ? (
               <div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-hover)]">
                   <div
-                    className="h-full bg-slate-100 transition-all"
+                    className="h-full bg-[var(--accent)] transition-all"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="mt-1 text-xs text-slate-400">{uploadProgress}%</p>
+                <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                  {uploadProgress < 100 ? `${uploadProgress}%` : 'Processing…'}
+                </p>
               </div>
             ) : null}
 
-            {uploadError ? <p className="text-sm text-red-400">{uploadError}</p> : null}
+            {uploadError ? <p className="text-sm text-[var(--red)]">{uploadError}</p> : null}
 
             <button
               type="submit"
-              disabled={isUploading}
-              className="w-full rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isUploading || isBlocked}
+              className="w-full rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isUploading ? 'Uploading…' : 'Upload'}
+              {isUploading ? 'Uploading…' : 'Add article'}
             </button>
           </form>
         ) : (
-          <div className="mt-6 space-y-4 rounded-md border border-slate-800 bg-slate-900/40 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-sm font-medium text-slate-100">
-                {documentQuery.data?.title ?? title}
-              </p>
-              <StatusBadge status={status ?? 'pending'} />
+          <div className="mt-6 space-y-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 size={20} className="mt-0.5 shrink-0" style={{ color: 'var(--green)' }} />
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[var(--text-primary)]">{createdArticle.title}</p>
+                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                  {createdArticle.domain} · {formatDate(createdArticle.publishedAt)}
+                  {wordCount > 0 ? ` · ${wordCount.toLocaleString()} words` : ''}
+                </p>
+              </div>
             </div>
 
-            {status === 'indexed' ? (
-              <div>
-                <p className="text-sm text-emerald-400">Document indexed.</p>
-                <div className="mt-4 flex gap-3">
-                  <Link
-                    to="/documents"
-                    className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white"
-                  >
-                    View documents
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={resetForAnotherUpload}
-                    className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-                  >
-                    Upload another
-                  </button>
-                </div>
-              </div>
-            ) : status === 'failed' ? (
-              <div>
-                <p className="text-sm text-red-400">
-                  {metadataError ?? 'Indexing failed for this document.'}
-                </p>
-                <div className="mt-4 flex gap-3">
-                  <Link
-                    to="/documents"
-                    className="rounded-md border border-slate-700 px-3 py-2 text-sm text-slate-100 transition hover:border-slate-500"
-                  >
-                    Back to documents
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={resetForAnotherUpload}
-                    className="rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white"
-                  >
-                    Try again
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-sm text-slate-400">Indexing your document…</p>
-            )}
+            <p className="text-sm" style={{ color: 'var(--green)' }}>
+              Article added.
+            </p>
+
+            <div className="flex gap-3">
+              <Link
+                to={`/articles/${createdArticle.id}`}
+                className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+              >
+                View article
+              </Link>
+              <button
+                type="button"
+                onClick={resetForAnotherUpload}
+                className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+              >
+                Add another
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -7,10 +7,8 @@ import { useAuth } from '../../auth/AuthContext';
 import { getApiErrorMessage } from '../../lib/api-client';
 import { changePassword } from '../../lib/auth-api';
 import { deleteMe, updateMe } from '../../lib/users-api';
-import { SettingsSection } from './SettingsSection';
-
-const INPUT_CLASSNAME =
-  'w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
+import { INPUT_CLASSNAME } from '../../lib/form-styles';
+import { SettingsRow, SettingsSection } from './SettingsSection';
 
 // No client-side validation library is used elsewhere in this app (LoginPage/
 // RegisterPage both hand-roll it) — matching that rather than adding zod as a new direct
@@ -250,7 +248,7 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function AccountSection() {
-  const { user } = useAuth();
+  const { user, org, permissions } = useAuth();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   return (
@@ -266,6 +264,29 @@ export default function AccountSection() {
             {user?.email ?? '—'}
           </p>
         </div>
+      </SettingsSection>
+
+      {/* Read-only account/access facts — absorbed from what used to be a separate
+          "General" overview tab (email/org/permissions) now that General is dedicated to
+          actual editable preferences (theme/date format/language). Account is the more
+          natural home for "facts about you and your access." */}
+      <SettingsSection title="Access">
+        <SettingsRow label="Organization">
+          <span className="text-sm text-[var(--text-primary)]">{org?.name ?? '—'}</span>
+        </SettingsRow>
+        <SettingsRow label="Permissions">
+          <div className="flex max-w-xs flex-wrap justify-end gap-1.5">
+            {permissions.map((permission) => (
+              <span
+                key={permission}
+                className="rounded-[var(--radius-tag)] px-2 py-0.5 text-xs"
+                style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+              >
+                {permission}
+              </span>
+            ))}
+          </div>
+        </SettingsRow>
       </SettingsSection>
 
       <SettingsSection title="Change password">

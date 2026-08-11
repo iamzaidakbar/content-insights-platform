@@ -1,14 +1,24 @@
 import { z } from 'zod';
 
-import { documentFileTypeSchema } from './document.schema.js';
-import { dateRangeFilterSchema } from './search-filters.schema.js';
+import { SEARCH_SORT_OPTIONS } from '../types/search-result.js';
+import { filterPanelStateSchema } from './search-filters.schema.js';
 
-export const searchRequestSchema = z.object({
-  query: z.string().min(1),
-  projectIds: z.array(z.string()).optional(),
-  fileTypes: z.array(documentFileTypeSchema).optional(),
-  dateRange: dateRangeFilterSchema.optional(),
-  page: z.number().int().min(1),
-  size: z.number().int().min(1).max(50),
-});
+export const searchSortOptionSchema = z.enum(SEARCH_SORT_OPTIONS);
+
+// POST /api/search
+export const searchRequestSchema = z
+  .object({
+    filters: filterPanelStateSchema,
+    page: z.number().int().min(1),
+    size: z.number().int().min(1).max(50),
+  })
+  .strict();
 export type SearchRequestInput = z.infer<typeof searchRequestSchema>;
+
+// POST /api/search/facets
+export const facetsRequestSchema = z
+  .object({
+    filters: filterPanelStateSchema,
+  })
+  .strict();
+export type FacetsRequestInput = z.infer<typeof facetsRequestSchema>;

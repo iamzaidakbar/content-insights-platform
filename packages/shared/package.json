@@ -20,6 +20,7 @@
     "build": "tsc",
     "dev": "tsc --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "clean": "rimraf dist"
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "rimraf": "^6.0.1",
-    "typescript": "6.0.2"
+    "typescript": "6.0.2",
+    "vitest": "^4.1.10"
   }
 }

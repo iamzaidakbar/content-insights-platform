@@ -1,18 +1,10 @@
-import type { OrgId, ProjectId, RoleId, UserId } from '../ids.js';
-
-export interface ProjectMember {
-  userId: UserId;
-  userEmail: string;
-  roleId: RoleId;
-  roleName: string;
-}
+import type { OrgId, ProjectId } from '../ids.js';
 
 export interface Project {
   id: ProjectId;
   orgId: OrgId;
   name: string;
   description: string;
-  members: ProjectMember[];
   createdAt: string;
   updatedAt: string;
 }

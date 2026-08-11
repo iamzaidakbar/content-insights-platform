@@ -12,27 +12,43 @@ import { Queue, Worker, type Job } from 'bullmq';
 // default-import synthesis doesn't resolve to a constructable type here
 // ("has no construct signatures"), while the named class export is unambiguous.
 
-const redisUrl = process.env.REDIS_URL;
-if (!redisUrl) {
-  throw new Error('REDIS_URL is not set');
-}
+import { config } from './config.js';
 
 // Shared by the Queue (producer) and Worker (consumer). BullMQ's Worker hard-requires
 // maxRetriesPerRequest: null on its connection (throws at construction otherwise —
 // blocking commands need to keep retrying through transient Redis blips). A
 // higher-throughput setup would split producer/worker connections; one is simplest here.
-export const redisConnection = new Redis(redisUrl, { maxRetriesPerRequest: null });
+export const redisConnection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
 
 // BullMQ queue names must not contain ':' — it's BullMQ's own Redis-key separator.
-export const DOCUMENT_INGEST_QUEUE = 'document-ingest';
-export const DOCUMENT_INDEX_QUEUE = 'document-index';
+// Renamed from the pre-Article `document-ingest`/`document-index` convention now that the
+// only entity type left is `Article` (see elasticsearch.ts's identical index-naming note).
+export const ARTICLE_INGEST_QUEUE = 'article-ingest';
+export const ARTICLE_INDEX_QUEUE = 'article-index';
 
-export const documentIngestQueue = new Queue(DOCUMENT_INGEST_QUEUE, {
+// attempts + exponential backoff: transient failures (ES restart, Redis blip, file lock)
+// self-heal without operator action. Completed/failed jobs are pruned so Redis doesn't
+// grow unboundedly.
+const DEFAULT_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { type: 'exponential' as const, delay: 2_000 },
+  removeOnComplete: { count: 1_000 },
+  removeOnFail: { count: 5_000 },
+};
+
+export const articleIngestQueue = new Queue(ARTICLE_INGEST_QUEUE, {
   connection: redisConnection,
+  defaultJobOptions: DEFAULT_JOB_OPTIONS,
 });
-// Not consumed by anything yet — forward-looking hook, same spirit as requirePermission
-// existing fully-built but unattached before this task.
-export const documentIndexQueue = new Queue(DOCUMENT_INDEX_QUEUE, { connection: redisConnection });
+export const articleIndexQueue = new Queue(ARTICLE_INDEX_QUEUE, {
+  connection: redisConnection,
+  defaultJobOptions: DEFAULT_JOB_OPTIONS,
+});
+
+/** True when this run is the job's last configured attempt (no more retries follow). */
+export function isFinalAttempt(job: Job): boolean {
+  return job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+}
 
 export { Worker };
 export type { Job };

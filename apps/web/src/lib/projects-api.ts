@@ -1,9 +1,17 @@
-import type { ApiResponse, PaginatedResult, Project, ProjectId } from '@content-insights/shared';
+import type {
+  ApiResponse,
+  CreateProjectInput,
+  PaginatedResult,
+  Project,
+  UpdateProjectInput,
+} from '@content-insights/shared';
 
 import { apiClient } from './api-client';
 
-export async function fetchProjects(): Promise<PaginatedResult<Project>> {
-  const response = await apiClient.get<ApiResponse<PaginatedResult<Project>>>('/projects');
+export async function fetchProjects(page = 1): Promise<PaginatedResult<Project>> {
+  const response = await apiClient.get<ApiResponse<PaginatedResult<Project>>>('/projects', {
+    params: { page },
+  });
   const body = response.data;
   if (!body.success) {
     throw new Error(body.message);
@@ -11,18 +19,27 @@ export async function fetchProjects(): Promise<PaginatedResult<Project>> {
   return body.data;
 }
 
-export async function fetchProject(id: ProjectId): Promise<Project> {
+// Walks every page — the Data Access modal's Projects tab needs the org's complete project
+// list to multi-select from, not one page's worth. Project counts are admin-configured and
+// small in practice, same tradeoff fetchAllGroups (groups-api.ts) makes.
+export async function fetchAllProjects(): Promise<Project[]> {
+  const first = await fetchProjects(1);
+  if (first.totalPages <= 1) {
+    return first.items;
+  }
+  const rest = await Promise.all(
+    Array.from({ length: first.totalPages - 1 }, (_, index) => fetchProjects(index + 2)),
+  );
+  return [...first.items, ...rest.flatMap((result) => result.items)];
+}
+
+export async function fetchProject(id: string): Promise<Project> {
   const response = await apiClient.get<ApiResponse<Project>>(`/projects/${id}`);
   const body = response.data;
   if (!body.success) {
     throw new Error(body.message);
   }
   return body.data;
-}
-
-export interface CreateProjectInput {
-  name: string;
-  description?: string;
 }
 
 export async function createProject(input: CreateProjectInput): Promise<Project> {
@@ -34,12 +51,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   return body.data;
 }
 
-export interface UpdateProjectInput {
-  name?: string;
-  description?: string;
-}
-
-export async function updateProject(id: ProjectId, input: UpdateProjectInput): Promise<Project> {
+export async function updateProject(id: string, input: UpdateProjectInput): Promise<Project> {
   const response = await apiClient.put<ApiResponse<Project>>(`/projects/${id}`, input);
   const body = response.data;
   if (!body.success) {
@@ -48,40 +60,9 @@ export async function updateProject(id: ProjectId, input: UpdateProjectInput): P
   return body.data;
 }
 
-export async function deleteProject(id: ProjectId): Promise<void> {
+export async function deleteProject(id: string): Promise<void> {
   const response = await apiClient.delete<ApiResponse<null>>(`/projects/${id}`);
   if (!response.data.success) {
     throw new Error(response.data.message);
   }
-}
-
-export interface AddProjectMemberInput {
-  userId: string;
-  roleId: string;
-}
-
-export async function addProjectMember(
-  projectId: ProjectId,
-  input: AddProjectMemberInput,
-): Promise<Project> {
-  const response = await apiClient.post<ApiResponse<Project>>(
-    `/projects/${projectId}/members`,
-    input,
-  );
-  const body = response.data;
-  if (!body.success) {
-    throw new Error(body.message);
-  }
-  return body.data;
-}
-
-export async function removeProjectMember(projectId: ProjectId, userId: string): Promise<Project> {
-  const response = await apiClient.delete<ApiResponse<Project>>(
-    `/projects/${projectId}/members/${userId}`,
-  );
-  const body = response.data;
-  if (!body.success) {
-    throw new Error(body.message);
-  }
-  return body.data;
 }

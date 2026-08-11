@@ -19,8 +19,9 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
     req.user = {
       id: claims.sub,
       orgId: claims.orgId,
-      roles: claims.roles,
-      permissions: claims.permissions,
+      email: claims.email,
+      roleAssignments: claims.roleAssignments,
+      globalPermissions: claims.globalPermissions,
     };
     req.orgId = claims.orgId;
     next();

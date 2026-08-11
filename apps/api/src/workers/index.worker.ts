@@ -1,53 +1,57 @@
 import type { Job, Worker as BullWorker } from 'bullmq';
 
-import type { OrgId } from '@content-insights/shared';
+import { indexArticle } from '../lib/elasticsearch.js';
+import { logger } from '../lib/logger.js';
+import { ARTICLE_INDEX_QUEUE, redisConnection, Worker } from '../lib/queue.js';
+import { ArticleModel } from '../models/article.model.js';
 
-import type { TextChunk } from '../lib/chunking.js';
-import { indexDocumentChunks } from '../lib/elasticsearch.js';
-import { DOCUMENT_INDEX_QUEUE, redisConnection, Worker } from '../lib/queue.js';
-import { DocumentModel } from '../models/document.model.js';
-
+// The consumer side of articleIngestQueue's ingest -> index handoff (see
+// ingest.worker.ts's own comment for the two paths that enqueue here: admin-triggered File
+// System re-extraction, and the simulated NEWS fixture ingesting directly via indexArticle
+// without going through this queue at all — this worker exists for the retry-safe
+// background path, not as the only way an Article ever reaches Elasticsearch).
 interface IndexJobData {
-  documentId: string;
-  orgId: OrgId;
-  chunks: TextChunk[];
+  articleId: string;
+  orgId: string;
 }
 
 async function processIndexJob(job: Job<IndexJobData>): Promise<void> {
-  const { documentId, orgId, chunks } = job.data;
+  const { articleId } = job.data;
 
-  const doc = await DocumentModel.findById(documentId); // fresh lookup, same as ingest.worker.ts
-  if (!doc) {
+  const article = await ArticleModel.findById(articleId); // fresh lookup, same as ingest.worker.ts
+  if (!article) {
     return; // deleted or bogus id — nothing to do, don't retry
   }
 
-  try {
-    await indexDocumentChunks({
-      orgId,
-      documentId,
-      title: doc.title,
-      fileType: doc.fileType,
-      ...(doc.projectId !== undefined ? { projectId: doc.projectId } : {}),
-      metadata: doc.metadata,
-      createdAt: doc.createdAt,
-      chunks,
-    });
-    doc.status = 'indexed';
-    await doc.save();
-  } catch (err) {
-    // A bad ES mapping/connection/bulk failure fails THIS document, not the whole worker.
-    doc.status = 'failed';
-    doc.metadata = {
-      ...doc.metadata,
-      error: err instanceof Error ? err.message : 'Elasticsearch indexing failed',
-    };
-    await doc.save();
-  }
+  await indexArticle({
+    id: article._id.toString(),
+    orgId: article.orgId.toString(),
+    projectId: article.projectId.toString(),
+    title: article.title,
+    summary: article.summary,
+    body: article.body,
+    domain: article.domain,
+    sourceType: article.sourceType,
+    publishedAt: article.publishedAt.toISOString(),
+    authors: article.authors,
+    taxonomyValues: article.taxonomyValues,
+    tagIds: article.tagIds.map((id) => id.toString()),
+    locationHash: article.locationHash,
+    hidden: article.hidden,
+    createdAt: article.createdAt.toISOString(),
+  });
 }
 
 // In-process, same as startIngestWorker — fine at this scope.
 export function startIndexWorker(): BullWorker<IndexJobData> {
-  return new Worker<IndexJobData>(DOCUMENT_INDEX_QUEUE, processIndexJob, {
+  const worker = new Worker<IndexJobData>(ARTICLE_INDEX_QUEUE, processIndexJob, {
     connection: redisConnection,
   });
+  worker.on('failed', (job, err) => {
+    logger.warn(
+      { articleId: job?.data.articleId, attemptsMade: job?.attemptsMade, err: err.message },
+      'Article index job attempt failed',
+    );
+  });
+  return worker;
 }

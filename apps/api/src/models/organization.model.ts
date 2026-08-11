@@ -6,6 +6,9 @@ export interface IOrganization {
   name: string;
   slug: string;
   plan: OrganizationPlan;
+  // Email domain whose SSO logins auto-provision users into this org (see the SSO
+  // callback in auth.routes.ts). Absent/empty = no auto-provisioning.
+  ssoDomain?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,6 +20,7 @@ const organizationSchema = new mongoose.Schema<IOrganization>(
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     plan: { type: String, enum: ['free', 'pro', 'enterprise'], default: 'free' },
+    ssoDomain: { type: String, required: false, lowercase: true, trim: true },
   },
   { timestamps: true },
 );

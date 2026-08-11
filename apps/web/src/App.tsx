@@ -1,63 +1,47 @@
 import { lazy, Suspense } from 'react';
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { useAuth } from './auth/AuthContext';
 import RequireAuth from './auth/RequireAuth';
 import AppShell from './layouts/AppShell';
 import PageSkeleton from './components/PageSkeleton';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UploadPage from './pages/UploadPage';
-import SearchPage from './pages/SearchPage';
-import ProjectsPage from './pages/ProjectsPage';
-import ProjectDetailPage from './pages/ProjectDetailPage';
-import TrendsPage from './pages/TrendsPage';
+import GroupsPage from './pages/GroupsPage';
+import GroupDetailPage from './pages/GroupDetailPage';
 import AlertsPage from './pages/AlertsPage';
 import TagsPage from './pages/TagsPage';
 import ProfilePage from './pages/ProfilePage';
 
-// Code-split — admin pages are only reachable by org:admin users, so most sessions never
-// need this JS at all. Keeps the main bundle smaller for the common case.
-const AdminRolesPage = lazy(() => import('./pages/AdminRolesPage'));
-const AdminOrgPage = lazy(() => import('./pages/AdminOrgPage'));
-const AdminMembersPage = lazy(() => import('./pages/AdminMembersPage'));
-// Split separately too — its toolbar (icon set, filter/sort popovers, results grid) is
-// the single largest contributor to the main bundle, enough on its own to push the
-// bundle-size budget (build.chunkSizeWarningLimit, vite.config.ts) over 250kB.
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 const ArticlesPage = lazy(() => import('./pages/ArticlesPage'));
-// Six independent settings sections (Appearance's theme-card SVGs, the change-password
-// form, org management, ...) add up fast — most sessions never open Settings, so none of
-// that JS belongs in the main bundle.
+const ArticleDetailPage = lazy(() => import('./pages/ArticleDetailPage'));
+const InsightsPage = lazy(() => import('./pages/InsightsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SavedSearchesPage = lazy(() => import('./pages/SavedSearchesPage'));
+const ChannelsPage = lazy(() => import('./pages/ChannelsPage'));
+const ChannelDetailPage = lazy(() => import('./pages/ChannelDetailPage'));
+const DashboardsPage = lazy(() => import('./pages/DashboardsPage'));
+const DashboardDetailPage = lazy(() => import('./pages/DashboardDetailPage'));
 
-function HomePage() {
-  const { user, org } = useAuth();
-
-  return (
-    <div className="text-center">
-      <h1 className="text-3xl font-semibold text-[var(--text-primary)]">
-        Content Insights Platform
-      </h1>
-      <p className="mt-2 text-[var(--text-secondary)]">
-        Signed in as {user?.email} · {org?.name}
-      </p>
-      <div className="mt-6 flex items-center justify-center gap-3">
-        <Link
-          to="/documents"
-          className="rounded-[var(--radius-button)] border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-primary)] transition hover:border-[var(--accent)]"
-        >
-          Articles
-        </Link>
-        <Link
-          to="/search"
-          className="rounded-[var(--radius-button)] border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-primary)] transition hover:border-[var(--accent)]"
-        >
-          Search
-        </Link>
-      </div>
-    </div>
-  );
-}
+// Every admin-cluster section (Users/Role Assignments/Roles/Entity Mapping/Audit Log) is
+// gated on its own finer-grained permission internally (see AdminPage's own module
+// comment) — the route itself only needs to admit anyone who could see at least one of
+// them, so a scoped admin (e.g. holding just entity-mapping:read, not full org:admin)
+// isn't blocked from the page entirely. AppShell's individual nav entries apply the same
+// per-permission OR so a viewer never sees a link to a page RequireAuth would then reject.
+const ADMIN_CLUSTER_PERMISSIONS = [
+  'org:admin',
+  'users:read',
+  'users:manage',
+  'users:delete',
+  'roles:read',
+  'roles:manage',
+  'roles:assign',
+  'entity-mapping:read',
+  'entity-mapping:manage',
+  'audit:read',
+];
 
 export default function App() {
   return (
@@ -67,34 +51,85 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
+          <Route path="/" element={<Navigate to="/articles" replace />} />
+
           <Route
-            path="/"
+            path="/articles"
             element={
-              <div className="flex flex-1 items-center justify-center">
-                <HomePage />
-              </div>
+              <Suspense fallback={<PageSkeleton />}>
+                <ArticlesPage />
+              </Suspense>
+            }
+          />
+          <Route path="/articles/upload" element={<UploadPage />} />
+          <Route
+            path="/articles/:id"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <ArticleDetailPage />
+              </Suspense>
+            }
+          />
+          <Route path="/search" element={<Navigate to="/articles" replace />} />
+          {/* Pre-pivot bookmarks/links — /documents and /incidents no longer exist anywhere
+              in the backend; redirect rather than 404 for anyone with an old link saved. */}
+          <Route path="/documents" element={<Navigate to="/articles" replace />} />
+          <Route path="/documents/:id" element={<Navigate to="/articles" replace />} />
+          <Route path="/incidents" element={<Navigate to="/articles" replace />} />
+          <Route path="/incidents/:id" element={<Navigate to="/articles" replace />} />
+
+          <Route
+            path="/insights"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <InsightsPage />
+              </Suspense>
             }
           />
 
-          <Route element={<RequireAuth permission="documents:read" />}>
-            <Route
-              path="/documents"
-              element={
-                <Suspense fallback={<PageSkeleton />}>
-                  <ArticlesPage />
-                </Suspense>
-              }
-            />
-          </Route>
-          <Route element={<RequireAuth permission="documents:write" />}>
-            <Route path="/documents/upload" element={<UploadPage />} />
-          </Route>
-          <Route element={<RequireAuth permission="search:query" />}>
-            <Route path="/search" element={<SearchPage />} />
-          </Route>
+          <Route path="/groups" element={<GroupsPage />} />
+          <Route path="/groups/:id" element={<GroupDetailPage />} />
 
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route
+            path="/saved-searches"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <SavedSearchesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/channels"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <ChannelsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/channels/:id"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <ChannelDetailPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/dashboards"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <DashboardsPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/dashboards/:id"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <DashboardDetailPage />
+              </Suspense>
+            }
+          />
 
           <Route
             path="/settings"
@@ -104,33 +139,17 @@ export default function App() {
               </Suspense>
             }
           />
-          <Route path="/trends" element={<TrendsPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/tags" element={<TagsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/trends" element={<Navigate to="/dashboards" replace />} />
 
-          <Route element={<RequireAuth permission="org:admin" />}>
+          <Route element={<RequireAuth anyOf={ADMIN_CLUSTER_PERMISSIONS} />}>
             <Route
-              path="/admin/roles"
+              path="/admin"
               element={
                 <Suspense fallback={<PageSkeleton />}>
-                  <AdminRolesPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/admin/org"
-              element={
-                <Suspense fallback={<PageSkeleton />}>
-                  <AdminOrgPage />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/admin/members"
-              element={
-                <Suspense fallback={<PageSkeleton />}>
-                  <AdminMembersPage />
+                  <AdminPage />
                 </Suspense>
               }
             />

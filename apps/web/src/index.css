@@ -9,30 +9,80 @@
    prefers-color-scheme).
    ========================================================================== */
 :root {
-  --bg-primary: #0f1117;
-  --bg-surface: #1a1d27;
-  --bg-card: #1e2130;
-  --bg-hover: #252840;
-  --border: #2e3150;
-  --text-primary: #e8eaf6;
-  --text-secondary: #8b8fa8;
-  --text-muted: #555878;
-  --accent: #6c63ff;
-  --accent-hover: #7c74ff;
-  --accent-soft: rgba(108, 99, 255, 0.15);
-  --tag-bg: #2a2d4a;
-  --tag-text: #a5a8d0;
+  --bg-primary: #0b0e14;
+  --bg-surface: #12161f;
+  --bg-card: #171c27;
+  --bg-hover: #1f2530;
+  --border: #262c3a;
+  --text-primary: #e4e6eb;
+  --text-secondary: #9aa0ae;
+  --text-muted: #6b7280;
+  --accent: #4c7daf;
+  --accent-hover: #5c8dbf;
+  --accent-soft: rgba(76, 125, 175, 0.16);
+  --tag-bg: #1c2733;
+  --tag-text: #9fb2c4;
   --green: #22c55e;
   --red: #ef4444;
+  --amber: #f59e0b;
+
+  /* Dashboard chart series — a distinct ramp from --accent, not a reuse of it: --accent's
+     chroma is too low (reads gray at data-mark size, fails the dataviz skill's chroma
+     floor) to double as a categorical series color. This 5-slot order is the dataviz
+     skill's validated default categorical palette, confirmed via its validator script
+     against this exact --bg-card surface (all gates pass; slots 3–5 sit under 3:1 contrast
+     in light mode, mitigated by always pairing them with a legend/direct label, never
+     color alone). Fixed order — a chart assigns slots 1..N in this sequence, never cycled.
+  */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  /* Slots 6-8 extend the same validated ramp for the higher-cardinality chart types
+     (word cloud frequency tiers, stream chart series, treemap top-level categories,
+     relationship diagram sides) — same source/validation pass as 1-5, just carried
+     further before folding into "Other". Never used by Bar/Line/Donut. */
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+  --chart-other: #4b5566; /* the "Other" overflow bucket — deliberately neutral, not a series hue */
+
+  /* Sequential single-hue ramp (magnitude, e.g. HeatMapChart cell fill) — light -> dark,
+     theme-invariant (unlike the categorical slots above): a heat cell's fill communicates
+     "how much", not entity identity, so it doesn't need a light/dark swap of its own; only
+     the chart chrome around it (surface/gridline/ink, below) flips with theme. */
+  --chart-seq-100: #cde2fb;
+  --chart-seq-200: #9ec5f4;
+  --chart-seq-300: #6da7ec;
+  --chart-seq-400: #3987e5;
+  --chart-seq-500: #256abf;
+  --chart-seq-600: #184f95;
+  --chart-seq-700: #0d366b;
+
+  /* Chart chrome — a dedicated, pre-validated surface/ink/gridline set for the Insights
+     chart canvases (Bar/Radar/HeatMap), distinct from the app's own --bg-card/--border/
+     --text-* tokens: the categorical/sequential contrast checks were run against THESE
+     exact surface values, not the app's ambient card background, so a chart's plot area
+     paints its own canvas with these tokens rather than inheriting --bg-card. --chart-
+     ink-muted is intentionally a single value (no light/dark pair) — validated to read as
+     a legible axis label on both chart-surface tones unchanged. */
+  --chart-surface: #1a1a19;
+  --chart-ink-primary: #ffffff;
+  --chart-ink-secondary: #c3c2b7;
+  --chart-ink-muted: #898781;
+  --chart-gridline: #2c2c2a;
+  --chart-baseline: #383835;
 
   /* Spacing/radius conventions — 4px base unit (matches Tailwind's default scale, so
      ordinary p-1/gap-2/etc. utilities already comply; these vars exist for the handful
-     of places that need an exact, non-utility-scale radius). */
+     of places that need an exact, non-utility-scale radius). Tightened scale (vs. the
+     original 12/8/6/8px) for a more structured, "data tooling" feel. */
   --space-1: 4px;
-  --radius-card: 12px;
-  --radius-button: 8px;
-  --radius-tag: 6px;
-  --radius-input: 8px;
+  --radius-card: 8px;
+  --radius-button: 6px;
+  --radius-tag: 4px;
+  --radius-input: 6px;
 
   /* appearance.fontSize scaling — multiplies the root font size; every rem-based
      Tailwind utility scales with it automatically. Set by lib/apply-settings.ts via
@@ -41,21 +91,38 @@
 }
 
 :root[data-theme='light'] {
-  --bg-primary: #f4f5f9;
+  --bg-primary: #f4f5f7;
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
-  --bg-hover: #f0f1f8;
-  --border: #e2e4f0;
-  --text-primary: #1a1d2e;
-  --text-secondary: #555878;
-  --text-muted: #9395a8;
-  --accent: #6c63ff;
-  --accent-hover: #6c63ff;
-  --accent-soft: rgba(108, 99, 255, 0.1);
-  --tag-bg: #ede9ff;
-  --tag-text: #5b53ee;
-  --green: #22c55e;
-  --red: #ef4444;
+  --bg-hover: #eef0f3;
+  --border: #dfe2e7;
+  --text-primary: #171a21;
+  --text-secondary: #565c66;
+  --text-muted: #8a8f99;
+  --accent: #2e5c86;
+  --accent-hover: #24486b;
+  --accent-soft: rgba(46, 92, 134, 0.1);
+  --tag-bg: #e8edf2;
+  --tag-text: #35597a;
+  --green: #16a34a;
+  --red: #dc2626;
+  --amber: #b45309;
+
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
+  --chart-other: #9295a0;
+
+  --chart-surface: #fcfcfb;
+  --chart-ink-primary: #0b0b0b;
+  --chart-ink-secondary: #52514e;
+  --chart-gridline: #e1e0d9;
+  --chart-baseline: #c3c2b7;
 }
 
 :root[data-font-size='small'] {

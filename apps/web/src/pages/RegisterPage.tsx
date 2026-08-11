@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../lib/api-client';
+import { INPUT_CLASSNAME } from '../lib/form-styles';
 
 interface LocationState {
   from?: { pathname: string };
@@ -37,74 +38,84 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] px-4 text-[var(--text-primary)]">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold">Create your organization</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Starts a new workspace on Content Insights Platform.
-        </p>
-
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="orgName" className="block text-sm font-medium text-slate-300">
-              Organization name
-            </label>
-            <input
-              id="orgName"
-              type="text"
-              autoComplete="organization"
-              required
-              value={orgName}
-              onChange={(event) => setOrgName(event.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-300">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-slate-500"
-            />
-          </div>
-
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-md bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-white"
+            style={{ backgroundColor: 'var(--accent)' }}
           >
-            {isSubmitting ? 'Creating account…' : 'Create account'}
-          </button>
-        </form>
+            C
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold">Create your organization</h1>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">Starts a new workspace on Content Insights.</p>
+          </div>
+        </div>
 
-        <p className="mt-4 text-sm text-slate-400">
+        <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-8">
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="orgName" className="block text-sm font-medium text-[var(--text-secondary)]">
+                Organization name
+              </label>
+              <input
+                id="orgName"
+                type="text"
+                autoComplete="organization"
+                required
+                value={orgName}
+                onChange={(event) => setOrgName(event.target.value)}
+                className={`mt-1 ${INPUT_CLASSNAME}`}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className={`mt-1 ${INPUT_CLASSNAME}`}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className={`mt-1 ${INPUT_CLASSNAME}`}
+              />
+            </div>
+
+            {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? 'Creating account…' : 'Create account'}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
           Already have an account?{' '}
-          <Link to="/login" className="text-slate-100 underline">
+          <Link to="/login" className="font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]">
             Log in
           </Link>
         </p>

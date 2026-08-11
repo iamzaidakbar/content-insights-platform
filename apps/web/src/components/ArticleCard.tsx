@@ -1,62 +1,67 @@
-import { useState, type ComponentType } from 'react';
+import { useState, type ComponentType, type CSSProperties } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Calendar,
-  Camera,
-  Edit,
+  ChevronDown,
+  ChevronUp,
   Eye,
+  EyeOff,
+  ExternalLink,
+  FileDown,
   FileText,
   Globe,
+  Layers,
   Tag as TagIcon,
-  Upload,
-  X,
 } from 'lucide-react';
 
-import type { CardDensity } from '@content-insights/shared';
+import type { Concept, ResultViewMode, SearchHit, UserTag } from '@content-insights/shared';
 
-import { useSettings } from '../settings/SettingsContext';
-import { CARD_HEIGHT } from '../lib/article-layout';
+import { fetchArticle, downloadArticle } from '../lib/articles-api';
 import { formatDate } from '../lib/format';
+import HighlightedSnippet from './HighlightedSnippet';
 
 export interface ArticleCardProps {
-  id: string;
-  title: string;
-  // Genuinely optional (not just "present but undefined") — widened explicitly so
-  // exactOptionalPropertyTypes allows passing through an already-optional source field
-  // (e.g. item.url from ArticleGridItem) without an intermediate conditional-spread.
-  url?: string | undefined;
-  source?: string | undefined;
-  publishDate: string;
-  snippet: string;
-  tags: string[];
+  hit: SearchHit;
+  viewMode: ResultViewMode;
+  /** UserSettings.cardContentLines, already resolved for the current project (falls back to 'default'). */
+  contentLines: number;
   isSelected: boolean;
   onSelect: (id: string, selected: boolean) => void;
-  onTag: (id: string) => void;
-  onShare: (id: string) => void;
-  onBookmark: (id: string) => void;
-  onEdit: (id: string) => void;
-  onTagClick: (tag: string) => void;
+  isExpanded: boolean;
+  onToggleExpand: (id: string) => void;
+  concepts: Concept[];
+  tagsById: Map<string, UserTag>;
+  canHide: boolean;
+  isHidePending: boolean;
+  onHideToggle: (id: string, hidden: boolean) => void;
+  onOpenTagPicker: (id: string) => void;
+  onTaxonomyValueClick: (conceptKey: string, value: string) => void;
+  onTagChipClick: (tagId: string) => void;
 }
 
-const SNIPPET_LINE_CLAMP: Record<CardDensity, string> = {
-  comfortable: 'line-clamp-4',
-  compact: 'line-clamp-2',
-  cozy: 'line-clamp-3',
-};
+const MAX_VISIBLE_TAGS = 4;
 
-const MAX_VISIBLE_TAGS: Record<CardDensity, number> = {
-  comfortable: 5,
-  compact: 2,
-  cozy: 3,
-};
+function clampStyle(lines: number): CSSProperties {
+  return {
+    display: '-webkit-box',
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: lines,
+    overflow: 'hidden',
+  };
+}
 
-function ActionIcon({
+function ActionIconButton({
   icon: Icon,
   label,
   onClick,
+  disabled,
+  active,
 }: {
   icon: ComponentType<{ size?: number }>;
   label: string;
   onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
 }) {
   return (
     <div className="group/tip relative">
@@ -64,9 +69,14 @@ function ActionIcon({
         type="button"
         aria-label={label}
         onClick={onClick}
-        className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+        disabled={disabled}
+        className={`flex h-7 w-7 items-center justify-center rounded-[6px] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          active
+            ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
+            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+        }`}
       >
-        <Icon size={16} />
+        <Icon size={15} />
       </button>
       <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-[6px] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-xs text-[var(--text-primary)] opacity-0 shadow-lg transition-opacity duration-150 group-hover/tip:opacity-100">
         {label}
@@ -75,318 +85,270 @@ function ActionIcon({
   );
 }
 
-function TagChips({
-  tags,
-  maxTags,
-  size = 'normal',
-  onTagClick,
+function TaxonomyRow({
+  taxonomyValues,
+  concepts,
+  onValueClick,
 }: {
-  tags: string[];
-  maxTags: number;
-  size?: 'normal' | 'small';
-  onTagClick: (tag: string) => void;
+  taxonomyValues: Record<string, string[]>;
+  concepts: Concept[];
+  onValueClick: (conceptKey: string, value: string) => void;
 }) {
-  const [showAll, setShowAll] = useState(false);
-  if (tags.length === 0) {
+  const entries = Object.entries(taxonomyValues).filter(([, values]) => values.length > 0);
+  if (entries.length === 0) {
     return null;
   }
-  const visible = showAll ? tags : tags.slice(0, maxTags);
-  const overflow = tags.length - visible.length;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+      {entries.map(([conceptKey, values]) => {
+        const label = concepts.find((concept) => concept.key === conceptKey)?.displayLabel ?? conceptKey;
+        return (
+          <div key={conceptKey} className="flex min-w-0 items-center gap-1 text-xs text-[var(--text-secondary)]">
+            <Layers size={12} className="shrink-0 text-[var(--text-muted)]" />
+            <span className="font-medium">{label}:</span>
+            <span className="flex flex-wrap items-center gap-x-1">
+              {values.map((value, index) => (
+                <span key={value}>
+                  {index > 0 ? <span className="text-[var(--text-muted)]">, </span> : null}
+                  <button
+                    type="button"
+                    onClick={() => onValueClick(conceptKey, value)}
+                    className="hover:text-[var(--accent)] hover:underline"
+                  >
+                    {value}
+                  </button>
+                </span>
+              ))}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TagChipsRow({
+  tagIds,
+  tagsById,
+  onTagClick,
+}: {
+  tagIds: string[];
+  tagsById: Map<string, UserTag>;
+  onTagClick: (tagId: string) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const resolved = tagIds
+    .map((id) => ({ id, tag: tagsById.get(id) }))
+    .filter((entry): entry is { id: string; tag: UserTag } => entry.tag !== undefined);
+
+  if (resolved.length === 0) {
+    return null;
+  }
+
+  const visible = showAll ? resolved : resolved.slice(0, MAX_VISIBLE_TAGS);
+  const overflow = resolved.length - visible.length;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {visible.map((tag) => (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {visible.map(({ id, tag }) => (
         <button
-          key={tag}
+          key={id}
           type="button"
-          onClick={() => onTagClick(tag)}
-          title={`Filter by "${tag}"`}
-          className={`rounded-[var(--radius-tag)] transition-opacity hover:opacity-75 ${size === 'small' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-1 text-[13px]'}`}
+          onClick={() => onTagClick(id)}
+          title={`Filter by "${tag.name}"`}
+          className="rounded-[var(--radius-tag)] px-2 py-0.5 text-xs transition-opacity hover:opacity-75"
           style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
         >
-          {tag}
+          {tag.name}
         </button>
       ))}
       {!showAll && overflow > 0 ? (
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="text-[13px] text-[var(--accent)] hover:underline"
+          className="text-xs text-[var(--accent)] hover:underline"
         >
-          View More ({overflow})
+          +{overflow} more
+        </button>
+      ) : null}
+      {showAll && resolved.length > MAX_VISIBLE_TAGS ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="text-xs text-[var(--accent)] hover:underline"
+        >
+          Show less
         </button>
       ) : null}
     </div>
   );
 }
 
-function SourceAndDate({
-  url,
-  source,
-  publishDate,
-}: {
-  url?: string | undefined;
-  source?: string | undefined;
-  publishDate: string;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-      {url ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(event) => event.stopPropagation()}
-          className="flex min-w-0 items-center gap-1.5 text-sm text-[var(--accent)] hover:underline"
-        >
-          <Globe size={14} className="shrink-0" />
-          <span className="truncate">{source ?? url}</span>
-        </a>
-      ) : null}
-      <div className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
-        <Calendar size={14} className="shrink-0" />
-        <span>{formatDate(publishDate)}</span>
-      </div>
-    </div>
-  );
-}
-
 export default function ArticleCard({
-  id,
-  title,
-  url,
-  source,
-  publishDate,
-  snippet,
-  tags,
+  hit,
+  viewMode,
+  contentLines,
   isSelected,
   onSelect,
-  onTag,
-  onShare,
-  onBookmark,
-  onEdit,
-  onTagClick,
+  isExpanded,
+  onToggleExpand,
+  concepts,
+  tagsById,
+  canHide,
+  isHidePending,
+  onHideToggle,
+  onOpenTagPicker,
+  onTaxonomyValueClick,
+  onTagChipClick,
 }: ArticleCardProps) {
-  const { settings } = useSettings();
-  const { cardDensity } = settings.appearance;
-  const { defaultLayout: layout, openArticleIn } = settings.search;
+  const isList = viewMode === 'list';
 
-  const [isHovered, setIsHovered] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  // Full Article detail (body, url, assets, authors) — deliberately NOT fetched for every
+  // visible card: SearchHit (packages/shared/src/types/search-result.ts) is a lean search
+  // projection with no url/assets/body, by design, so paging through 50 list-view results
+  // never has to pull that much data per row. It's only fetched once the user actually
+  // expands a card, which is also exactly when "open source / download text / download PDF"
+  // become meaningful.
+  const detailQuery = useQuery({
+    queryKey: ['article-detail', hit.articleId],
+    queryFn: () => fetchArticle(hit.articleId),
+    enabled: isExpanded,
+    staleTime: 5 * 60_000,
+  });
+  const detail = detailQuery.data;
 
-  const maxTags = MAX_VISIBLE_TAGS[cardDensity];
-
-  function handleViewFullArticle() {
-    if (!url) {
-      return;
-    }
-    if (openArticleIn === 'newTab') {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else if (openArticleIn === 'sameTab') {
-      window.location.href = url;
-    } else {
-      setIsPreviewOpen(true);
-    }
-  }
-
-  const containerClassName = `relative overflow-hidden rounded-[var(--radius-card)] border transition-[box-shadow,background-color] duration-150 ${
+  const containerClassName = `rounded-[var(--radius-card)] border transition-colors ${
     isSelected ? 'bg-[var(--accent-soft)]' : 'bg-[var(--bg-card)]'
-  } ${isHovered ? 'shadow-[0_4px_20px_rgba(0,0,0,0.3)]' : ''}`;
-  const containerStyle = {
-    height: CARD_HEIGHT[layout],
-    borderColor: isHovered ? 'var(--accent)' : 'var(--border)',
-    borderLeftWidth: '3px',
-    borderLeftColor: isSelected || isHovered ? 'var(--accent)' : 'transparent',
+  }`;
+  const containerStyle: CSSProperties = {
+    borderColor: isSelected ? 'var(--accent)' : 'var(--border)',
   };
 
-  const previewPanel = isPreviewOpen ? (
+  return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-end bg-black/50 px-4"
-      onClick={() => setIsPreviewOpen(false)}
+      className={containerClassName}
+      style={containerStyle}
+      data-testid="article-card"
+      data-article-id={hit.articleId}
     >
-      <div
-        className="h-full w-full max-w-md overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-surface)] p-6"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
-          <button
-            type="button"
-            onClick={() => setIsPreviewOpen(false)}
-            aria-label="Close preview"
-            className="shrink-0 rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        {source ? <p className="mt-1 text-sm text-[var(--accent)]">{source}</p> : null}
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatDate(publishDate)}</p>
-        <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">{snippet}</p>
-        {url ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-block text-sm text-[var(--accent)] hover:underline"
-          >
-            Open original source
-          </a>
-        ) : null}
-      </div>
-    </div>
-  ) : null;
+      <div className={`flex items-start gap-3 ${isList ? 'p-3' : 'p-4'}`}>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(event) => onSelect(hit.articleId, event.target.checked)}
+          aria-label={isSelected ? 'Deselect article' : 'Select article'}
+          className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+        />
 
-  // Dense: compact single row — title + source + date + tags only, no snippet, no
-  // action-icon row (56px doesn't have room for either).
-  if (layout === 'dense') {
-    return (
-      <div
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={containerClassName}
-        style={containerStyle}
-      >
-        <div className="flex h-full items-center gap-3 px-3">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(event) => onSelect(id, event.target.checked)}
-            aria-label={isSelected ? 'Deselect article' : 'Select article'}
-            className="h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
-          />
-          <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--text-primary)]">
-            {title}
-          </h3>
-          <div className="hidden shrink-0 items-center gap-3 sm:flex">
-            <SourceAndDate url={url} source={source} publishDate={publishDate} />
-          </div>
-          <div className="hidden shrink-0 md:block">
-            <TagChips tags={tags} maxTags={maxTags} size="small" onTagClick={onTagClick} />
-          </div>
-        </div>
-        {previewPanel}
-      </div>
-    );
-  }
-
-  // 1-col: horizontal card — thumbnail on the left, content on the right. No real
-  // thumbnail image exists for any current content source (uploaded documents aren't
-  // web-sourced), so this is a generic file-type placeholder box, not a fabricated image.
-  if (layout === '1col') {
-    return (
-      <div
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={containerClassName}
-        style={containerStyle}
-      >
-        <div className="flex h-full gap-4 p-3">
-          <div
-            className="flex h-full w-28 shrink-0 items-center justify-center rounded-[var(--radius-button)]"
-            style={{ backgroundColor: 'var(--bg-hover)' }}
-          >
-            <FileText size={28} className="text-[var(--text-muted)]" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => onToggleExpand(hit.articleId)}
+              data-testid="article-card-title"
+              className={`min-w-0 flex-1 text-left font-semibold text-[var(--text-primary)] hover:text-[var(--accent)] ${
+                isList ? 'text-sm' : 'text-base'
+              }`}
+            >
+              {hit.title}
+            </button>
+            {hit.hidden ? (
+              <span
+                className="shrink-0 rounded-[var(--radius-tag)] px-2 py-0.5 text-[11px] font-medium"
+                style={{ backgroundColor: 'var(--accent-soft)', color: 'var(--amber)' }}
+              >
+                Hidden
+              </span>
+            ) : null}
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-            <div>
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="line-clamp-1 text-base font-semibold text-[var(--text-primary)]">
-                  {title}
-                </h3>
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={(event) => onSelect(id, event.target.checked)}
-                  aria-label={isSelected ? 'Deselect article' : 'Select article'}
-                  className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
-                />
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--text-secondary)]">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Globe size={13} className="shrink-0" />
+              <span className="truncate">{hit.domain}</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Calendar size={13} className="shrink-0" />
+              {formatDate(hit.publishedAt)}
+            </span>
+          </div>
+
+          <TaxonomyRow taxonomyValues={hit.taxonomyValues} concepts={concepts} onValueClick={onTaxonomyValueClick} />
+
+          <div className="mt-2">
+            {!isExpanded ? (
+              <p className="text-sm text-[var(--text-secondary)]" style={{ ...clampStyle(contentLines), lineHeight: 1.6 }}>
+                {hit.highlight ? <HighlightedSnippet fragment={hit.highlight} /> : hit.summary || 'No summary available.'}
+              </p>
+            ) : detailQuery.isLoading ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((line) => (
+                  <div key={line} className="h-3.5 w-full animate-shimmer rounded last:w-2/3" />
+                ))}
               </div>
-              <div className="mt-1">
-                <SourceAndDate url={url} source={source} publishDate={publishDate} />
-              </div>
-            </div>
+            ) : detailQuery.isError ? (
+              <p className="text-sm text-[var(--red)]">Unable to load the full article content.</p>
+            ) : (
+              <p className="whitespace-pre-wrap text-sm text-[var(--text-secondary)]" style={{ lineHeight: 1.6 }}>
+                {detail?.body.trim() || hit.summary || 'No content available for this article.'}
+              </p>
+            )}
+          </div>
 
-            <p className="line-clamp-1 text-sm text-[var(--text-secondary)]">{snippet}</p>
-
-            <div className="flex items-center justify-between gap-3">
-              <TagChips tags={tags} maxTags={maxTags} size="small" onTagClick={onTagClick} />
-              {url ? (
+          {isExpanded && detail ? (
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+              {detail.url ? (
+                <a
+                  href={detail.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[var(--accent)] hover:underline"
+                >
+                  <ExternalLink size={14} /> Open full article
+                </a>
+              ) : null}
+              {detail.assets.some((asset) => asset.kind === 'full_text') ? (
                 <button
                   type="button"
-                  onClick={handleViewFullArticle}
-                  className="shrink-0 text-sm text-[var(--accent)] hover:underline"
+                  onClick={() => void downloadArticle(hit.articleId, `${hit.title}.txt`, 'full_text')}
+                  className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
-                  View Full Article
+                  <FileDown size={14} /> Download from URL
+                </button>
+              ) : null}
+              {detail.assets.some((asset) => asset.kind === 'pdf') ? (
+                <button
+                  type="button"
+                  onClick={() => void downloadArticle(hit.articleId, `${hit.title}.pdf`, 'pdf')}
+                  className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <FileText size={14} /> Download PDF
                 </button>
               ) : null}
             </div>
+          ) : null}
+
+          <TagChipsRow tagIds={hit.tagIds} tagsById={tagsById} onTagClick={onTagChipClick} />
+
+          <div className="mt-2 flex items-center gap-1">
+            <ActionIconButton icon={TagIcon} label="Tag" onClick={() => onOpenTagPicker(hit.articleId)} />
+            {canHide ? (
+              <ActionIconButton
+                icon={hit.hidden ? Eye : EyeOff}
+                label={hit.hidden ? 'Unhide' : 'Hide'}
+                onClick={() => onHideToggle(hit.articleId, hit.hidden)}
+                disabled={isHidePending}
+              />
+            ) : null}
+            <ActionIconButton
+              icon={isExpanded ? ChevronUp : ChevronDown}
+              label={isExpanded ? 'Collapse' : 'Expand'}
+              onClick={() => onToggleExpand(hit.articleId)}
+              active={isExpanded}
+            />
           </div>
         </div>
-        {previewPanel}
       </div>
-    );
-  }
-
-  // 2col / 3col: standard vertical card — full title, source/date, action icons,
-  // density-clamped snippet, tags.
-  return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={containerClassName}
-      style={containerStyle}
-    >
-      <div className="flex h-full flex-col p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-2 text-base font-semibold text-[var(--text-primary)]">
-            {title}
-          </h3>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(event) => onSelect(id, event.target.checked)}
-            aria-label={isSelected ? 'Deselect article' : 'Select article'}
-            className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
-          />
-        </div>
-
-        <div className="mt-2">
-          <SourceAndDate url={url} source={source} publishDate={publishDate} />
-        </div>
-
-        <div className="mt-3 flex items-center gap-1">
-          <ActionIcon icon={TagIcon} label="Tag" onClick={() => onTag(id)} />
-          <ActionIcon icon={Camera} label="Media" onClick={() => onBookmark(id)} />
-          <ActionIcon icon={Upload} label="Share" onClick={() => onShare(id)} />
-          <ActionIcon icon={Eye} label="Preview" onClick={() => setIsPreviewOpen(true)} />
-          <ActionIcon icon={Edit} label="Edit" onClick={() => onEdit(id)} />
-        </div>
-
-        <p
-          className={`mt-3 min-h-0 flex-1 text-sm text-[var(--text-secondary)] ${SNIPPET_LINE_CLAMP[cardDensity]}`}
-          style={{ lineHeight: 1.6 }}
-        >
-          {snippet}
-        </p>
-
-        {url ? (
-          <div className="mt-2 text-right">
-            <button
-              type="button"
-              onClick={handleViewFullArticle}
-              className="text-sm text-[var(--accent)] hover:underline"
-            >
-              View Full Article
-            </button>
-          </div>
-        ) : null}
-
-        <div className="mt-3">
-          <TagChips tags={tags} maxTags={maxTags} onTagClick={onTagClick} />
-        </div>
-      </div>
-      {previewPanel}
     </div>
   );
 }

@@ -1,24 +1,35 @@
-import 'dotenv/config';
-
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express, type Request, type Response } from 'express';
 import helmet from 'helmet';
 
+import { config } from './lib/config.js';
 import { NotFoundError } from './lib/errors.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { apiRateLimiter } from './middleware/rateLimiters.js';
 import { requestId } from './middleware/requestId.js';
 import { requestLogger } from './middleware/requestLogger.js';
+import { adminRouter } from './routes/admin.routes.js';
+import { articleRouter } from './routes/article.routes.js';
+import { auditRouter } from './routes/audit.routes.js';
 import { authRouter } from './routes/auth.routes.js';
-import { documentRouter } from './routes/document.routes.js';
+import { channelRouter } from './routes/channel.routes.js';
+import { conceptRouter } from './routes/concept.routes.js';
+import { dashboardRouter } from './routes/dashboard.routes.js';
+import { entityMappingRouter } from './routes/entityMapping.routes.js';
+import { groupRouter } from './routes/group.routes.js';
 import { healthRouter } from './routes/health.routes.js';
+import { insightRouter } from './routes/insight.routes.js';
+import { notificationRouter } from './routes/notification.routes.js';
 import { organizationRouter } from './routes/organization.routes.js';
 import { projectRouter } from './routes/project.routes.js';
 import { roleRouter } from './routes/role.routes.js';
+import { savedSearchRouter } from './routes/savedSearch.routes.js';
 import { searchRouter } from './routes/search.routes.js';
 import { settingsRouter } from './routes/settings.routes.js';
-import { tagRouter } from './routes/tag.routes.js';
+import { teamsRouter } from './routes/teams.routes.js';
 import { userRouter } from './routes/user.routes.js';
+import { userTagRouter } from './routes/userTag.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -31,7 +42,7 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+      origin: config.corsOrigin,
       credentials: true,
     }),
   );
@@ -46,15 +57,30 @@ export function createApp(): Express {
   });
   app.use('/api/health', healthRouter);
 
+  // Global per-IP backstop for the whole API surface; endpoint-specific limiters
+  // (auth, search, upload) still apply their own tighter budgets on top.
+  app.use('/api', apiRateLimiter);
+
   app.use('/api/auth', authRouter);
-  app.use('/api/documents', documentRouter);
-  app.use('/api/search', searchRouter);
+  app.use('/api/articles', articleRouter);
   app.use('/api/projects', projectRouter);
+  app.use('/api/concepts', conceptRouter);
+  app.use('/api/search', searchRouter);
+  app.use('/api/groups', groupRouter);
   app.use('/api/organizations', organizationRouter);
   app.use('/api/roles', roleRouter);
   app.use('/api/users', userRouter);
   app.use('/api/settings', settingsRouter);
-  app.use('/api/tags', tagRouter);
+  app.use('/api/user-tags', userTagRouter);
+  app.use('/api/saved-searches', savedSearchRouter);
+  app.use('/api/channels', channelRouter);
+  app.use('/api/insights', insightRouter);
+  app.use('/api/dashboards', dashboardRouter);
+  app.use('/api/audit', auditRouter);
+  app.use('/api/notifications', notificationRouter);
+  app.use('/api/admin', adminRouter);
+  app.use('/api/entity-mapping', entityMappingRouter);
+  app.use('/api/teams', teamsRouter);
 
   // No route matched — respond with the same JSON envelope every other error uses,
   // instead of Express's default HTML 404 page.

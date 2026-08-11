@@ -4,9 +4,13 @@ import { useAuth } from './AuthContext';
 
 interface RequireAuthProps {
   permission?: string;
+  // Alternate to `permission` for routes reachable by any of several distinct permissions
+  // (e.g. /admin, whose internal sections each gate on a different one) — passes if the
+  // viewer holds '*' or any single entry, same OR semantics AppShell's own nav gating uses.
+  anyOf?: string[];
 }
 
-export default function RequireAuth({ permission }: RequireAuthProps) {
+export default function RequireAuth({ permission, anyOf }: RequireAuthProps) {
   const { isLoading, user, permissions } = useAuth();
   const location = useLocation();
 
@@ -22,7 +26,11 @@ export default function RequireAuth({ permission }: RequireAuthProps) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  if (permission && !permissions.includes(permission) && !permissions.includes('*')) {
+  const hasWildcard = permissions.includes('*');
+  const passesSingle = !permission || hasWildcard || permissions.includes(permission);
+  const passesAnyOf = !anyOf || hasWildcard || anyOf.some((candidate) => permissions.includes(candidate));
+
+  if (!passesSingle || !passesAnyOf) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-100">
         <div className="text-center">

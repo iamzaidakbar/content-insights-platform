@@ -4,6 +4,7 @@ export interface IRole {
   orgId: mongoose.Types.ObjectId;
   name: string;
   permissions: string[];
+  isSystem: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,6 +16,7 @@ const roleSchema = new mongoose.Schema<IRole>(
     orgId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
     name: { type: String, required: true, trim: true },
     permissions: { type: [String], default: [] },
+    isSystem: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

@@ -14,6 +14,12 @@ const DEBOUNCE_MS = 600;
 
 export interface SettingsContextValue {
   settings: UserSettingsDefaults;
+  // `path` is a top-level UserSettingsDefaults key ('theme', 'dateFormat', ...) — there are
+  // no nested objects left in the post-pivot flat shape to dot into. cardContentLines is a
+  // single Record value in its own right, so updating it still goes through this same
+  // one-arg-path call (`updateSetting('cardContentLines', nextRecord)`), matching the
+  // server's "replaced wholesale, not merged key-by-key" contract (see
+  // updateUserSettingsSchema's own comment in user-settings.schema.ts).
   updateSetting: (path: string, value: unknown) => void;
   isSyncing: boolean;
 }
@@ -38,20 +44,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const inFlightCountRef = useRef(0);
 
   useEffect(() => {
-    applySettings(settings);
-  }, [settings]);
+    applySettings(settings.theme);
+  }, [settings.theme]);
 
   // 'system' theme: re-resolve and re-apply whenever the OS preference flips, not just
   // when the settings object itself changes.
   useEffect(() => {
-    if (settings.appearance.theme !== 'system') {
+    if (settings.theme !== 'system') {
       return;
     }
     const media = window.matchMedia('(prefers-color-scheme: light)');
-    const handleChange = () => applySettings(settings);
+    const handleChange = () => applySettings(settings.theme);
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
-  }, [settings]);
+  }, [settings.theme]);
 
   // Background boot fetch — the localStorage cache (or system defaults) is already
   // rendering via the initial useState above; this silently upgrades it once the real,
@@ -68,9 +74,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           return;
         }
         const next: UserSettingsDefaults = {
-          appearance: fetched.appearance,
-          search: fetched.search,
-          notifications: fetched.notifications,
+          theme: fetched.theme,
+          dateFormat: fetched.dateFormat,
+          facetSortOrder: fetched.facetSortOrder,
+          hideZeroCountFacets: fetched.hideZeroCountFacets,
+          cardContentLines: fetched.cardContentLines,
+          languagePreference: fetched.languagePreference,
+          defaultResultView: fetched.defaultResultView,
         };
         setSettings(next);
         writeSettingsCache(next);

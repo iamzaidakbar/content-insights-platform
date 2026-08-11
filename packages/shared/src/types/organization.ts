@@ -7,6 +7,8 @@ export interface Organization {
   name: string;
   slug: string;
   plan: OrganizationPlan;
+  /** Email domain (e.g. "acme.com") whose SSO logins auto-provision into this org. */
+  ssoDomain?: string;
   createdAt: string;
   updatedAt: string;
 }

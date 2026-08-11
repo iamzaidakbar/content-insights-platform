@@ -1,129 +1,192 @@
-import { AlignJustify, Grid2x2, Grid3x3, List } from 'lucide-react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Grid2x2, Grid3x3, List } from 'lucide-react';
 
-import type { SearchLayout, SearchPageSize, SearchSettings, SearchSort } from '@content-insights/shared';
+import { FACET_SORT_ORDERS, type FacetSortOrder, type ResultViewMode } from '@content-insights/shared';
 
-import { useSettings } from '../../settings/SettingsContext';
+import { useAuth } from '../../auth/AuthContext';
 import { useDirtyDraft } from '../../hooks/useDirtyDraft';
+import { getApiErrorMessage } from '../../lib/api-client';
+import { VIEW_MODE_PAGE_SIZE } from '../../lib/article-layout';
+import { fetchProjects } from '../../lib/projects-api';
+import { useSettings } from '../../settings/SettingsContext';
+import Toggle from '../Toggle';
 import SettingsSaveBar from './SettingsSaveBar';
 import { SETTINGS_SELECT_CLASSNAME, SettingsRow, SettingsSection } from './SettingsSection';
 
-const PAGE_SIZE_OPTIONS: SearchPageSize[] = [12, 24, 48];
-const SORT_OPTIONS: { value: SearchSort; label: string }[] = [
-  { value: 'publishDate', label: 'Publish Date' },
-  { value: 'relevance', label: 'Relevance' },
-  { value: 'source', label: 'Source' },
+// Mirrors FilterPanel.tsx's own (unexported) FACET_SORT_LABELS — kept as a separate local
+// mapping since that one is internal to the filter panel, but the wording must stay in sync
+// so "sort facets" reads identically here and in the panel that actually applies it.
+const FACET_SORT_LABELS: Record<FacetSortOrder, string> = {
+  az: 'A–Z',
+  za: 'Z–A',
+  countAsc: 'Count: Low–High',
+  countDesc: 'Count: High–Low',
+};
+
+// Same icon + "(N/page)" labeling ArticlesPage.tsx and ChannelDetailPage.tsx already use for
+// this exact enum, so the preference reads identically wherever it's surfaced.
+const VIEW_MODE_OPTIONS: { value: ResultViewMode; label: string; icon: typeof List }[] = [
+  { value: 'list', label: `List (${VIEW_MODE_PAGE_SIZE.list}/page)`, icon: List },
+  { value: 'grid2x2', label: `Grid 2×2 (${VIEW_MODE_PAGE_SIZE.grid2x2}/page)`, icon: Grid2x2 },
+  { value: 'grid3x4', label: `Grid 3×4 (${VIEW_MODE_PAGE_SIZE.grid3x4}/page)`, icon: Grid3x3 },
 ];
-const LAYOUT_OPTIONS: { value: SearchLayout; label: string; icon: typeof List }[] = [
-  { value: '1col', label: '1 column', icon: List },
-  { value: '2col', label: '2 columns', icon: Grid2x2 },
-  { value: '3col', label: '3 columns', icon: Grid3x3 },
-  { value: 'dense', label: 'Dense', icon: AlignJustify },
-];
-const OPEN_ARTICLE_OPTIONS: { value: SearchSettings['openArticleIn']; label: string }[] = [
-  { value: 'newTab', label: 'New tab' },
-  { value: 'sameTab', label: 'Same tab' },
-  { value: 'sidePanel', label: 'Side panel' },
-];
+
+const MIN_LINES = 1;
+const MAX_LINES = 20;
+
+interface SearchPrefsDraft {
+  facetSortOrder: FacetSortOrder;
+  hideZeroCountFacets: boolean;
+  defaultResultView: ResultViewMode;
+  cardContentLines: Record<string, number>;
+}
+
+function clampLines(value: number): number {
+  if (Number.isNaN(value)) return MIN_LINES;
+  return Math.min(MAX_LINES, Math.max(MIN_LINES, Math.round(value)));
+}
 
 export default function SearchPreferencesSection() {
+  const { user } = useAuth();
   const { settings, updateSetting } = useSettings();
-  const committed = settings.search;
-  const { draft, setDraft, isDirty, discard } = useDirtyDraft<SearchSettings>(committed);
+  const committed: SearchPrefsDraft = {
+    facetSortOrder: settings.facetSortOrder,
+    hideZeroCountFacets: settings.hideZeroCountFacets,
+    defaultResultView: settings.defaultResultView,
+    cardContentLines: settings.cardContentLines,
+  };
+  const { draft, setDraft, isDirty, discard } = useDirtyDraft<SearchPrefsDraft>(committed);
+
+  // Same "page 1 only" simplification ArticlesPage/DashboardsPage/UploadPage already make
+  // for this exact dropdown-style use case (as opposed to a paginated management list) —
+  // and the same query key, so this shares its cache with those pages rather than
+  // duplicating the request.
+  const projectsQuery = useQuery({ queryKey: ['projects-options'], queryFn: () => fetchProjects(1), staleTime: 5 * 60_000 });
+  const projects = useMemo(() => projectsQuery.data?.items ?? [], [projectsQuery.data]);
 
   function handleSave() {
-    if (draft.defaultPageSize !== committed.defaultPageSize) {
-      updateSetting('search.defaultPageSize', draft.defaultPageSize);
+    if (draft.facetSortOrder !== committed.facetSortOrder) {
+      updateSetting('facetSortOrder', draft.facetSortOrder);
     }
-    if (draft.defaultSort !== committed.defaultSort) {
-      updateSetting('search.defaultSort', draft.defaultSort);
+    if (draft.hideZeroCountFacets !== committed.hideZeroCountFacets) {
+      updateSetting('hideZeroCountFacets', draft.hideZeroCountFacets);
     }
-    if (draft.defaultLayout !== committed.defaultLayout) {
-      updateSetting('search.defaultLayout', draft.defaultLayout);
+    if (draft.defaultResultView !== committed.defaultResultView) {
+      updateSetting('defaultResultView', draft.defaultResultView);
     }
-    if (draft.openArticleIn !== committed.openArticleIn) {
-      updateSetting('search.openArticleIn', draft.openArticleIn);
+    // cardContentLines is replaced wholesale server-side (never merged key-by-key — see
+    // updateUserSettingsSchema's comment), so any change to any single project's line count
+    // sends the entire map, not just the one changed entry.
+    if (JSON.stringify(draft.cardContentLines) !== JSON.stringify(committed.cardContentLines)) {
+      updateSetting('cardContentLines', draft.cardContentLines);
     }
+  }
+
+  function setLinesFor(key: string, value: number) {
+    setDraft((current) => ({
+      ...current,
+      cardContentLines: { ...current.cardContentLines, [key]: clampLines(value) },
+    }));
   }
 
   return (
     <div className="space-y-6">
       <SettingsSection title="Search Preferences" description="Defaults applied every time you open Articles.">
-        <SettingsRow label="Results per page">
+        <SettingsRow label="Facet sort order" description="How values within each filter section are ordered by default.">
           <select
             className={SETTINGS_SELECT_CLASSNAME}
-            value={draft.defaultPageSize}
+            value={draft.facetSortOrder}
             onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                defaultPageSize: Number(event.target.value) as SearchPageSize,
-              }))
+              setDraft((current) => ({ ...current, facetSortOrder: event.target.value as FacetSortOrder }))
             }
           >
-            {PAGE_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
+            {FACET_SORT_ORDERS.map((order) => (
+              <option key={order} value={order}>
+                {FACET_SORT_LABELS[order]}
               </option>
             ))}
           </select>
         </SettingsRow>
 
-        <SettingsRow label="Default sort">
-          <select
-            className={SETTINGS_SELECT_CLASSNAME}
-            value={draft.defaultSort}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, defaultSort: event.target.value as SearchSort }))
-            }
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+        <SettingsRow label="Hide zero-count facets" description="Only show filter values that currently match at least one article.">
+          <Toggle
+            checked={draft.hideZeroCountFacets}
+            onChange={(checked) => setDraft((current) => ({ ...current, hideZeroCountFacets: checked }))}
+            label="Hide zero-count facets"
+          />
         </SettingsRow>
 
-        <SettingsRow label="Default layout">
+        <SettingsRow label="Default result view">
           <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
-            {LAYOUT_OPTIONS.map((option) => {
+            {VIEW_MODE_OPTIONS.map((option) => {
               const Icon = option.icon;
-              const isActive = draft.defaultLayout === option.value;
+              const isActive = draft.defaultResultView === option.value;
               return (
                 <button
                   key={option.value}
                   type="button"
                   title={option.label}
-                  onClick={() => setDraft((current) => ({ ...current, defaultLayout: option.value }))}
-                  className="flex h-8 w-8 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
+                  onClick={() => setDraft((current) => ({ ...current, defaultResultView: option.value }))}
+                  className="flex h-8 items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-2 text-xs transition-colors"
                   style={
                     isActive
                       ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
                       : { color: 'var(--text-secondary)' }
                   }
                 >
-                  <Icon size={16} strokeWidth={1.75} />
+                  <Icon size={15} strokeWidth={1.75} />
+                  {option.label}
                 </button>
               );
             })}
           </div>
         </SettingsRow>
+      </SettingsSection>
 
-        <SettingsRow label="Open article in">
-          <div className="flex items-center gap-4">
-            {OPEN_ARTICLE_OPTIONS.map((option) => (
-              <label key={option.value} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                <input
-                  type="radio"
-                  name="search-open-article-in"
-                  checked={draft.openArticleIn === option.value}
-                  onChange={() => setDraft((current) => ({ ...current, openArticleIn: option.value }))}
-                  className="h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
-                />
-                {option.label}
-              </label>
+      <SettingsSection
+        title="Content lines per project"
+        description="How many lines of snippet text an article card shows, per project — falls back to Default for any project without its own override."
+      >
+        <SettingsRow label="Default">
+          <input
+            type="number"
+            min={MIN_LINES}
+            max={MAX_LINES}
+            value={draft.cardContentLines['default'] ?? 3}
+            onChange={(event) => setLinesFor('default', Number(event.target.value))}
+            className="w-20 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          />
+        </SettingsRow>
+
+        {projectsQuery.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="h-8 animate-shimmer rounded-[var(--radius-input)]" />
             ))}
           </div>
-        </SettingsRow>
+        ) : projectsQuery.isError ? (
+          <p className="text-sm" style={{ color: 'var(--red)' }}>
+            {getApiErrorMessage(projectsQuery.error, 'Unable to load your projects.')}
+          </p>
+        ) : (
+          projects.map((project) => (
+            <SettingsRow
+              key={project.id}
+              label={project.name}
+              description={project.id === user?.currentProjectId ? 'Your current project' : ''}
+            >
+              <input
+                type="number"
+                min={MIN_LINES}
+                max={MAX_LINES}
+                value={draft.cardContentLines[project.id] ?? draft.cardContentLines['default'] ?? 3}
+                onChange={(event) => setLinesFor(project.id, Number(event.target.value))}
+                className="w-20 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              />
+            </SettingsRow>
+          ))
+        )}
       </SettingsSection>
 
       <SettingsSaveBar isDirty={isDirty} onSave={handleSave} onDiscard={discard} />

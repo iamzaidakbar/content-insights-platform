@@ -12,9 +12,9 @@ export type PageQuery = z.infer<typeof pageQuerySchema>;
 // Documents listing additionally accepts pageSize, driven by the frontend's
 // settings.search.defaultPageSize (see SettingsContext) rather than a hardcoded
 // per-page constant — constrained to the same 12/24/48 enum UserSettings uses, so a
-// client can never request an arbitrarily large page. `projectId`/`from`/`to` back the
-// Filter Panel's Channels/Projects and Date Range sections for plain (non-search) listing,
-// giving it parity with search-mode's projectIds/dateRange filtering.
+// client can never request an arbitrarily large page. `groupIds`/`from`/`to` back the
+// Filter Panel's Groups and Date Range sections for plain (non-search) listing, giving it
+// parity with search-mode's groupIds/dateRange filtering.
 export const documentListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce
@@ -24,11 +24,13 @@ export const documentListQuerySchema = z.object({
       message: 'pageSize must be 12, 24, or 48',
     })
     .optional(),
-  // Comma-separated project ids — matches search-mode's `projectIds: string[]` array
-  // filter for parity, just carried as one query-string value (a single `projectId=` key
-  // repeated would also work, but this stays consistent with `tags`/`languages` elsewhere
-  // in this feature, which are all comma-joined single params).
-  projectIds: z.string().min(1).optional(),
+  // Comma-separated group ids — matches search-mode's `groupIds: string[]` array filter
+  // for parity, just carried as one query-string value (a single `groupId=` key repeated
+  // would also work, but this stays consistent with `tags`/`languages` elsewhere in this
+  // feature, which are all comma-joined single params).
+  groupIds: z.string().min(1).optional(),
+  // Comma-separated tag names — same encoding convention as groupIds.
+  tags: z.string().min(1).optional(),
   from: z.string().min(1).optional(),
   to: z.string().min(1).optional(),
 });
