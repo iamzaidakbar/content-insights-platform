@@ -31,6 +31,7 @@ import {
 
 import { connectDB } from '../db/connect.js';
 import { esClient, getOrgIndexName, bulkIndexArticles, type IndexArticleParams } from '../lib/elasticsearch.js';
+import { hashPassword } from '../lib/password.js';
 import { slugify } from '../lib/slug.js';
 import { ArticleModel } from '../models/article.model.js';
 import { ChannelViewModel } from '../models/channelView.model.js';
@@ -1203,11 +1204,17 @@ async function main(): Promise<void> {
       token: adminToken,
       body: { email: udef.email, displayName: udef.displayName },
     });
+    // Replace the one-time temporary password with the shared demo password so every
+    // seeded account is documented the same way in .env / seed output.
+    await UserModel.updateOne(
+      { _id: created.user.id },
+      { $set: { passwordHash: await hashPassword(PASSWORD) } },
+    );
     const seeded: SeededUser = {
       email: udef.email,
       displayName: udef.displayName,
-      password: created.temporaryPassword,
-      temporary: true,
+      password: PASSWORD,
+      temporary: false,
       id: created.user.id,
       roles: [],
     };
