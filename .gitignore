@@ -17,3 +17,6 @@ apps/web/.vite/
 coverage/
 .pnpm-store/
 apps/api/uploads/
+deploy/k8s/**/secret.yaml
+!deploy/k8s/**/secret.yaml.example
+

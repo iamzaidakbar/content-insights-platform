@@ -23,7 +23,8 @@ export const config = {
   isProduction: nodeEnv === 'production',
   isTest: nodeEnv === 'test',
 
-  apiPort: Number(optional('API_PORT', '4000')),
+  // Prefer PORT (K8s / many PaaS inject this) then API_PORT for local/compose.
+  apiPort: Number(process.env.PORT || optional('API_PORT', '4000')),
   // Browsers send Origin without a trailing slash; a slash in CORS_ORIGIN fails the
   // exact-match check. Normalize so pasted Vercel URLs still work.
   corsOrigin: optional('CORS_ORIGIN', 'http://localhost:5173').replace(/\/+$/, ''),

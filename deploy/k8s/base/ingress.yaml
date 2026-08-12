@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cip-api
+  namespace: cip
+  labels:
+    app.kubernetes.io/name: cip-api
+    app.kubernetes.io/part-of: content-insights-platform
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cip-api
+                port:
+                  number: 80

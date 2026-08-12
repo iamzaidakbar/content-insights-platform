@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: ghcr.io/iamzaidakbar/cip-api
+    newName: cip-api
+    newTag: kind
+
+patches:
+  - target:
+      kind: Ingress
+      name: cip-api
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: cip-api.localhost
+  - target:
+      kind: Deployment
+      name: cip-api
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Never

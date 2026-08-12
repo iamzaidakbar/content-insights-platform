@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cip-api-config
+  namespace: cip
+  labels:
+    app.kubernetes.io/name: cip-api
+    app.kubernetes.io/part-of: content-insights-platform
+data:
+  NODE_ENV: production
+  API_PORT: "4000"
+  # Exact Vercel origin — no trailing slash (browsers send Origin without one).
+  CORS_ORIGIN: https://content-insights-platform-web.vercel.app
+  COOKIE_SAMESITE: none
+  UPLOAD_DIR: ./uploads
+  LOG_LEVEL: info
