@@ -47,7 +47,7 @@ import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getApiErrorMessage } from '../lib/api-client';
 import { VIEW_MODE_PAGE_SIZE } from '../lib/article-layout';
 import { bulkArticleOperation, exportArticles, hideArticle, unhideArticle } from '../lib/articles-api';
-import { fetchConcepts } from '../lib/concepts-api';
+import { fetchConcepts, fetchConceptsForProjects } from '../lib/concepts-api';
 import { fetchGroup, fetchGroupDefaultQueries, fetchGroups } from '../lib/groups-api';
 import { fetchProjects } from '../lib/projects-api';
 import {
@@ -395,14 +395,6 @@ export default function ArticlesPage() {
   // ---------------------------------------------------------------------------------
   // Concepts (taxonomy labels) + user tags (chip names) for card rendering and filter chips
   // ---------------------------------------------------------------------------------
-  const conceptsQuery = useQuery({
-    queryKey: ['concepts', currentProjectId],
-    queryFn: () => fetchConcepts(currentProjectId as string),
-    enabled: currentProjectId !== null,
-    staleTime: 5 * 60_000,
-  });
-  const concepts = useMemo(() => conceptsQuery.data ?? [], [conceptsQuery.data]);
-
   const userTagsQuery = useQuery({ queryKey: ['user-tags'], queryFn: fetchUserTags, staleTime: 60_000 });
   const userTags = useMemo(() => userTagsQuery.data ?? [], [userTagsQuery.data]);
   // Explicit <string, UserTag> (not inferred from tag.id's branded UserTagId type) — every
@@ -425,6 +417,27 @@ export default function ArticlesPage() {
   });
   const groupDetailMatches = currentGroupDetailQuery.data?.id === currentGroupId;
   const currentGroupDataAccess = groupDetailMatches ? currentGroupDetailQuery.data?.dataAccess : undefined;
+
+  const conceptProjectIds = useMemo(() => {
+    if (currentProjectId) {
+      return [currentProjectId];
+    }
+    if (currentGroupDataAccess?.projectIds.length) {
+      return currentGroupDataAccess.projectIds.map(String);
+    }
+    return projects.map((project) => project.id);
+  }, [currentProjectId, currentGroupDataAccess, projects]);
+
+  const conceptsQuery = useQuery({
+    queryKey: ['concepts', conceptProjectIds],
+    queryFn: () =>
+      conceptProjectIds.length === 1
+        ? fetchConcepts(conceptProjectIds[0] as string)
+        : fetchConceptsForProjects(conceptProjectIds),
+    enabled: conceptProjectIds.length > 0,
+    staleTime: 5 * 60_000,
+  });
+  const concepts = useMemo(() => conceptsQuery.data ?? [], [conceptsQuery.data]);
 
   // After a navbar group switch, if the selected project is not in the new group's
   // grants, clear it so search uses the group's full project set instead of an empty
@@ -459,12 +472,18 @@ export default function ArticlesPage() {
       // `placement: 'hard'` + `allowedValues: null` as "denied" (see its own isDenied
       // check), which is wrong here: this branch means the caller has a GLOBAL grant with
       // no group to restrict against, i.e. genuinely unrestricted, not denied.
-      return concepts.map((concept) => ({
-        key: concept.key,
-        label: concept.displayLabel,
-        placement: 'soft',
-        allowedValues: null,
-      }));
+      const byKey = new Map<string, FilterPanelConcept>();
+      for (const concept of concepts) {
+        if (!byKey.has(concept.key)) {
+          byKey.set(concept.key, {
+            key: concept.key,
+            label: concept.displayLabel,
+            placement: 'soft',
+            allowedValues: null,
+          });
+        }
+      }
+      return [...byKey.values()];
     }
     const conceptsById = new Map(concepts.map((concept) => [concept.id, concept]));
     const hardEntries = currentGroupDataAccess.hardFilterGrants
@@ -492,8 +511,14 @@ export default function ArticlesPage() {
         return { key: concept.key, label: concept.displayLabel, placement: 'soft', allowedValues: null };
       })
       .filter((entry): entry is FilterPanelConcept => entry !== null);
-    return [...hardEntries, ...softEntries];
-  }, [concepts, currentGroupDataAccess]);
+    const byKey = new Map<string, FilterPanelConcept>();
+    for (const entry of [...hardEntries, ...softEntries]) {
+      if (!byKey.has(entry.key)) {
+        byKey.set(entry.key, entry);
+      }
+    }
+    return [...byKey.values()];
+  }, [concepts, currentGroupDataAccess, currentGroupId]);
 
   // ---------------------------------------------------------------------------------
   // Search + facets
@@ -1042,6 +1067,7 @@ export default function ArticlesPage() {
     userTags,
     facetSortOrder: settingsQuery.data?.facetSortOrder ?? DEFAULT_USER_SETTINGS.facetSortOrder,
     hideZeroCountFacets: settingsQuery.data?.hideZeroCountFacets ?? DEFAULT_USER_SETTINGS.hideZeroCountFacets,
+    facetsLoading: facetsQuery.isPending,
     ...(facetsQuery.data?.facets ? { facets: facetsQuery.data.facets } : {}),
   };
 

@@ -76,10 +76,17 @@ export async function resolveArticleSearchGrants(
 ): Promise<ArticleSearchGrants> {
   if (hasGlobalPermission(user, permissionKey)) {
     const projects = await ProjectModel.find({ orgId: user.orgId }, { _id: 1 });
+    const projectIds = projects.map((project) => project._id.toString());
+    // Search itself stays unrestricted (empty hardFilterGrants). Facets still need every
+    // concept key so FilterPanel sections like Key Phrases / Countries are not empty.
+    const concepts =
+      projectIds.length > 0
+        ? await ConceptModel.find({ orgId: user.orgId, projectId: { $in: projectIds } }, { key: 1 })
+        : [];
     return {
-      projectIds: projects.map((project) => project._id.toString()),
+      projectIds,
       hardFilterGrants: [],
-      softFilterConceptKeys: [],
+      softFilterConceptKeys: Array.from(new Set(concepts.map((concept) => concept.key))),
     };
   }
 

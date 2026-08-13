@@ -23,6 +23,18 @@ export async function fetchConcepts(projectId: string): Promise<Concept[]> {
   return body.data;
 }
 
+export async function fetchConceptsForProjects(projectIds: string[]): Promise<Concept[]> {
+  if (projectIds.length === 0) {
+    return [];
+  }
+  const pages = await Promise.all(projectIds.map((projectId) => fetchConcepts(projectId)));
+  const byId = new Map<string, Concept>();
+  for (const concept of pages.flat()) {
+    byId.set(concept.id, concept);
+  }
+  return [...byId.values()];
+}
+
 export async function createConcept(projectId: string, input: CreateConceptInput): Promise<Concept> {
   const response = await apiClient.post<ApiResponse<Concept>>('/concepts', input, {
     params: { projectId },

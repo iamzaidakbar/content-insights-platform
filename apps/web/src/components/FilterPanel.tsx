@@ -74,6 +74,9 @@ export interface FilterPanelProps {
   /** Live bucket counts from POST /search/facets (FacetsResponse.facets), keyed by
    *  Concept.key or USER_TAGS_FACET_KEY. Undefined while the facets request hasn't resolved yet. */
   facets?: Record<string, FacetBucket[]> | undefined;
+  /** True while POST /search/facets is in flight — soft sections show a loading line
+   *  instead of a misleading "No values." empty state. */
+  facetsLoading?: boolean | undefined;
   /** The caller's accessible projects, for the Project system filter. */
   projects: Project[];
   /** Every user tag visible to the caller, for the User Tags system filter. */
@@ -319,6 +322,7 @@ function ConceptFilterSection({
   sortOrder,
   onSortOrderChange,
   hideZeroCountFacets,
+  facetsLoading,
   onToggleValue,
   onSelectAll,
   onClearAll,
@@ -329,6 +333,7 @@ function ConceptFilterSection({
   sortOrder: FacetSortOrder;
   onSortOrderChange: (order: FacetSortOrder) => void;
   hideZeroCountFacets: boolean;
+  facetsLoading: boolean;
   onToggleValue: (value: string) => void;
   onSelectAll: (values: string[]) => void;
   onClearAll: () => void;
@@ -353,7 +358,9 @@ function ConceptFilterSection({
       ) : (
         <>
           {visibleOptions.length === 0 ? (
-            <p className="py-1 text-xs text-muted-foreground">No values.</p>
+            <p className="py-1 text-xs text-muted-foreground">
+              {facetsLoading ? 'Loading values…' : 'No values.'}
+            </p>
           ) : (
             <>
               <div className="mb-2 flex min-w-0 flex-col gap-1.5">
@@ -420,6 +427,7 @@ export default function FilterPanel({
   userTags,
   facetSortOrder,
   hideZeroCountFacets,
+  facetsLoading = false,
 }: FilterPanelProps) {
   const [userTagQuery, setUserTagQuery] = useState('');
   // Per-concept sort-order override for this session only — seeded lazily from
@@ -583,6 +591,7 @@ export default function FilterPanel({
             setSortOverrides((current) => ({ ...current, [concept.key]: order }))
           }
           hideZeroCountFacets={hideZeroCountFacets}
+          facetsLoading={facetsLoading}
           onToggleValue={(optionValue) => toggleTaxonomyValue(concept.key, optionValue)}
           onSelectAll={(values) => selectAllForConcept(concept.key, values)}
           onClearAll={() => clearConcept(concept.key)}
