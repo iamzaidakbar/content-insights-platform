@@ -1,10 +1,33 @@
-import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 
 import { cn } from '../../lib/cn';
 
-export function Table({ className, children, ...rest }: HTMLAttributes<HTMLTableElement>) {
+/** Viewport-capped table body so admin pages don't grow the document. */
+export const ADMIN_TABLE_MAX_HEIGHT = 'calc(100dvh - 16rem)';
+
+export function Table({
+  className,
+  scrollable = false,
+  containerClassName,
+  containerStyle,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLTableElement> & {
+  scrollable?: boolean;
+  containerClassName?: string;
+  containerStyle?: CSSProperties;
+}) {
   return (
-    <div className="w-full overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)]">
+    <div
+      className={cn(
+        'w-full rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)]',
+        scrollable
+          ? 'overflow-auto [&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-[var(--bg-hover)]'
+          : 'overflow-x-auto',
+        containerClassName,
+      )}
+      style={containerStyle}
+    >
       <table className={cn('w-full min-w-[480px] border-collapse text-left text-sm', className)} {...rest}>
         {children}
       </table>

@@ -26,6 +26,7 @@ import { useAuth } from '../auth/AuthContext';
 import ErrorBoundary from '../components/ErrorBoundary';
 import NotificationBell from '../components/NotificationBell';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import { cn } from '../lib/cn';
 
 interface NavItem {
@@ -88,7 +89,6 @@ const PAGE_TITLES: Record<string, string> = {
 
 const SIDEBAR_EXPANDED = 232;
 const SIDEBAR_COMPACT = 64;
-const MOBILE_BREAKPOINT = 1024;
 
 function pageTitleFor(pathname: string): string {
   if (PAGE_TITLES[pathname]) {
@@ -222,22 +222,6 @@ function useInsightsSyncLeaveWarning(pathname: string): { isVisible: boolean; di
   return { isVisible, dismiss: () => setIsVisible(false) };
 }
 
-function useIsDesktop(): boolean {
-  const [isDesktop, setIsDesktop] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`).matches : true,
-  );
-
-  useEffect(() => {
-    const media = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`);
-    const onChange = () => setIsDesktop(media.matches);
-    onChange();
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, []);
-
-  return isDesktop;
-}
-
 export default function AppShell() {
   const { user, permissions, logout } = useAuth();
   const location = useLocation();
@@ -249,6 +233,10 @@ export default function AppShell() {
   const pageTitle = pageTitleFor(location.pathname);
   const visibleAdminNavItems = ADMIN_NAV_ITEMS.filter((item) => isNavItemVisible(item, permissions));
   const insightsSyncWarning = useInsightsSyncLeaveWarning(location.pathname);
+
+  useEffect(() => {
+    document.title = `${pageTitle} · Content Insights`;
+  }, [pageTitle]);
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -354,12 +342,18 @@ export default function AppShell() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="flex h-full overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[100] focus:rounded-[var(--radius-button)] focus:bg-[var(--bg-surface)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--text-primary)] focus:outline-none"
+      >
+        Skip to main content
+      </a>
       {/* Desktop sidebar */}
       {isDesktop ? (
         <aside
           style={{ width: sidebarWidth }}
-          className="flex h-full shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] py-3 transition-[width] duration-150"
+          className="flex h-full shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] py-3 transition-[width] duration-150 motion-reduce:transition-none"
         >
           {sidebarContent}
         </aside>
@@ -414,7 +408,13 @@ export default function AppShell() {
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <main
+          id="main-content"
+          className={cn(
+            'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden',
+            location.pathname === '/admin' ? 'overflow-hidden' : 'overflow-y-auto',
+          )}
+        >
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>

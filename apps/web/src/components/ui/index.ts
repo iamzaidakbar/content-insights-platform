@@ -13,3 +13,12 @@ export { default as Breadcrumbs } from './Breadcrumbs';
 export { default as Tooltip } from './Tooltip';
 export { default as PageHeader, PageBody } from './PageHeader';
 export { default as ErrorState } from './ErrorState';
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from './DropdownMenu';
+export { Popover, PopoverTrigger, PopoverContent } from './Popover';

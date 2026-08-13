@@ -273,7 +273,8 @@ test.describe('Collaborate & Analyze (tags, saved-search sharing, Teams share, i
     // --- sharer (Analyst + Sharing Rights Into @ Executive Briefing): save then share ---
     await login(page, 'sharer@meridian.dev', 'rkTL9Gp1D-HerclJeUzXXe2k');
 
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: 'Save', exact: true }).click();
     await page.getByLabel('Name', { exact: true }).fill(SAVED_SEARCH_NAME);
     await page.getByRole('button', { name: 'Save search', exact: true }).click();
     // A successful save switches the modal to its Load/browse tab (rather than closing) and
@@ -296,7 +297,8 @@ test.describe('Collaborate & Analyze (tags, saved-search sharing, Teams share, i
     const marketPage = await marketContext.newPage();
     try {
       await login(marketPage, 'analyst.market@meridian.dev', 'g4Vu1HF8HliBwUzwg4AH5MGd');
-      await marketPage.getByRole('button', { name: 'Load', exact: true }).click();
+      await marketPage.getByRole('button', { name: 'More actions' }).click();
+      await marketPage.getByRole('menuitem', { name: 'Load', exact: true }).click();
       await expect(marketPage.locator('tr').filter({ hasText: SAVED_SEARCH_NAME })).toBeVisible({
         timeout: 15_000,
       });

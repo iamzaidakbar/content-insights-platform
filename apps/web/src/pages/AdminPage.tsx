@@ -8,7 +8,7 @@ import AdminMembersSection from '../components/admin/AdminMembersSection';
 import AdminRolesSection from '../components/admin/AdminRolesSection';
 import AdminUsersSection from '../components/admin/AdminUsersSection';
 import OrganizationSection from '../components/settings/OrganizationSection';
-import PageHeader, { PageBody } from '../components/ui/PageHeader';
+import PageHeader from '../components/ui/PageHeader';
 
 type SectionKey = 'organization' | 'users' | 'members' | 'roles' | 'entity-mapping' | 'audit';
 
@@ -48,6 +48,15 @@ function isSectionKey(value: string | null): value is SectionKey {
   return value !== null && SECTIONS.some((section) => section.key === value);
 }
 
+function paneClass(active: boolean, mode: 'fill' | 'scroll'): string {
+  if (!active) {
+    return 'hidden';
+  }
+  return mode === 'fill'
+    ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+    : 'min-h-0 flex-1 overflow-y-auto overscroll-contain';
+}
+
 // Consolidates what used to be separate routes (/admin/org, /admin/members,
 // /admin/roles, ...) into one /admin destination with an internal sub-nav — mirrors
 // SettingsPage's exact pattern. The route itself admits anyone holding at least one
@@ -85,8 +94,8 @@ export default function AdminPage() {
   }
 
   return (
-    <PageBody width="xl" className="flex gap-6">
-      <nav className="w-[180px] shrink-0">
+    <div className="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] gap-6 overflow-hidden px-4 py-5 sm:px-6">
+      <nav className="min-h-0 overflow-y-auto overscroll-contain">
         <PageHeader title="Admin" className="mb-3 sm:mb-3" />
         <div className="space-y-0.5">
           {visibleSections.map((section) => (
@@ -106,26 +115,26 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <div className="min-w-0 flex-1 pb-10">
-        <div className={activeSection === 'organization' ? '' : 'hidden'}>
+      <div className="flex min-h-0 flex-col overflow-hidden">
+        <div className={paneClass(activeSection === 'organization', 'scroll')}>
           <OrganizationSection />
         </div>
-        <div className={activeSection === 'users' ? '' : 'hidden'}>
+        <div className={paneClass(activeSection === 'users', 'fill')}>
           <AdminUsersSection />
         </div>
-        <div className={activeSection === 'members' ? '' : 'hidden'}>
+        <div className={paneClass(activeSection === 'members', 'fill')}>
           <AdminMembersSection />
         </div>
-        <div className={activeSection === 'roles' ? '' : 'hidden'}>
+        <div className={paneClass(activeSection === 'roles', 'scroll')}>
           <AdminRolesSection />
         </div>
-        <div className={activeSection === 'entity-mapping' ? '' : 'hidden'}>
+        <div className={paneClass(activeSection === 'entity-mapping', 'fill')}>
           <AdminEntityMappingSection />
         </div>
-        <div className={activeSection === 'audit' ? '' : 'hidden'}>
+        <div className={paneClass(activeSection === 'audit', 'fill')}>
           <AdminAuditSection />
         </div>
       </div>
-    </PageBody>
+    </div>
   );
 }

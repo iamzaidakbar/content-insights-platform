@@ -304,4 +304,42 @@ describe('FilterPanel', () => {
     const azOrder = screen.getAllByRole('checkbox').map((box) => box.closest('label')?.textContent);
     expect(azOrder).toEqual(['negative2', 'positive5']); // alphabetical: negative before positive
   });
+
+  it('column variant is a complementary landmark without a dialog or Done button', () => {
+    render(
+      <FilterPanel
+        {...BASE_PROPS}
+        variant="column"
+        value={EMPTY_FILTER_PANEL_STATE}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('complementary', { name: 'Filters' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Filters' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
+  });
+
+  it('column Clear All still emits a reset of the fields this panel owns', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const seeded: FilterPanelState = {
+      ...EMPTY_FILTER_PANEL_STATE,
+      query: 'keep me',
+      hiddenArticles: 'onlyHidden',
+      projectIds: ['p1'],
+    };
+    render(<FilterPanel {...BASE_PROPS} variant="column" value={seeded} onChange={onChange} />);
+
+    await user.click(screen.getByRole('button', { name: 'Clear All' }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      ...seeded,
+      hiddenArticles: EMPTY_FILTER_PANEL_STATE.hiddenArticles,
+      dateFilter: EMPTY_FILTER_PANEL_STATE.dateFilter,
+      projectIds: EMPTY_FILTER_PANEL_STATE.projectIds,
+      taxonomyValues: {},
+      userTagIds: EMPTY_FILTER_PANEL_STATE.userTagIds,
+    });
+  });
 });

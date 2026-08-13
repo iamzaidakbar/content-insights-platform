@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  AUDIT_ACTIONS,
   articleBulkRequestSchema,
   assignUserRoleSchema,
   createInsightSchema,
@@ -9,6 +10,7 @@ import {
   dateFilterValueSchema,
   searchRequestSchema,
   setChannelSchema,
+  setUserActiveSchema,
 } from '../index.js';
 import type { FilterPanelState } from '../index.js';
 
@@ -142,6 +144,24 @@ describe('createInsightSchema', () => {
         config: { fieldMappings: [] },
       }),
     ).toThrow();
+  });
+});
+
+describe('setUserActiveSchema', () => {
+  it('accepts isActive true or false', () => {
+    expect(setUserActiveSchema.parse({ isActive: true }).isActive).toBe(true);
+    expect(setUserActiveSchema.parse({ isActive: false }).isActive).toBe(false);
+  });
+
+  it('rejects a missing isActive flag', () => {
+    expect(() => setUserActiveSchema.parse({})).toThrow();
+  });
+});
+
+describe('audit actions', () => {
+  it('includes user.activate and user.deactivate', () => {
+    expect(AUDIT_ACTIONS).toContain('user.activate');
+    expect(AUDIT_ACTIONS).toContain('user.deactivate');
   });
 });
 

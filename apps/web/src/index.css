@@ -138,11 +138,13 @@
 }
 
 html {
+  height: 100%;
   font-size: calc(16px * var(--font-scale));
   font-family: var(--font-sans);
 }
 
 body {
+  height: 100%;
   margin: 0;
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
@@ -155,7 +157,7 @@ body {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100%;
 }
 
 /* Focus ring for keyboard accessibility */
@@ -182,6 +184,20 @@ body {
   );
   background-size: 200% 100%;
   animation: shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  body {
+    transition: none;
+  }
+  .animate-shimmer {
+    animation: none;
+    background-image: none;
+    background-color: var(--bg-hover);
+  }
 }
 
 /* Tippy theme for react-wordcloud hover tooltips — matches --chart-* tokens. */

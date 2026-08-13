@@ -1,5 +1,7 @@
 import { SOURCE_TYPE_TABS, type SourceTypeTab } from '@content-insights/shared';
 
+import Tabs from './ui/Tabs';
+
 export type ArticleTabKey = SourceTypeTab;
 
 interface ArticleTabsProps {
@@ -15,26 +17,11 @@ const TAB_LABELS: Record<SourceTypeTab, string> = {
 
 export default function ArticleTabs({ active, onChange }: ArticleTabsProps) {
   return (
-    <div className="flex gap-4 border-b border-[var(--border)]" role="tablist">
-      {SOURCE_TYPE_TABS.map((tab) => {
-        const isActive = tab === active;
-        return (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(tab)}
-            className={`-mb-px border-b-2 pb-2 text-sm transition-colors ${
-              isActive
-                ? 'border-[var(--accent)] font-semibold text-[var(--text-primary)]'
-                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        );
-      })}
-    </div>
+    <Tabs
+      items={SOURCE_TYPE_TABS.map((tab) => ({ id: tab, label: TAB_LABELS[tab] }))}
+      value={active}
+      onChange={onChange}
+      className="gap-4 [&_button]:px-0 [&_button]:pt-0"
+    />
   );
 }

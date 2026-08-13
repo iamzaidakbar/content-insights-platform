@@ -6,6 +6,7 @@ import {
   createUserSchema,
   setCurrentGroupSchema,
   setCurrentProjectSchema,
+  setUserActiveSchema,
   updateRoleAssignmentEndDateSchema,
   updateUserSchema,
   type AssignUserRoleInput,
@@ -15,6 +16,7 @@ import {
   type Permission,
   type SetCurrentGroupInput,
   type SetCurrentProjectInput,
+  type SetUserActiveInput,
   type UpdateRoleAssignmentEndDateInput,
   type UpdateUserInput,
   type User,
@@ -366,6 +368,58 @@ userRouter.delete(
   }),
 );
 
+async function setOrgUserActive(
+  actorId: string,
+  orgId: string,
+  targetId: string,
+  isActive: boolean,
+) {
+  if (targetId === actorId) {
+    throw new ValidationError(
+      isActive ? 'You cannot change the status of your own account' : 'You cannot deactivate your own account',
+    );
+  }
+
+  const user = await UserModel.findOneAndUpdate(
+    { _id: targetId, orgId },
+    { $set: { isActive } },
+    { new: true },
+  );
+  if (!user) {
+    throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+  }
+  // A deactivated account's live sessions shouldn't keep silently refreshing.
+  if (!isActive) {
+    await revokeAllRefreshTokensForUser(targetId);
+  }
+  return user;
+}
+
+userRouter.patch(
+  '/:id/status',
+  authenticate,
+  orgContext,
+  requirePermission('users:delete' satisfies Permission),
+  validate({ body: setUserActiveSchema }),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
+    const { isActive } = req.body as SetUserActiveInput;
+    const user = await setOrgUserActive(req.user.id, req.user.orgId, id, isActive);
+
+    audit(req, {
+      action: isActive ? 'user.activate' : 'user.deactivate',
+      entityType: 'user',
+      entityId: id,
+      details: { email: user.email },
+    });
+
+    res.status(200).json(success(await resolveUserDTO(req.user.orgId, user)));
+  }),
+);
+
 userRouter.patch(
   '/:id/deactivate',
   authenticate,
@@ -376,23 +430,33 @@ userRouter.patch(
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
     const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
-    if (id === req.user.id) {
-      throw new ValidationError('You cannot deactivate your own account');
-    }
-
-    const user = await UserModel.findOneAndUpdate(
-      { _id: id, orgId: req.user.orgId },
-      { $set: { isActive: false } },
-      { new: true },
-    );
-    if (!user) {
-      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
-    }
-    // A deactivated account's live sessions shouldn't keep silently refreshing.
-    await revokeAllRefreshTokensForUser(id);
+    const user = await setOrgUserActive(req.user.id, req.user.orgId, id, false);
 
     audit(req, {
       action: 'user.deactivate',
+      entityType: 'user',
+      entityId: id,
+      details: { email: user.email },
+    });
+
+    res.status(200).json(success(await resolveUserDTO(req.user.orgId, user)));
+  }),
+);
+
+userRouter.patch(
+  '/:id/activate',
+  authenticate,
+  orgContext,
+  requirePermission('users:delete' satisfies Permission),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
+    const user = await setOrgUserActive(req.user.id, req.user.orgId, id, true);
+
+    audit(req, {
+      action: 'user.activate',
       entityType: 'user',
       entityId: id,
       details: { email: user.email },

@@ -19,7 +19,7 @@ import Button from '../ui/Button';
 import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
 import { Input, Select } from '../ui/Input';
 import Skeleton from '../ui/Skeleton';
-import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 // Matches AuditEntityType (packages/shared/src/types/audit.ts) exactly — the pre-pivot
 // list here ('document', 'incident') no longer exists on that union at all.
@@ -210,16 +210,17 @@ export default function AdminAuditSection() {
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <CardHeader className="shrink-0">
         <CardTitle className="text-base">Audit log</CardTitle>
         <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
           Immutable record of authentication, article, and admin activity — who did what, when, and (for article
           hide/unhide) exactly which articles.
         </p>
       </CardHeader>
-      <CardBody className="space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
+      <CardBody className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <div className="flex shrink-0 flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
             Action
             <Select
@@ -313,18 +314,20 @@ export default function AdminAuditSection() {
         </div>
 
         {auditQuery.isLoading ? (
-          <div className="space-y-2">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
             {Array.from({ length: 8 }, (_, i) => (
               <Skeleton key={i} className="h-10 w-full" />
             ))}
           </div>
         ) : auditQuery.isError ? (
-          <Alert variant="error">{getApiErrorMessage(auditQuery.error, 'Unable to load the audit log.')}</Alert>
+          <Alert variant="error" className="shrink-0">
+            {getApiErrorMessage(auditQuery.error, 'Unable to load the audit log.')}
+          </Alert>
         ) : items.length === 0 ? (
           <p className="py-8 text-center text-sm text-[var(--text-muted)]">No audit entries match these filters.</p>
         ) : (
           <>
-            <Table>
+            <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
               <THead>
                 <TR className="hover:bg-transparent">
                   <TH>Date</TH>
@@ -355,12 +358,13 @@ export default function AdminAuditSection() {
                 ))}
               </TBody>
             </Table>
-            <div className="flex justify-end">
+            <div className="flex shrink-0 justify-end">
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </>
         )}
       </CardBody>
     </Card>
+    </section>
   );
 }

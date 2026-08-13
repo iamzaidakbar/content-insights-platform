@@ -76,7 +76,7 @@ function TaxonomyRow({
       {entries.slice(0, 3).map(([conceptKey, values]) => {
         const label = concepts.find((concept) => concept.key === conceptKey)?.displayLabel ?? conceptKey;
         return (
-          <div key={conceptKey} className="flex min-w-0 items-center gap-1 text-[11px] text-[var(--text-muted)]">
+          <div key={conceptKey} className="flex min-w-0 items-center gap-1 text-xs text-[var(--text-muted)]">
             <Layers size={10} className="shrink-0" />
             <span className="font-medium text-[var(--text-secondary)]">{label}:</span>
             <span className="truncate">
@@ -130,19 +130,19 @@ function TagChipsRow({
           type="button"
           onClick={() => onTagClick(id)}
           title={`Filter by "${tag.name}"`}
-          className="rounded-[var(--radius-tag)] px-1.5 py-px text-[10px] font-medium transition-opacity hover:opacity-80"
+          className="rounded-[var(--radius-tag)] px-1.5 py-px text-xs font-medium transition-opacity hover:opacity-80"
           style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
         >
           {tag.name}
         </button>
       ))}
       {!showAll && overflow > 0 ? (
-        <button type="button" onClick={() => setShowAll(true)} className="text-[10px] text-[var(--accent)] hover:underline">
+        <button type="button" onClick={() => setShowAll(true)} className="text-xs text-[var(--accent)] hover:underline">
           +{overflow}
         </button>
       ) : null}
       {showAll && resolved.length > MAX_VISIBLE_TAGS ? (
-        <button type="button" onClick={() => setShowAll(false)} className="text-[10px] text-[var(--accent)] hover:underline">
+        <button type="button" onClick={() => setShowAll(false)} className="text-xs text-[var(--accent)] hover:underline">
           Less
         </button>
       ) : null}
@@ -207,7 +207,7 @@ export default function ArticleCard({
   );
 
   const meta = (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--text-muted)]">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-[var(--text-muted)]">
       <span className="flex min-w-0 items-center gap-1">
         <Globe size={11} className="shrink-0" />
         <span className="truncate">{hit.domain}</span>
@@ -389,7 +389,7 @@ export default function ArticleCard({
         <button
           type="button"
           onClick={() => onToggleExpand(hit.articleId)}
-          className="text-[11px] font-medium text-[var(--accent)] opacity-0 transition-opacity hover:underline group-hover:opacity-100 focus:opacity-100"
+          className="text-xs font-medium text-[var(--accent)] opacity-0 transition-opacity hover:underline group-hover:opacity-100 focus:opacity-100"
         >
           {isExpanded ? 'Collapse' : 'Read more'}
         </button>

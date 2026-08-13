@@ -26,7 +26,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
 import { Input, Select } from '../ui/Input';
 import Modal from '../ui/Modal';
 import Skeleton from '../ui/Skeleton';
-import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 const DEBOUNCE_MS = 300;
 const SKELETON_ROW_COUNT = 5;
@@ -320,15 +320,16 @@ export default function AdminMembersSection() {
   const showEmptyState = !usersQuery.isLoading && !usersQuery.isError && users.length === 0;
 
   return (
-    <Card>
-      <CardHeader>
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <CardHeader className="shrink-0">
         <CardTitle className="text-base">Role Assignments</CardTitle>
         <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
           Grant a role scoped to a group, or globally (“All”) — dates are optional and, except for Application Admin,
           may bound when an assignment starts or automatically lapses.
         </p>
       </CardHeader>
-      <CardBody className="space-y-4">
+      <CardBody className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
         <Input
           type="text"
           value={rawQuery}
@@ -337,18 +338,22 @@ export default function AdminMembersSection() {
             setPage(1);
           }}
           placeholder="Search by email…"
-          className="max-w-xs"
+          className="max-w-xs shrink-0"
           aria-label="Search users by email"
         />
 
         {usersQuery.isError ? (
-          <Alert variant="error">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</Alert>
+          <Alert variant="error" className="shrink-0">
+            {getApiErrorMessage(usersQuery.error, 'Unable to load users.')}
+          </Alert>
         ) : null}
         {rolesQuery.isError ? (
-          <Alert variant="error">{getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}</Alert>
+          <Alert variant="error" className="shrink-0">
+            {getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}
+          </Alert>
         ) : null}
 
-        <Table>
+        <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
           <THead>
             <TR className="hover:bg-transparent">
               <TH>Email</TH>
@@ -405,10 +410,14 @@ export default function AdminMembersSection() {
           </TBody>
         </Table>
 
-        {showEmptyState ? <EmptyState icon={UserCog} title="No users found" /> : null}
+        {showEmptyState ? (
+          <div className="shrink-0">
+            <EmptyState icon={UserCog} title="No users found" />
+          </div>
+        ) : null}
 
         {usersQuery.data && usersQuery.data.totalPages > 1 ? (
-          <div className="flex justify-end">
+          <div className="flex shrink-0 justify-end">
             <Pagination page={page} totalPages={usersQuery.data.totalPages} onPageChange={setPage} />
           </div>
         ) : null}
@@ -423,5 +432,6 @@ export default function AdminMembersSection() {
         ) : null}
       </CardBody>
     </Card>
+    </section>
   );
 }

@@ -11,9 +11,9 @@ import { getApiErrorMessage } from '../../lib/api-client';
 import { formatDate } from '../../lib/format';
 import {
   createUser,
-  deactivateUser,
   deleteUser,
   fetchOrgUsers,
+  setUserActive,
   type CreateUserInput,
 } from '../../lib/users-api';
 import EmptyState from '../EmptyState';
@@ -24,7 +24,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
 import { Input } from '../ui/Input';
 import Modal from '../ui/Modal';
 import Skeleton from '../ui/Skeleton';
-import { Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
 
 const DEBOUNCE_MS = 300;
 const SKELETON_ROW_COUNT = 5;
@@ -226,23 +226,17 @@ function DeleteUserDialog({ target, onClose }: { target: User; onClose: () => vo
 function StatusToggle({ target, disabledReason }: { target: User; disabledReason?: string }) {
   const queryClient = useQueryClient();
 
-  const deactivateMutation = useMutation({
-    mutationFn: () => deactivateUser(target.id),
-    onSuccess: () => {
+  const statusMutation = useMutation({
+    mutationFn: (isActive: boolean) => setUserActive(target.id, isActive),
+    onSuccess: (_user, isActive) => {
       void queryClient.invalidateQueries({ queryKey: ['org-users'] });
-      toast.success(`${target.email} deactivated.`);
+      toast.success(isActive ? `${target.email} activated.` : `${target.email} deactivated.`);
     },
   });
 
-  // The API only exposes PATCH /:id/deactivate (one-directional) — there is currently no
-  // reactivation endpoint, so an already-inactive user's control stays disabled rather than
-  // silently doing nothing or 404ing on click.
   const title =
-    disabledReason ??
-    (target.isActive
-      ? 'Deactivate this account'
-      : 'Reactivation is not currently supported — create a new account if needed');
-  const disabled = Boolean(disabledReason) || !target.isActive || deactivateMutation.isPending;
+    disabledReason ?? (target.isActive ? 'Deactivate this account' : 'Activate this account');
+  const disabled = Boolean(disabledReason) || statusMutation.isPending;
 
   return (
     <button
@@ -251,7 +245,7 @@ function StatusToggle({ target, disabledReason }: { target: User; disabledReason
       aria-checked={target.isActive}
       title={title}
       disabled={disabled}
-      onClick={() => target.isActive && deactivateMutation.mutate()}
+      onClick={() => statusMutation.mutate(!target.isActive)}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed ${
         target.isActive ? 'bg-[var(--green)]' : 'bg-[var(--border)]'
       } ${disabled ? 'opacity-60' : ''}`}
@@ -286,7 +280,8 @@ export default function AdminUsersSection() {
   const showEmptyState = !usersQuery.isLoading && !usersQuery.isError && users.length === 0;
 
   return (
-    <Card>
+    <section className="min-h-0">
+      <Card>
       <CardHeader>
         <CardTitle className="text-base">Users</CardTitle>
         <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
@@ -317,7 +312,7 @@ export default function AdminUsersSection() {
           <Alert variant="error">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</Alert>
         ) : null}
 
-        <Table>
+        <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
           <THead>
             <TR className="hover:bg-transparent">
               <TH>Email</TH>
@@ -360,7 +355,11 @@ export default function AdminUsersSection() {
                         <div className="flex items-center gap-2">
                           <StatusToggle
                             target={orgUser}
-                            {...(isSelf ? { disabledReason: "You can't deactivate your own account" } : {})}
+                            {...(isSelf
+                              ? { disabledReason: "You can't deactivate your own account" }
+                              : !canDelete
+                                ? { disabledReason: 'You need permission to change account status' }
+                                : {})}
                           />
                           <span
                             className={orgUser.isActive ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'}
@@ -422,5 +421,6 @@ export default function AdminUsersSection() {
         {deleting ? <DeleteUserDialog target={deleting} onClose={() => setDeleting(null)} /> : null}
       </CardBody>
     </Card>
+    </section>
   );
 }

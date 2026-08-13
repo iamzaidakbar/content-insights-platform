@@ -72,7 +72,10 @@ export const setCurrentProjectSchema = z
   .strict();
 export type SetCurrentProjectInput = z.infer<typeof setCurrentProjectSchema>;
 
-// PATCH /api/users/:id/status — activate/deactivate a user (users:manage).
+// PATCH /api/users/:id/status | /:id/activate | /:id/deactivate — (users:delete).
+// Same permission as hard-delete: flipping isActive is a sensitive org-admin action,
+// not a routine users:manage edit. `/status` accepts `{ isActive }`; the two
+// verb routes are the ones the admin UI calls.
 export const setUserActiveSchema = z
   .object({
     isActive: z.boolean(),

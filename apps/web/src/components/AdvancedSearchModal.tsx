@@ -205,7 +205,7 @@ function OperatorToggle({ value, onChange }: { value: BooleanOperator; onChange:
             key={operator}
             type="button"
             onClick={() => onChange(operator)}
-            className={`px-2.5 py-0.5 text-[11px] font-semibold tracking-wide transition-colors ${
+            className={`px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-colors ${
               operator === value
                 ? 'bg-[var(--accent)] text-white'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
@@ -261,7 +261,7 @@ function ConditionRow({ condition, onChange, onRemove, concepts, facets }: Condi
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-[11px] leading-snug text-[var(--text-muted)]">{MODE_DESCRIPTIONS[condition.mode]}</p>
+            <p className="mt-1 text-xs leading-snug text-[var(--text-muted)]">{MODE_DESCRIPTIONS[condition.mode]}</p>
           </div>
 
           <div className="space-y-2">

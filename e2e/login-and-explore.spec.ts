@@ -199,19 +199,19 @@ test.describe('Workflow #1 + #2 — login, land on Articles, explore (Risk & Com
 
     // ---------------------------------------------------------------------------------
     // LHS FilterPanel — soft taxonomy value narrows results and produces a chip.
+    // Desktop layout keeps the facet column open (complementary, not a dialog).
     // ---------------------------------------------------------------------------------
-    await page.getByRole('button', { name: 'Filters', exact: true }).click();
-    const filterDialog = page.getByRole('dialog', { name: 'Filters' });
-    await expect(filterDialog).toBeVisible();
+    const filtersPanel = page.getByRole('complementary', { name: 'Filters' });
+    await expect(filtersPanel).toBeVisible();
 
-    await filterDialog.getByRole('button', { name: 'Authors', exact: true }).click();
-    await filterDialog.getByLabel('Anika Voss').check();
+    await filtersPanel.getByRole('button', { name: 'Authors', exact: true }).click();
+    await filtersPanel.getByLabel('Anika Voss').check();
     await expect(resultsCount).toHaveText('7 results');
     await expect(page.getByText('Authors: Anika Voss')).toBeVisible();
 
     // Undo the taxonomy pick (uncheck, not "Clear All" — Clear All also resets the project
     // scope, which would break every count below).
-    await filterDialog.getByLabel('Anika Voss').uncheck();
+    await filtersPanel.getByLabel('Anika Voss').uncheck();
     await expect(resultsCount).toHaveText('12 results');
 
     // ---------------------------------------------------------------------------------
@@ -219,26 +219,23 @@ test.describe('Workflow #1 + #2 — login, land on Articles, explore (Risk & Com
     // to this group+project (1 of the org's 8 seeded hidden articles is reachable here; the
     // other 7 sit in projects/domains this group has no grant for).
     // ---------------------------------------------------------------------------------
-    await filterDialog.getByLabel('Show only hidden articles').check();
+    await filtersPanel.getByLabel('Show only hidden articles').check();
     await expect(resultsCount).toHaveText('1 result');
     await expect(page.getByTestId('article-card')).toHaveCount(1);
 
-    await filterDialog.getByLabel('Exclude hidden articles').check();
+    await filtersPanel.getByLabel('Exclude hidden articles').check();
     await expect(resultsCount).toHaveText('12 results');
 
     // ---------------------------------------------------------------------------------
     // Date filter — Last N Days narrows sensibly (verified: 30 days -> 7 of the 12).
     // ---------------------------------------------------------------------------------
     // "Date" is open by default (unlike the taxonomy sections above) — no header click needed.
-    await filterDialog.getByLabel('Last N days').check();
-    await filterDialog.getByLabel('Number of days').fill('30');
+    await filtersPanel.getByLabel('Last N days').check();
+    await filtersPanel.getByLabel('Number of days').fill('30');
     await expect(resultsCount).toHaveText('7 results');
 
-    await filterDialog.getByLabel('Any time').check();
+    await filtersPanel.getByLabel('Any time').check();
     await expect(resultsCount).toHaveText('12 results');
-
-    await filterDialog.getByRole('button', { name: 'Done' }).click();
-    await expect(filterDialog).toBeHidden();
 
     // ---------------------------------------------------------------------------------
     // Advanced Search — a 2-condition query (free text AND a taxonomy condition), applied.
@@ -283,7 +280,7 @@ test.describe('Workflow #1 + #2 — login, land on Articles, explore (Risk & Com
     // Sort order.
     // ---------------------------------------------------------------------------------
     await page.getByRole('button', { name: 'Sort: Newest first' }).click();
-    await page.getByRole('button', { name: 'Title A→Z', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Title A→Z', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Sort: Title A→Z' })).toBeVisible();
 
     // The sort button's own label updates immediately (it just reflects the selected

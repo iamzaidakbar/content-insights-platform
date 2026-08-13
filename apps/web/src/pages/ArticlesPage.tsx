@@ -14,6 +14,7 @@ import {
   Grid2x2,
   Grid3x3,
   List,
+  MoreHorizontal,
   Search as SearchIcon,
   Share2,
   SlidersHorizontal,
@@ -38,8 +39,8 @@ import {
 } from '@content-insights/shared';
 
 import { useAuth } from '../auth/AuthContext';
-import { useClickOutside } from '../hooks/useClickOutside';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useIsDesktop } from '../hooks/useIsDesktop';
 import { getApiErrorMessage } from '../lib/api-client';
 import { VIEW_MODE_PAGE_SIZE } from '../lib/article-layout';
 import { bulkArticleOperation, exportArticles, hideArticle, unhideArticle } from '../lib/articles-api';
@@ -67,6 +68,14 @@ import TagSelectPopover from '../components/TagSelectPopover';
 import InsightBuilderModal from '../components/insights/InsightBuilderModal';
 import SavedQueriesModal from '../components/SavedQueriesModal';
 import TeamsShareModal from '../components/teams/TeamsShareModal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/DropdownMenu';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/Popover';
 
 const SORT_LABELS: Record<SearchSortOption, string> = {
   relevance: 'Relevance',
@@ -129,42 +138,25 @@ function downloadSelectedArticlesCsv(hits: SearchHit[], tagsById: Map<string, Us
 }
 
 function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: (value: SearchSortOption) => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  useClickOutside(containerRef, () => setIsOpen(false));
-
   return (
-    <div className="relative" ref={containerRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
-      >
-        <span>Sort: {SORT_LABELS[value]}</span>
-        <ChevronDown size={13} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      {isOpen ? (
-        <div className="absolute right-0 z-20 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-[var(--shadow-md)]">
-          {SEARCH_SORT_OPTIONS.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                onChange(option);
-                setIsOpen(false);
-              }}
-              className={`block w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-xs transition-colors ${
-                option === value
-                  ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {SORT_LABELS[option]}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger>
+        <button
+          type="button"
+          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+        >
+          <span>Sort: {SORT_LABELS[value]}</span>
+          <ChevronDown size={13} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {SEARCH_SORT_OPTIONS.map((option) => (
+          <DropdownMenuItem key={option} selected={option === value} onSelect={() => onChange(option)}>
+            {SORT_LABELS[option]}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -172,6 +164,25 @@ const TOOLBAR_BTN =
   'flex h-8 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]';
 const TOOLBAR_SELECT =
   'h-8 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
+
+const FILTER_COLUMN_STORAGE_KEY = 'ci:articles-filter-column-open';
+
+function readFilterColumnOpen(): boolean {
+  try {
+    const raw = window.sessionStorage.getItem(FILTER_COLUMN_STORAGE_KEY);
+    return raw === null ? true : raw === '1';
+  } catch {
+    return true;
+  }
+}
+
+function writeFilterColumnOpen(open: boolean): void {
+  try {
+    window.sessionStorage.setItem(FILTER_COLUMN_STORAGE_KEY, open ? '1' : '0');
+  } catch {
+    // ignore
+  }
+}
 
 // The bulk tag/untag popover is TagSelectPopover (shared with Article detail's own "add
 // tag" popover) — previously a local, near-duplicate reimplementation lived here because
@@ -222,7 +233,9 @@ export default function ArticlesPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [hidePendingId, setHidePendingId] = useState<string | null>(null);
 
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const isDesktop = useIsDesktop();
+  const [isFilterColumnVisible, setIsFilterColumnVisible] = useState(readFilterColumnOpen);
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [isAdvancedSearchOpen, setIsAdvancedSearchOpen] = useState(false);
   const [isSaveOpen, setIsSaveOpen] = useState(false);
   const [isLoadOpen, setIsLoadOpen] = useState(false);
@@ -420,7 +433,7 @@ export default function ArticlesPage() {
   const facetsQuery = useQuery({
     queryKey: ['search-facets', filters, currentGroupId],
     queryFn: () => fetchSearchFacets(filters),
-    enabled: isFilterOpen || isAdvancedSearchOpen,
+    enabled: isFilterColumnVisible || isFilterDrawerOpen || isAdvancedSearchOpen,
     staleTime: 30_000,
   });
 
@@ -516,6 +529,20 @@ export default function ArticlesPage() {
     setFilters(next);
     setPage(1);
   }
+
+  function toggleFilters() {
+    if (isDesktop) {
+      setIsFilterColumnVisible((open) => {
+        const next = !open;
+        writeFilterColumnOpen(next);
+        return next;
+      });
+      return;
+    }
+    setIsFilterDrawerOpen((open) => !open);
+  }
+
+  const isFiltersExpanded = isDesktop ? isFilterColumnVisible : isFilterDrawerOpen;
 
   // Both the Dynamic and Snapshot branches of a loaded saved search carry `filters` — for a
   // snapshot this re-runs it as a live query against the same criteria rather than pinning
@@ -820,12 +847,120 @@ export default function ArticlesPage() {
     toast.success(`Exported ${selectedHits.length} article${selectedHits.length === 1 ? '' : 's'}.`);
   }
 
+  const filterPanelProps = {
+    value: filters,
+    onChange: handleFilterPanelChange,
+    concepts: filterPanelConcepts,
+    projects,
+    userTags,
+    facetSortOrder: settingsQuery.data?.facetSortOrder ?? DEFAULT_USER_SETTINGS.facetSortOrder,
+    hideZeroCountFacets: settingsQuery.data?.hideZeroCountFacets ?? DEFAULT_USER_SETTINGS.hideZeroCountFacets,
+    ...(facetsQuery.data?.facets ? { facets: facetsQuery.data.facets } : {}),
+  };
+
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
-      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col px-4 pt-3 sm:px-6">
-        {/* Compact header: tabs + toolbar */}
+    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0">
+      {isDesktop ? (
+        <FilterPanel
+          variant="column"
+          isOpen={isFilterColumnVisible}
+          onClose={() => {
+            setIsFilterColumnVisible(false);
+            writeFilterColumnOpen(false);
+          }}
+          {...filterPanelProps}
+        />
+      ) : (
+        <FilterPanel
+          variant="drawer"
+          isOpen={isFilterDrawerOpen}
+          onClose={() => setIsFilterDrawerOpen(false)}
+          {...filterPanelProps}
+        />
+      )}
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 pt-3 sm:px-6">
         <div className="shrink-0 space-y-2">
           <ArticleTabs active={filters.sourceTypeTab} onChange={handleTabChange} />
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleFilters}
+              aria-expanded={isFiltersExpanded}
+              className={TOOLBAR_BTN}
+              style={isFiltersExpanded ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+            >
+              <Filter size={13} />
+              Filters
+            </button>
+
+            <div className="relative min-w-[160px] flex-1">
+              <SearchIcon
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+              />
+              <input
+                type="search"
+                value={queryInput}
+                onChange={(event) => setQueryInput(event.target.value)}
+                placeholder="Search articles…"
+                className="h-9 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-9 pr-[6.5rem] text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              />
+              <button
+                type="button"
+                aria-label="Advanced Search"
+                onClick={() => setIsAdvancedSearchOpen(true)}
+                className="absolute right-1 top-1/2 flex h-7 -translate-y-1/2 items-center gap-1 rounded-[var(--radius-button)] px-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              >
+                <SlidersHorizontal size={13} />
+                Advanced
+              </button>
+            </div>
+
+            <Link to="/articles/upload" className={TOOLBAR_BTN}>
+              <UploadCloud size={13} />
+              Upload
+            </Link>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <button type="button" aria-label="More actions" className={TOOLBAR_BTN}>
+                  <MoreHorizontal size={13} />
+                  More
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                {groupOptions.length > 0 ? (
+                  <DropdownMenuItem onSelect={() => setIsSaveOpen(true)}>
+                    <Bookmark size={13} />
+                    Save
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onSelect={() => setIsLoadOpen(true)}>
+                  <FolderOpen size={13} />
+                  Load
+                </DropdownMenuItem>
+                {groupOptions.length > 0 ? (
+                  <DropdownMenuItem onSelect={() => setIsInsightBuilderOpen(true)}>
+                    <BarChart3 size={13} />
+                    Insights
+                  </DropdownMenuItem>
+                ) : null}
+                {canExport ? (
+                  <DropdownMenuItem disabled={exportMutation.isPending} onSelect={() => exportMutation.mutate()}>
+                    <Download size={13} />
+                    {exportMutation.isPending ? 'Exporting…' : 'Export'}
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem selected={filters.hiddenArticles === 'onlyHidden'} onSelect={toggleHiddenMode}>
+                  {filters.hiddenArticles === 'onlyHidden' ? <Eye size={13} /> : <EyeOff size={13} />}
+                  {filters.hiddenArticles === 'onlyHidden' ? 'Hidden only' : 'Hidden'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
             <select
@@ -856,73 +991,24 @@ export default function ArticlesPage() {
               ))}
             </select>
 
-            <div className="relative min-w-[160px] flex-1 basis-[200px] sm:max-w-xs">
-              <SearchIcon
-                size={14}
-                className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-              />
-              <input
-                type="search"
-                value={queryInput}
-                onChange={(event) => setQueryInput(event.target.value)}
-                placeholder="Search articles…"
-                className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2.5 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-              />
-            </div>
-
-            <button type="button" onClick={() => setIsFilterOpen(true)} className={TOOLBAR_BTN}>
-              <Filter size={13} />
-              Filters
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleHiddenMode}
-              className={TOOLBAR_BTN}
-              style={
-                filters.hiddenArticles === 'onlyHidden'
-                  ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
-                  : undefined
-              }
-            >
-              {filters.hiddenArticles === 'onlyHidden' ? <Eye size={13} /> : <EyeOff size={13} />}
-              {filters.hiddenArticles === 'onlyHidden' ? 'Hidden only' : 'Hidden'}
-            </button>
-
-            <Link to="/articles/upload" className={TOOLBAR_BTN}>
-              <UploadCloud size={13} />
-              Upload
-            </Link>
-            <button type="button" onClick={() => setIsAdvancedSearchOpen(true)} className={TOOLBAR_BTN}>
-              <SlidersHorizontal size={13} />
-              Advanced
-            </button>
-            {groupOptions.length > 0 ? (
-              <button type="button" onClick={() => setIsSaveOpen(true)} className={TOOLBAR_BTN}>
-                <Bookmark size={13} />
-                Save
-              </button>
-            ) : null}
-            <button type="button" onClick={() => setIsLoadOpen(true)} className={TOOLBAR_BTN}>
-              <FolderOpen size={13} />
-              Load
-            </button>
-            {groupOptions.length > 0 ? (
-              <button type="button" onClick={() => setIsInsightBuilderOpen(true)} className={TOOLBAR_BTN}>
-                <BarChart3 size={13} />
-                Insights
-              </button>
-            ) : null}
-            {canExport ? (
-              <button
-                type="button"
-                onClick={() => exportMutation.mutate()}
-                disabled={exportMutation.isPending}
-                className={`${TOOLBAR_BTN} disabled:cursor-not-allowed disabled:opacity-60`}
-              >
-                <Download size={13} />
-                {exportMutation.isPending ? '…' : 'Export'}
-              </button>
+            {filterChips.length > 0 ? (
+              <>
+                {filterChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.onRemove}
+                    className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs transition-opacity hover:opacity-75"
+                    style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                  >
+                    {chip.label}
+                    <X size={11} />
+                  </button>
+                ))}
+                <button type="button" onClick={handleClearAllFilters} className="text-xs text-[var(--accent)] hover:underline">
+                  Clear all
+                </button>
+              </>
             ) : null}
 
             <div className="ml-auto flex items-center gap-1.5">
@@ -948,26 +1034,6 @@ export default function ArticlesPage() {
             </div>
           </div>
 
-          {filterChips.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {filterChips.map((chip) => (
-                <button
-                  key={chip.key}
-                  type="button"
-                  onClick={chip.onRemove}
-                  className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-[11px] transition-opacity hover:opacity-75"
-                  style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-                >
-                  {chip.label}
-                  <X size={11} />
-                </button>
-              ))}
-              <button type="button" onClick={handleClearAllFilters} className="text-[11px] text-[var(--accent)] hover:underline">
-                Clear all
-              </button>
-            </div>
-          ) : null}
-
           <AdvancedSearchSummaryBanner
             advancedSearch={filters.advancedSearch}
             dateFilter={filters.dateFilter}
@@ -975,115 +1041,15 @@ export default function ArticlesPage() {
             onEdit={() => setIsAdvancedSearchOpen(true)}
             onClear={handleClearAdvancedSearchAndDate}
           />
-
-          {selectedIds.size > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5">
-              <span className="text-xs font-medium text-[var(--text-primary)]">{selectedIds.size} selected</span>
-              <button type="button" onClick={handleInvertSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                Invert
-              </button>
-              <button type="button" onClick={handleClearSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                Clear
-              </button>
-              <span className="h-3.5 w-px bg-[var(--border)]" />
-
-              <div className="relative">
-                <button
-                  type="button"
-                  data-testid="bulk-tag-button"
-                  onClick={() => setTagPickerMode((mode) => (mode === 'add' ? null : 'add'))}
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  <TagIcon size={13} />
-                  Tag
-                </button>
-                {tagPickerMode === 'add' ? (
-                  <TagSelectPopover
-                    tags={userTags}
-                    selectedCount={selectedIds.size}
-                    isSelecting={bulkMutation.isPending}
-                    isCreating={createTagMutation.isPending}
-                    allowCreate
-                    onSelectTag={handleTagPickerApply}
-                    onCreateTag={handleTagPickerCreate}
-                    onClose={() => setTagPickerMode(null)}
-                  />
-                ) : null}
-              </div>
-
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setTagPickerMode((mode) => (mode === 'remove' ? null : 'remove'))}
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  <TagIcon size={13} />
-                  Untag
-                </button>
-                {tagPickerMode === 'remove' ? (
-                  <TagSelectPopover
-                    tags={userTags}
-                    selectedCount={selectedIds.size}
-                    isSelecting={bulkMutation.isPending}
-                    allowCreate={false}
-                    onSelectTag={handleTagPickerApply}
-                    onCreateTag={() => undefined}
-                    onClose={() => setTagPickerMode(null)}
-                  />
-                ) : null}
-              </div>
-
-              {canHide ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleBulkHide(false)}
-                    disabled={bulkMutation.isPending}
-                    className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
-                  >
-                    <EyeOff size={13} />
-                    Hide
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleBulkHide(true)}
-                    disabled={bulkMutation.isPending}
-                    className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
-                  >
-                    <Eye size={13} />
-                    Unhide
-                  </button>
-                </>
-              ) : null}
-
-              {canShareTeams ? (
-                <button
-                  type="button"
-                  onClick={handleOpenTeamsShare}
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  <Share2 size={13} />
-                  Share to Teams
-                </button>
-              ) : null}
-
-              {canExport ? (
-                <button
-                  type="button"
-                  onClick={handleExportSelected}
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  <Download size={13} />
-                  Export selected
-                </button>
-              ) : null}
-            </div>
-          ) : null}
         </div>
 
         {/* Scrollable results between toolbar and pagination */}
         <div className="mt-2 flex min-h-0 flex-1 flex-col">
-          <p className="mb-1.5 shrink-0 text-xs text-[var(--text-secondary)]" data-testid="results-count">
+          <p
+            className="mb-1.5 shrink-0 text-xs text-[var(--text-secondary)]"
+            data-testid="results-count"
+            aria-live="polite"
+          >
             {searchQuery.isLoading ? 'Loading…' : `${total.toLocaleString()} result${total === 1 ? '' : 's'}`}
           </p>
           <div className="min-h-0 flex-1 overflow-y-auto pb-2">
@@ -1119,6 +1085,112 @@ export default function ArticlesPage() {
           </div>
         </div>
 
+        {selectedIds.size > 0 ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5">
+            <span className="text-xs font-medium text-[var(--text-primary)]">{selectedIds.size} selected</span>
+            <button type="button" onClick={handleInvertSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              Invert
+            </button>
+            <button type="button" onClick={handleClearSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              Clear
+            </button>
+            <span className="h-3.5 w-px bg-[var(--border)]" />
+
+            <Popover open={tagPickerMode === 'add'} onOpenChange={(open) => setTagPickerMode(open ? 'add' : null)}>
+              <PopoverTrigger>
+                <button
+                  type="button"
+                  data-testid="bulk-tag-button"
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <TagIcon size={13} />
+                  Tag
+                </button>
+              </PopoverTrigger>
+              <PopoverContent>
+                <TagSelectPopover
+                  tags={userTags}
+                  selectedCount={selectedIds.size}
+                  isSelecting={bulkMutation.isPending}
+                  isCreating={createTagMutation.isPending}
+                  allowCreate
+                  onSelectTag={handleTagPickerApply}
+                  onCreateTag={handleTagPickerCreate}
+                  onClose={() => setTagPickerMode(null)}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={tagPickerMode === 'remove'} onOpenChange={(open) => setTagPickerMode(open ? 'remove' : null)}>
+              <PopoverTrigger>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                  <TagIcon size={13} />
+                  Untag
+                </button>
+              </PopoverTrigger>
+              <PopoverContent>
+                <TagSelectPopover
+                  tags={userTags}
+                  selectedCount={selectedIds.size}
+                  isSelecting={bulkMutation.isPending}
+                  allowCreate={false}
+                  onSelectTag={handleTagPickerApply}
+                  onCreateTag={() => undefined}
+                  onClose={() => setTagPickerMode(null)}
+                />
+              </PopoverContent>
+            </Popover>
+
+            {canHide ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleBulkHide(false)}
+                  disabled={bulkMutation.isPending}
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
+                >
+                  <EyeOff size={13} />
+                  Hide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkHide(true)}
+                  disabled={bulkMutation.isPending}
+                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
+                >
+                  <Eye size={13} />
+                  Unhide
+                </button>
+              </>
+            ) : null}
+
+            {canShareTeams ? (
+              <button
+                type="button"
+                onClick={handleOpenTeamsShare}
+                className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                <Share2 size={13} />
+                Share to Teams
+              </button>
+            ) : null}
+
+            {canExport ? (
+              <button
+                type="button"
+                onClick={handleExportSelected}
+                className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                <Download size={13} />
+                Export selected
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Sticky pagination footer */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--bg-primary)] py-2">
           <p className="text-xs text-[var(--text-muted)]">
@@ -1129,23 +1201,6 @@ export default function ArticlesPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </div>
-
-      {/* FilterPanel and AdvancedSearchModal are owned by a sibling agent this phase — wired
-          here against their published contracts (FilterPanel: controlled `value`/`onChange`,
-          no internal Apply gate; AdvancedSearchModal: `advancedSearch`+`dateFilter` in,
-          AdvancedSearchApplyResult out). */}
-      <FilterPanel
-        isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        value={filters}
-        onChange={handleFilterPanelChange}
-        concepts={filterPanelConcepts}
-        facets={facetsQuery.data?.facets}
-        projects={projects}
-        userTags={userTags}
-        facetSortOrder={settingsQuery.data?.facetSortOrder ?? DEFAULT_USER_SETTINGS.facetSortOrder}
-        hideZeroCountFacets={settingsQuery.data?.hideZeroCountFacets ?? DEFAULT_USER_SETTINGS.hideZeroCountFacets}
-      />
 
       <AdvancedSearchModal
         isOpen={isAdvancedSearchOpen}

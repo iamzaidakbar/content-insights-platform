@@ -72,15 +72,25 @@ export async function deleteUser(id: UserId): Promise<void> {
   }
 }
 
-// Soft delete (users:delete) — flips isActive to false and revokes all of that user's
-// refresh tokens server-side; same no-self-deactivate restriction as deleteUser.
-export async function deactivateUser(id: UserId): Promise<User> {
-  const response = await apiClient.patch<ApiResponse<User>>(`/users/${id}/deactivate`);
+// Soft delete / restore (users:delete) — PATCH /api/users/:id/deactivate|activate.
+// Deactivating revokes that user's refresh tokens; activating lets them sign in
+// again. Same no-self-status-change restriction as deleteUser.
+export async function setUserActive(id: UserId, isActive: boolean): Promise<User> {
+  const path = isActive ? `/users/${id}/activate` : `/users/${id}/deactivate`;
+  const response = await apiClient.patch<ApiResponse<User>>(path);
   const body = response.data;
   if (!body.success) {
     throw new Error(body.message);
   }
   return body.data;
+}
+
+export async function deactivateUser(id: UserId): Promise<User> {
+  return setUserActive(id, false);
+}
+
+export async function activateUser(id: UserId): Promise<User> {
+  return setUserActive(id, true);
 }
 
 // ---------------------------------------------------------------------------------------

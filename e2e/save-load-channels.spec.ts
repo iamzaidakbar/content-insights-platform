@@ -89,6 +89,15 @@ test.describe('save, load & channelize saved searches', () => {
     await expect(marker).toBeVisible();
   }
 
+  async function openArticlesMenu(page: Page, item: 'Save' | 'Load') {
+    await page.getByRole('button', { name: 'More actions' }).click();
+    await page.getByRole('menuitem', { name: item, exact: true }).click();
+  }
+
+  function filtersPanel(page: Page): Locator {
+    return page.getByRole('complementary', { name: 'Filters' });
+  }
+
   test.beforeAll(async ({ browser }) => {
     const context = await browser.newContext();
     ownerPage = await context.newPage();
@@ -147,8 +156,7 @@ test.describe('save, load & channelize saved searches', () => {
     await page.goto('/articles');
     await page.getByLabel('Current project').selectOption({ label: 'Financial Markets Watch' });
 
-    await page.getByRole('button', { name: 'Filters', exact: true }).click();
-    const panel = page.getByRole('dialog', { name: 'Filters' });
+    const panel = filtersPanel(page);
 
     const orgCheckbox = panel.getByRole('checkbox', { name: /Continental Reserve Bank/ });
     await ensureSectionExpanded(panel, 'Organizations', orgCheckbox);
@@ -157,14 +165,12 @@ test.describe('save, load & channelize saved searches', () => {
     await panel.getByRole('radio', { name: 'Last N days', exact: true }).check();
     await panel.getByLabel('Number of days').fill('90');
 
-    await panel.getByRole('button', { name: 'Done', exact: true }).click();
-
     // Sanity check the combination actually took before we save it.
     await expect(
       page.getByRole('button', { name: 'Organizations: Continental Reserve Bank', exact: true }),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await openArticlesMenu(page, 'Save');
     const modalHeading = page.getByRole('heading', { name: 'Saved Searches' });
     await expect(modalHeading).toBeVisible();
     await page.getByLabel('Name').fill(SAVED_SEARCH_NAME);
@@ -192,7 +198,7 @@ test.describe('save, load & channelize saved searches', () => {
       page.getByRole('button', { name: 'Organizations: Continental Reserve Bank', exact: true }),
     ).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Load', exact: true }).click();
+    await openArticlesMenu(page, 'Load');
     const modalHeading = page.getByRole('heading', { name: 'Saved Searches' });
     await expect(modalHeading).toBeVisible();
     await savedSearchRow(page, SAVED_SEARCH_NAME).getByRole('button', { name: 'Load', exact: true }).click();
@@ -202,8 +208,7 @@ test.describe('save, load & channelize saved searches', () => {
       page.getByRole('button', { name: 'Organizations: Continental Reserve Bank', exact: true }),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Filters', exact: true }).click();
-    const panel = page.getByRole('dialog', { name: 'Filters' });
+    const panel = filtersPanel(page);
 
     const projectCheckbox = panel.getByRole('checkbox', { name: 'Financial Markets Watch', exact: true });
     await ensureSectionExpanded(panel, 'Project', projectCheckbox);
@@ -215,13 +220,11 @@ test.describe('save, load & channelize saved searches', () => {
 
     await expect(panel.getByRole('radio', { name: 'Last N days', exact: true })).toBeChecked();
     await expect(panel.getByLabel('Number of days')).toHaveValue('90');
-
-    await panel.getByRole('button', { name: 'Done', exact: true }).click();
   });
 
   test('saving another search with the same name in a different case is rejected', async () => {
     const page = ownerPage;
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await openArticlesMenu(page, 'Save');
     const modalHeading = page.getByRole('heading', { name: 'Saved Searches' });
     await expect(modalHeading).toBeVisible();
     await page.getByLabel('Name').fill(DUPLICATE_NAME_DIFFERENT_CASE);
@@ -255,7 +258,7 @@ test.describe('save, load & channelize saved searches', () => {
 
     // Reusing the exact same name now succeeds, proving the soft-delete freed it.
     await page.goto('/articles');
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await openArticlesMenu(page, 'Save');
     const modalHeading = page.getByRole('heading', { name: 'Saved Searches' });
     await expect(modalHeading).toBeVisible();
     await page.getByLabel('Name').fill(SAVED_SEARCH_NAME);

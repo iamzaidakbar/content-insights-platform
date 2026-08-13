@@ -1,9 +1,7 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Lock, Plus, Search } from 'lucide-react';
 
 import { USER_TAG_NAME_MAX_LENGTH, type UserTag } from '@content-insights/shared';
-
-import { useClickOutside } from '../hooks/useClickOutside';
 
 // Reusable tag picker — used by the Articles bulk-tag action and the Article detail page's
 // tag editor. `tags` is rendered exactly as given: the GET /user-tags endpoint is the privacy
@@ -36,9 +34,6 @@ export default function TagSelectPopover({
   onCreateTag,
   onClose,
 }: TagSelectPopoverProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  useClickOutside(containerRef, onClose);
-
   const [query, setQuery] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTagName, setNewTagName] = useState('');
@@ -58,10 +53,7 @@ export default function TagSelectPopover({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="absolute left-0 top-full z-50 mt-1.5 w-72 overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--shadow-md)]"
-    >
+    <div>
       <p className="text-xs text-[var(--text-secondary)]">
         {selectedCount === undefined
           ? 'Select a tag'
@@ -94,7 +86,10 @@ export default function TagSelectPopover({
                   key={tag.id}
                   type="button"
                   disabled={isSelecting}
-                  onClick={() => onSelectTag(tag)}
+                  onClick={() => {
+                    onSelectTag(tag);
+                    onClose();
+                  }}
                   className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {tag.isPrivate ? (
@@ -129,7 +124,7 @@ export default function TagSelectPopover({
             maxLength={USER_TAG_NAME_MAX_LENGTH}
             className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
           />
-          <p className="text-right text-[10px] text-[var(--text-muted)]">
+          <p className="text-right text-xs text-[var(--text-muted)]">
             {newTagName.length}/{USER_TAG_NAME_MAX_LENGTH}
           </p>
           <div className="flex items-center gap-2">

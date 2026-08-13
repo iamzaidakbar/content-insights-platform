@@ -57,6 +57,8 @@ export interface FilterPanelConcept {
 export interface FilterPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  /** `column` is an in-flow complementary landmark; `drawer` is the mobile overlay. */
+  variant?: 'drawer' | 'column';
   /** The full, currently-active filter state (owned by the parent). */
   value: FilterPanelState;
   /** Called with the complete next FilterPanelState on every edit — see the module
@@ -405,6 +407,7 @@ function ConceptFilterSection({
 export default function FilterPanel({
   isOpen,
   onClose,
+  variant = 'drawer',
   value,
   onChange,
   concepts,
@@ -419,9 +422,10 @@ export default function FilterPanel({
   // `facetSortOrder` (the user's persisted default) the first time a section's dropdown is
   // touched; never written back to UserSettings by this component.
   const [sortOverrides, setSortOverrides] = useState<Record<string, FacetSortOrder>>({});
+  const isColumn = variant === 'column';
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen || isColumn) {
       return;
     }
     function handleKeyDown(event: KeyboardEvent) {
@@ -431,7 +435,7 @@ export default function FilterPanel({
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, isColumn, onClose]);
 
   function patch(partial: Partial<FilterPanelState>) {
     onChange({ ...value, ...partial });
@@ -475,6 +479,147 @@ export default function FilterPanel({
     ? userTags.filter((tag) => tag.name.toLowerCase().includes(userTagQuery.trim().toLowerCase()))
     : userTags;
 
+  const sections = (
+    <>
+      <CollapsibleSection title="Hidden Articles">
+        <div className="space-y-1">
+          {HIDDEN_ARTICLES_MODES.map((mode) => (
+            <label
+              key={mode}
+              className="flex cursor-pointer items-center gap-2 py-1 text-sm text-[var(--text-secondary)]"
+            >
+              <input
+                type="radio"
+                name="filter-hidden-articles"
+                checked={value.hiddenArticles === mode}
+                onChange={() => patch({ hiddenArticles: mode })}
+                className="h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
+              />
+              {HIDDEN_ARTICLES_LABELS[mode]}
+            </label>
+          ))}
+        </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Date">
+        <DateFilterFields value={value.dateFilter} onChange={(next) => patch({ dateFilter: next })} />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Project" defaultOpen={false}>
+        {projects.length === 0 ? (
+          <p className="text-xs text-[var(--text-muted)]">No accessible projects.</p>
+        ) : (
+          <div className="space-y-0.5">
+            {projects.map((project) => (
+              <Checkbox
+                key={project.id}
+                checked={value.projectIds.includes(project.id)}
+                onChange={() => toggleProject(project.id)}
+                label={project.name}
+              />
+            ))}
+          </div>
+        )}
+        <p className="mt-2 text-xs text-[var(--text-muted)]">
+          No selection searches every project you can access.
+        </p>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="User Tags" defaultOpen={false}>
+        <div className="relative mb-2">
+          <Search
+            size={14}
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+          />
+          <input
+            type="search"
+            value={userTagQuery}
+            onChange={(event) => setUserTagQuery(event.target.value)}
+            placeholder="Search tags…"
+            className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+          />
+        </div>
+        {visibleUserTags.length === 0 ? (
+          <p className="py-1 text-xs text-[var(--text-muted)]">No matching tags.</p>
+        ) : (
+          <div className="max-h-48 space-y-0.5 overflow-y-auto">
+            {visibleUserTags.map((tag) => (
+              <Checkbox
+                key={tag.id}
+                checked={value.userTagIds.includes(tag.id)}
+                onChange={() => toggleUserTag(tag.id)}
+                label={tag.name}
+              />
+            ))}
+          </div>
+        )}
+      </CollapsibleSection>
+
+      {concepts.map((concept) => (
+        <ConceptFilterSection
+          key={concept.key}
+          concept={concept}
+          selected={value.taxonomyValues[concept.key] ?? []}
+          buckets={facets?.[concept.key]}
+          sortOrder={sortOverrides[concept.key] ?? facetSortOrder}
+          onSortOrderChange={(order) =>
+            setSortOverrides((current) => ({ ...current, [concept.key]: order }))
+          }
+          hideZeroCountFacets={hideZeroCountFacets}
+          onToggleValue={(optionValue) => toggleTaxonomyValue(concept.key, optionValue)}
+          onSelectAll={(values) => selectAllForConcept(concept.key, values)}
+          onClearAll={() => clearConcept(concept.key)}
+        />
+      ))}
+    </>
+  );
+
+  const header = (
+    <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+      <h2 className="text-sm font-semibold text-[var(--text-primary)]">Filters</h2>
+      {isColumn ? null : (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close filters"
+          className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+        >
+          <X size={18} />
+        </button>
+      )}
+    </div>
+  );
+
+  const footer = (
+    <div className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-3">
+      <Button type="button" variant="outline" onClick={handleClearAll} className={isColumn ? 'w-full' : 'flex-1'}>
+        Clear All
+      </Button>
+      {isColumn ? null : (
+        <Button type="button" onClick={onClose}>
+          Done
+        </Button>
+      )}
+    </div>
+  );
+
+  if (isColumn) {
+    if (!isOpen) {
+      return null;
+    }
+    return (
+      <aside
+        role="complementary"
+        aria-label="Filters"
+        className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-surface)]"
+      >
+        {header}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4">{sections}</div>
+        {footer}
+      </aside>
+    );
+  }
+
   return (
     <>
       {isOpen ? (
@@ -484,124 +629,14 @@ export default function FilterPanel({
         role="dialog"
         aria-label="Filters"
         aria-hidden={!isOpen}
-        className={`fixed inset-y-0 left-0 z-50 w-80 transform border-r border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl transition-transform duration-200 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-50 w-80 transform border-r border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl transition-transform duration-200 motion-reduce:transition-none ${
+          isOpen ? 'translate-x-0' : '-translate-x-full motion-reduce:hidden'
         }`}
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Filters</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close filters"
-              className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-            >
-              <X size={18} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4">
-            <CollapsibleSection title="Hidden Articles">
-              <div className="space-y-1">
-                {HIDDEN_ARTICLES_MODES.map((mode) => (
-                  <label
-                    key={mode}
-                    className="flex cursor-pointer items-center gap-2 py-1 text-sm text-[var(--text-secondary)]"
-                  >
-                    <input
-                      type="radio"
-                      name="filter-hidden-articles"
-                      checked={value.hiddenArticles === mode}
-                      onChange={() => patch({ hiddenArticles: mode })}
-                      className="h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
-                    />
-                    {HIDDEN_ARTICLES_LABELS[mode]}
-                  </label>
-                ))}
-              </div>
-            </CollapsibleSection>
-
-            <CollapsibleSection title="Date">
-              <DateFilterFields value={value.dateFilter} onChange={(next) => patch({ dateFilter: next })} />
-            </CollapsibleSection>
-
-            <CollapsibleSection title="Project" defaultOpen={false}>
-              {projects.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)]">No accessible projects.</p>
-              ) : (
-                <div className="space-y-0.5">
-                  {projects.map((project) => (
-                    <Checkbox
-                      key={project.id}
-                      checked={value.projectIds.includes(project.id)}
-                      onChange={() => toggleProject(project.id)}
-                      label={project.name}
-                    />
-                  ))}
-                </div>
-              )}
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                No selection searches every project you can access.
-              </p>
-            </CollapsibleSection>
-
-            <CollapsibleSection title="User Tags" defaultOpen={false}>
-              <div className="relative mb-2">
-                <Search
-                  size={14}
-                  className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-                />
-                <input
-                  type="search"
-                  value={userTagQuery}
-                  onChange={(event) => setUserTagQuery(event.target.value)}
-                  placeholder="Search tags…"
-                  className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
-                />
-              </div>
-              {visibleUserTags.length === 0 ? (
-                <p className="py-1 text-xs text-[var(--text-muted)]">No matching tags.</p>
-              ) : (
-                <div className="max-h-48 space-y-0.5 overflow-y-auto">
-                  {visibleUserTags.map((tag) => (
-                    <Checkbox
-                      key={tag.id}
-                      checked={value.userTagIds.includes(tag.id)}
-                      onChange={() => toggleUserTag(tag.id)}
-                      label={tag.name}
-                    />
-                  ))}
-                </div>
-              )}
-            </CollapsibleSection>
-
-            {concepts.map((concept) => (
-              <ConceptFilterSection
-                key={concept.key}
-                concept={concept}
-                selected={value.taxonomyValues[concept.key] ?? []}
-                buckets={facets?.[concept.key]}
-                sortOrder={sortOverrides[concept.key] ?? facetSortOrder}
-                onSortOrderChange={(order) =>
-                  setSortOverrides((current) => ({ ...current, [concept.key]: order }))
-                }
-                hideZeroCountFacets={hideZeroCountFacets}
-                onToggleValue={(optionValue) => toggleTaxonomyValue(concept.key, optionValue)}
-                onSelectAll={(values) => selectAllForConcept(concept.key, values)}
-                onClearAll={() => clearConcept(concept.key)}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-3">
-            <Button type="button" variant="outline" onClick={handleClearAll} className="flex-1">
-              Clear All
-            </Button>
-            <Button type="button" onClick={onClose}>
-              Done
-            </Button>
-          </div>
+          {header}
+          <div className="flex-1 overflow-y-auto px-4">{sections}</div>
+          {footer}
         </div>
       </div>
     </>
