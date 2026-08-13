@@ -142,7 +142,7 @@ export default function StreamChart({ aggregations = [], interval }: StreamChart
   const formatX = (key: string) => (interval ? formatBucketDateLabel(key, interval) : key);
 
   const legend = (
-    <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-[var(--chart-ink-secondary)]">
+    <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
       {prepared.map((band) => (
         <li key={band.name} className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: band.color }} aria-hidden="true" />
@@ -271,18 +271,18 @@ function StreamArea({ svgRef, xKeys, prepared, formatX, hoverIndex, setHoverInde
           : null}
       </svg>
 
-      <div className="mt-1 flex justify-between text-[10px] text-[var(--chart-ink-muted)]">
+      <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
         <span>{xKeys[0] ? formatX(xKeys[0]) : ''}</span>
         <span>{xKeys[xKeys.length - 1] ? formatX(xKeys[xKeys.length - 1]!) : ''}</span>
       </div>
 
       {hoverIndex !== null ? (
         <div
-          className="pointer-events-none absolute z-10 min-w-[9rem] rounded-[var(--radius-button)] border border-[var(--chart-gridline)] p-2 text-xs shadow-lg"
+          className="pointer-events-none absolute z-10 min-w-[9rem] rounded-md border border-border p-2 text-xs shadow-lg"
           style={{ left: (hoverX ?? 0) * scaleX, top: PADDING_Y * scaleY, transform: 'translate(-50%, -100%)', backgroundColor: 'var(--chart-surface)' }}
           role="tooltip"
         >
-          <p className="mb-1 border-b border-[var(--chart-gridline)] pb-1 font-semibold text-[var(--chart-ink-primary)]">
+          <p className="mb-1 border-b border-border pb-1 font-semibold text-foreground">
             {xKeys[hoverIndex] ? formatX(xKeys[hoverIndex]!) : ''}
           </p>
           {/* Per the skill's interaction rule: one tooltip lists every series at this x —
@@ -292,12 +292,12 @@ function StreamArea({ svgRef, xKeys, prepared, formatX, hoverIndex, setHoverInde
             {bands.map((band) => (
               <li key={band.name} className="flex items-center gap-1.5">
                 <span className="h-0.5 w-3 shrink-0 rounded-full" style={{ backgroundColor: band.color }} aria-hidden="true" />
-                <span className="font-semibold text-[var(--chart-ink-primary)]">{formatCompactNumber(band.values[hoverIndex] ?? 0)}</span>
-                <span className="truncate text-[var(--chart-ink-secondary)]">{band.name}</span>
+                <span className="font-semibold text-foreground">{formatCompactNumber(band.values[hoverIndex] ?? 0)}</span>
+                <span className="truncate text-muted-foreground">{band.name}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-1 border-t border-[var(--chart-gridline)] pt-1 text-[var(--chart-ink-muted)]">
+          <p className="mt-1 border-t border-border pt-1 text-muted-foreground">
             Total {formatCompactNumber(totalsPerX[hoverIndex] ?? 0)}
           </p>
         </div>
@@ -323,7 +323,7 @@ function SingleColumnFallback({ prepared, label }: { prepared: PreparedSeries[];
           />
         ))}
       </div>
-      <span className="text-xs text-[var(--chart-ink-secondary)]">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }

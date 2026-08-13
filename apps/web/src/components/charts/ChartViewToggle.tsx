@@ -18,18 +18,18 @@ export default function ChartViewToggle({ chart, table, ariaLabel }: ChartViewTo
   return (
     <div>
       <div className="mb-2 flex justify-end" role="group" aria-label={`${ariaLabel} view`}>
-        <div className="flex items-center gap-0.5 rounded-[var(--radius-button)] border border-[var(--border)] p-0.5">
+        <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
           {VIEWS.map((candidate) => (
             <button
               key={candidate}
               type="button"
               aria-pressed={view === candidate}
               onClick={() => setView(candidate)}
-              className="rounded-[calc(var(--radius-button)-2px)] px-2 py-1 text-[11px] font-medium capitalize transition-colors"
+              className="rounded-md px-2 py-1 text-[11px] font-medium capitalize transition-colors"
               style={
                 view === candidate
-                  ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                  : { color: 'var(--text-secondary)' }
+                  ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+                  : { color: 'var(--muted-foreground)' }
               }
             >
               {candidate}

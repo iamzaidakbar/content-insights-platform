@@ -11,8 +11,8 @@ interface StatTileProps {
 export default function StatTile({ label, value }: StatTileProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-1 py-6 text-center">
-      <span className="text-3xl font-semibold text-[var(--text-primary)]">{formatCompactNumber(value)}</span>
-      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
+      <span className="text-3xl font-semibold text-foreground">{formatCompactNumber(value)}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
     </div>
   );
 }

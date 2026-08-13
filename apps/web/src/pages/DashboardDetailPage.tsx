@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
@@ -9,14 +9,19 @@ import { useAuth } from '../auth/AuthContext';
 import AddInsightModal from '../components/dashboards/AddInsightModal';
 import DashboardGrid from '../components/dashboards/DashboardGrid';
 import EmptyState from '../components/EmptyState';
-import Alert from '../components/ui/Alert';
+import Alert from '../components/ui/alert';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
-import Button from '../components/ui/Button';
-import IconButton from '../components/ui/IconButton';
-import { Input } from '../components/ui/Input';
+import Button from '../components/ui/button';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import { Input } from '../components/ui/input';
 import PageHeader, { PageBody } from '../components/ui/PageHeader';
-import Skeleton from '../components/ui/Skeleton';
-import { useClickOutside } from '../hooks/useClickOutside';
+import Skeleton from '../components/ui/skeleton';
 import { getApiErrorMessage } from '../lib/api-client';
 import { deleteDashboard, fetchDashboard, updateDashboard } from '../lib/dashboards-api';
 import { fetchGroup } from '../lib/groups-api';
@@ -29,11 +34,9 @@ export default function DashboardDetailPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [isAddingInsight, setIsAddingInsight] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
-  const menuRef = useRef<HTMLDivElement>(null);
-  useClickOutside(menuRef, () => setIsMenuOpen(false));
 
   const dashboardQuery = useQuery({
     queryKey: ['dashboard', id],
@@ -120,40 +123,26 @@ export default function DashboardDetailPage() {
               </Button>
             </form>
           ) : canManage && dashboard ? (
-            <div className="relative shrink-0" ref={menuRef}>
-              <IconButton
-                icon={MoreVertical}
-                label="Dashboard actions"
-                onClick={() => setIsMenuOpen((open) => !open)}
-              />
-              {isMenuOpen ? (
-                <div className="absolute right-0 z-10 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1 text-sm shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setNameDraft(dashboard.name);
-                      setIsRenaming(true);
-                      setIsMenuOpen(false);
-                    }}
-                    className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-                  >
-                    <Pencil size={14} /> Rename
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      if (window.confirm('Delete this dashboard? This cannot be undone.')) {
-                        deleteMutation.mutate();
-                      }
-                    }}
-                    className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--error)] hover:bg-[var(--bg-hover)]"
-                  >
-                    <Trash2 size={14} /> Delete dashboard
-                  </button>
-                </div>
-              ) : null}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label="Dashboard actions">
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setNameDraft(dashboard.name);
+                    setIsRenaming(true);
+                  }}
+                >
+                  <Pencil /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onClick={() => setIsDeleteOpen(true)}>
+                  <Trash2 /> Delete dashboard
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : null
         }
       />
@@ -175,7 +164,7 @@ export default function DashboardDetailPage() {
           <button
             type="button"
             onClick={() => setIsAddingInsight(true)}
-            className="flex w-full flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border-2 border-dashed border-[var(--border)] py-14 text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border py-14 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
           >
             <LayoutDashboard size={28} />
             <span className="text-sm font-medium">Add an insight</span>
@@ -205,6 +194,17 @@ export default function DashboardDetailPage() {
           }}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={() => deleteMutation.mutate()}
+        title="Delete this dashboard?"
+        description="This cannot be undone."
+        confirmLabel="Delete dashboard"
+        destructive
+        loading={deleteMutation.isPending}
+      />
     </PageBody>
   );
 }

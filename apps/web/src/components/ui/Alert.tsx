@@ -1,46 +1,86 @@
-import type { ReactNode } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 
-import { cn } from '../../lib/cn';
+import { cn } from "@/lib/utils"
 
-export type AlertVariant = 'success' | 'warning' | 'error' | 'info';
+const alertVariants = cva(
+  "relative grid w-full grid-cols-[0_1fr] items-start gap-y-0.5 rounded-lg border px-4 py-3 text-sm has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] has-[>svg]:gap-x-3 [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
+  {
+    variants: {
+      variant: {
+        default: 'bg-card text-card-foreground',
+        destructive:
+          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
+        error:
+          'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 [&>svg]:text-current',
+        warning: 'border-warning/40 bg-warning/10 text-warning-foreground *:data-[slot=alert-description]:text-warning-foreground',
+        success: 'border-success/40 bg-success/10 text-success *:data-[slot=alert-description]:text-success',
+        info: 'bg-accent text-accent-foreground',
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
 
-const config: Record<
-  AlertVariant,
-  { icon: typeof Info; color: string; soft: string }
-> = {
-  success: { icon: CheckCircle2, color: 'var(--success)', soft: 'var(--success-soft)' },
-  warning: { icon: AlertTriangle, color: 'var(--warning)', soft: 'var(--warning-soft)' },
-  error: { icon: AlertCircle, color: 'var(--error)', soft: 'var(--error-soft)' },
-  info: { icon: Info, color: 'var(--info)', soft: 'var(--info-soft)' },
-};
-
-export interface AlertProps {
-  variant?: AlertVariant;
-  title?: string;
-  children?: ReactNode;
-  className?: string;
-  action?: ReactNode;
-}
-
-export default function Alert({ variant = 'info', title, children, className, action }: AlertProps) {
-  const { icon: Icon, color, soft } = config[variant];
-
+function Alert({
+  className,
+  variant,
+  ...props
+}: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
   return (
     <div
+      data-slot="alert"
       role="alert"
+      className={cn(alertVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="alert-title"
       className={cn(
-        'flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--border)] px-4 py-3',
-        className,
+        "col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight",
+        className
       )}
-      style={{ backgroundColor: soft }}
-    >
-      <Icon size={18} strokeWidth={1.75} style={{ color }} className="mt-0.5 shrink-0" />
-      <div className="min-w-0 flex-1">
-        {title ? <p className="text-sm font-semibold text-[var(--text-primary)]">{title}</p> : null}
-        {children ? <div className={cn('text-sm text-[var(--text-secondary)]', title && 'mt-0.5')}>{children}</div> : null}
-      </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
+      {...props}
+    />
+  )
+}
+
+function AlertDescription({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="alert-description"
+      className={cn(
+        "col-start-2 grid justify-items-start gap-1 text-sm text-muted-foreground [&_p]:leading-relaxed",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Alert, AlertTitle, AlertDescription };
+
+function AlertMessage({
+  className,
+  variant,
+  children,
+  ...props
+}: React.ComponentProps<'div'> & VariantProps<typeof alertVariants>) {
+  return (
+    <Alert variant={variant} className={className} {...props}>
+      <AlertDescription>{children}</AlertDescription>
+    </Alert>
   );
 }
+
+export default AlertMessage;

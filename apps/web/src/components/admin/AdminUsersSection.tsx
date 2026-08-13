@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { Check, Copy, UserPlus, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { Check, Copy, KeyRound, Mail, Trash2, UserPlus, Users } from 'lucide-react';
 
 import type { User } from '@content-insights/shared';
 
@@ -21,14 +21,15 @@ import {
 import { fetchRoles } from '../../lib/roles-api';
 import EmptyState from '../EmptyState';
 import Pagination from '../Pagination';
-import Alert from '../ui/Alert';
-import Button from '../ui/Button';
-import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import Alert from '../ui/alert';
+import { ActionIconButton } from '../ui/action-icon-button';
+import Button from '../ui/button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/card';
 import ConfirmDialog from '../ui/ConfirmDialog';
-import { Input } from '../ui/Input';
+import { Input } from '../ui/input';
 import Modal from '../ui/Modal';
-import Skeleton from '../ui/Skeleton';
-import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import Skeleton from '../ui/skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/data-table';
 
 const DEBOUNCE_MS = 300;
 const SKELETON_ROW_COUNT = 5;
@@ -66,9 +67,9 @@ function CopyLinkDialog({
 
   return (
     <Modal open onClose={onClose} title={title} size="sm">
-      <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+      <p className="text-sm text-muted-foreground">{description}</p>
       <div className="mt-4 flex items-center gap-2">
-        <code className="flex-1 truncate rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)]">
+        <code className="flex-1 truncate rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground">
           {url}
         </code>
         <Button
@@ -78,7 +79,7 @@ function CopyLinkDialog({
           onClick={() => void handleCopy()}
           className="h-9 w-9 shrink-0 px-0"
         >
-          {copied ? <Check size={16} className="text-[var(--green)]" /> : <Copy size={16} />}
+          {copied ? <Check size={16} className="text-success" /> : <Copy size={16} />}
         </Button>
       </div>
       <div className="mt-5 flex justify-end">
@@ -146,7 +147,7 @@ function CreateUserModal({
     >
       <form id="create-user-form" className="space-y-3" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="new-user-email" className="block text-sm font-medium text-[var(--text-secondary)]">
+          <label htmlFor="new-user-email" className="block text-sm font-medium text-muted-foreground">
             Email
           </label>
           <Input
@@ -161,8 +162,8 @@ function CreateUserModal({
         </div>
 
         <div>
-          <label htmlFor="new-user-name" className="block text-sm font-medium text-[var(--text-secondary)]">
-            Display name <span className="text-[var(--text-muted)]">(optional)</span>
+          <label htmlFor="new-user-name" className="block text-sm font-medium text-muted-foreground">
+            Display name <span className="text-muted-foreground">(optional)</span>
           </label>
           <Input
             id="new-user-name"
@@ -211,8 +212,8 @@ function DeleteUserDialog({ target, onClose }: { target: User; onClose: () => vo
         </>
       }
     >
-      <p className="text-sm text-[var(--text-secondary)]">
-        <span className="text-[var(--text-primary)]">{target.email}</span> will be permanently removed, along with
+      <p className="text-sm text-muted-foreground">
+        <span className="text-foreground">{target.email}</span> will be permanently removed, along with
         every role assignment they hold. This cannot be undone.
       </p>
       {error ? (
@@ -258,7 +259,7 @@ function StatusToggle({ target, disabledReason }: { target: User; disabledReason
         disabled={disabled}
         onClick={() => setConfirmOpen(true)}
         className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed ${
-          target.isActive ? 'bg-[var(--green)]' : 'bg-[var(--border)]'
+          target.isActive ? 'bg-success' : 'bg-border'
         } ${disabled ? 'opacity-60' : ''}`}
       >
         <span
@@ -286,14 +287,14 @@ function StatusToggle({ target, disabledReason }: { target: User; disabledReason
         destructive={!nextActive}
         loading={statusMutation.isPending}
       >
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">
+        <label className="block text-xs font-medium text-muted-foreground">
           Reason (optional)
           <textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             maxLength={500}
             rows={2}
-            className="mt-1 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
           />
         </label>
       </ConfirmDialog>
@@ -334,17 +335,17 @@ export default function AdminUsersSection() {
   const showEmptyState = !usersQuery.isLoading && !usersQuery.isError && users.length === 0;
 
   return (
-    <section className="min-h-0">
-      <Card>
-      <CardHeader>
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <Card className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden py-4">
+      <CardHeader className="shrink-0 px-4">
         <CardTitle className="text-base">Users</CardTitle>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Every account in your organization. Role assignments are managed from Role Assignments.
           Only an Application Admin can activate or deactivate accounts.
         </p>
       </CardHeader>
-      <CardBody className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <CardBody className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <Input
             type="text"
             value={rawQuery}
@@ -362,7 +363,7 @@ export default function AdminUsersSection() {
               setRoleId(event.target.value);
               setPage(1);
             }}
-            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm"
+            className="h-9 rounded-md border border-border bg-card px-2 text-sm"
             aria-label="Filter by role"
           >
             <option value="">All roles</option>
@@ -375,7 +376,7 @@ export default function AdminUsersSection() {
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as typeof sort)}
-            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm"
+            className="h-9 rounded-md border border-border bg-card px-2 text-sm"
             aria-label="Sort users"
           >
             <option value="email">Sort: email</option>
@@ -390,10 +391,12 @@ export default function AdminUsersSection() {
         </div>
 
         {usersQuery.isError ? (
-          <Alert variant="error">{getApiErrorMessage(usersQuery.error, 'Unable to load users.')}</Alert>
+          <Alert variant="error" className="shrink-0">
+            {getApiErrorMessage(usersQuery.error, 'Unable to load users.')}
+          </Alert>
         ) : null}
 
-        <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
+        <Table scrollable>
           <THead>
             <TR className="hover:bg-transparent">
               <TH>Email</TH>
@@ -430,9 +433,9 @@ export default function AdminUsersSection() {
                   return (
                     <TR key={orgUser.id}>
                       <TD>
-                        <p className="text-[var(--text-primary)]">{orgUser.email}</p>
+                        <p className="text-foreground">{orgUser.email}</p>
                         {orgUser.displayName ? (
-                          <p className="text-xs text-[var(--text-muted)]">{orgUser.displayName}</p>
+                          <p className="text-xs text-muted-foreground">{orgUser.displayName}</p>
                         ) : null}
                       </TD>
                       <TD>
@@ -446,13 +449,13 @@ export default function AdminUsersSection() {
                                 : {})}
                           />
                           <span
-                            className={orgUser.isActive ? 'text-[var(--text-secondary)]' : 'text-[var(--text-muted)]'}
+                            className={orgUser.isActive ? 'text-muted-foreground' : 'text-muted-foreground'}
                           >
                             {orgUser.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
                       </TD>
-                      <TD className="text-[var(--text-secondary)]">
+                      <TD className="text-muted-foreground">
                         {orgUser.provisioning === 'invite_pending'
                           ? 'Invited'
                           : orgUser.provisioning === 'sso'
@@ -464,25 +467,25 @@ export default function AdminUsersSection() {
                           {orgUser.roleAssignments.slice(0, 3).map((assignment) => (
                             <span
                               key={assignment.id}
-                              className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                              className="rounded-full bg-accent px-2 py-0.5 text-[11px] text-muted-foreground"
                             >
                               {assignment.roleName}
                             </span>
                           ))}
                         </div>
                       </TD>
-                      <TD className="text-[var(--text-secondary)]">
+                      <TD className="text-muted-foreground">
                         {orgUser.lastLoginAt ? formatDate(orgUser.lastLoginAt) : 'Never'}
                       </TD>
-                      <TD className="text-[var(--text-secondary)]">{formatDate(orgUser.createdAt)}</TD>
+                      <TD className="text-muted-foreground">{formatDate(orgUser.createdAt)}</TD>
                       {canManage || canDelete ? (
                         <TD>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex items-center gap-0.5">
                             {canManage ? (
                               <>
-                                <button
-                                  type="button"
-                                  className="text-xs text-[var(--accent)] hover:underline"
+                                <ActionIconButton
+                                  label="Invite"
+                                  icon={Mail}
                                   onClick={() => {
                                     void inviteUser(orgUser.id).then((result) =>
                                       setLinkReveal({
@@ -492,12 +495,10 @@ export default function AdminUsersSection() {
                                       }),
                                     );
                                   }}
-                                >
-                                  Invite
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-xs text-[var(--accent)] hover:underline"
+                                />
+                                <ActionIconButton
+                                  label="Reset password"
+                                  icon={KeyRound}
                                   onClick={() => {
                                     void resetUserPassword(orgUser.id).then((result) =>
                                       setLinkReveal({
@@ -507,21 +508,17 @@ export default function AdminUsersSection() {
                                       }),
                                     );
                                   }}
-                                >
-                                  Reset
-                                </button>
+                                />
                               </>
                             ) : null}
                             {canDelete ? (
-                              <button
-                                type="button"
+                              <ActionIconButton
+                                label={isSelf ? "You can't delete your own account" : 'Delete user'}
+                                icon={Trash2}
                                 onClick={() => setDeleting(orgUser)}
                                 disabled={isSelf}
-                                title={isSelf ? "You can't delete your own account" : 'Delete this user'}
-                                className="text-xs text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
-                              >
-                                Delete
-                              </button>
+                                destructive
+                              />
                             ) : null}
                           </div>
                         </TD>
@@ -533,15 +530,17 @@ export default function AdminUsersSection() {
         </Table>
 
         {showEmptyState ? (
-          <EmptyState
-            icon={Users}
-            title="No users found"
-            description={debouncedQuery ? 'Try a different search.' : undefined}
-          />
+          <div className="shrink-0">
+            <EmptyState
+              icon={Users}
+              title="No users found"
+              description={debouncedQuery ? 'Try a different search.' : undefined}
+            />
+          </div>
         ) : null}
 
         {usersQuery.data && usersQuery.data.totalPages > 1 ? (
-          <div className="flex justify-end">
+          <div className="flex shrink-0 justify-end">
             <Pagination page={page} totalPages={usersQuery.data.totalPages} onPageChange={setPage} />
           </div>
         ) : null}

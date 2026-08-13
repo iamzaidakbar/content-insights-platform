@@ -82,9 +82,9 @@ function HeatMapFromAggregations({ aggregations }: { aggregations: AggregationRe
     );
   }
   return (
-    <div className="flex flex-col items-center justify-center gap-1 rounded-[var(--radius-input)] border border-dashed border-[var(--border)] py-10 text-center">
-      <p className="text-sm font-medium text-[var(--text-primary)]">Cross-tab not available yet</p>
-      <p className="max-w-sm text-xs text-[var(--text-muted)]">
+    <div className="flex flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border py-10 text-center">
+      <p className="text-sm font-medium text-foreground">Cross-tab not available yet</p>
+      <p className="max-w-sm text-xs text-muted-foreground">
         &quot;{first.name}&quot; ({first.buckets.length} values) and &quot;{second.name}&quot; (
         {second.buckets.length} values) are each known independently, but their joint counts aren&apos;t computed by
         the API yet.
@@ -145,7 +145,7 @@ function HeatMapChartCore({ categories, series, values, valueFormatter }: HeatMa
 
   const chart = (
     <div ref={containerRef} className="relative">
-      <div className="overflow-x-auto rounded-[var(--radius-input)] p-3" style={{ backgroundColor: 'var(--chart-surface)' }}>
+      <div className="overflow-x-auto rounded-md p-3" style={{ backgroundColor: 'var(--chart-surface)' }}>
         <svg
           width={totalWidth}
           height={totalHeight}
@@ -226,7 +226,7 @@ function HeatMapChartCore({ categories, series, values, valueFormatter }: HeatMa
       {/* Scale legend — magnitude is sequential, not categorical identity, so this is a
           min/max gradient key rather than a per-series swatch legend (dataviz skill:
           sequential ramps always ship with a scale legend, never a rainbow / bare color). */}
-      <div className="mt-3 flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
+      <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
         <span>0</span>
         <div className="flex h-2.5 overflow-hidden rounded-[2px]">
           {SEQUENTIAL_CHART_STEPS.map((step) => (

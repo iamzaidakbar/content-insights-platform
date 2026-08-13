@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { ArrowDownAZ, ArrowUpAZ, Rss, Share2 } from 'lucide-react';
 
 import type { SavedSearchType, SavedSearchWithViewerState } from '@content-insights/shared';
@@ -9,7 +9,8 @@ import type { SavedSearchType, SavedSearchWithViewerState } from '@content-insig
 import { useAuth } from '../auth/AuthContext';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import { Alert, Badge, Button, Card, IconButton, PageBody, PageHeader, Select, Tabs } from '../components/ui';
+import { Alert, Badge, Button, Card, PageBody, PageHeader, Select, Tabs } from '../components/ui';
+import { ActionIconButton } from '../components/ui/action-icon-button';
 import { getApiErrorMessage } from '../lib/api-client';
 import { fetchChannels, type ChannelListSort } from '../lib/channels-api';
 import { formatDate } from '../lib/format';
@@ -130,7 +131,7 @@ export default function ChannelsPage() {
         <div className="overflow-x-auto px-4 py-2">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+              <tr className="border-b border-border text-muted-foreground">
                 <th className="pb-2 pr-4 font-medium">Name</th>
                 <th className="pb-2 pr-4 font-medium">Group</th>
                 <th className="pb-2 pr-4 font-medium">Last opened</th>
@@ -141,35 +142,34 @@ export default function ChannelsPage() {
             <tbody>
               {channelsQuery.isLoading
                 ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                    <tr key={index} className="h-12 border-b border-[var(--border)]">
-                      <td className="py-3 pr-4"><div className="h-4 w-44 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                      <td className="py-3 pr-4"><div className="h-4 w-24 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                      <td className="py-3 pr-4"><div className="h-4 w-28 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                      <td className="py-3 pr-4"><div className="h-4 w-8 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
-                      <td className="py-3"><div className="h-4 w-8 animate-pulse rounded bg-[var(--bg-hover)]" /></td>
+                    <tr key={index} className="h-12 border-b border-border">
+                      <td className="py-3 pr-4"><div className="h-4 w-44 animate-pulse rounded bg-accent" /></td>
+                      <td className="py-3 pr-4"><div className="h-4 w-24 animate-pulse rounded bg-accent" /></td>
+                      <td className="py-3 pr-4"><div className="h-4 w-28 animate-pulse rounded bg-accent" /></td>
+                      <td className="py-3 pr-4"><div className="h-4 w-8 animate-pulse rounded bg-accent" /></td>
+                      <td className="py-3"><div className="h-4 w-8 animate-pulse rounded bg-accent" /></td>
                     </tr>
                   ))
                 : channels.map((channel) => (
-                    <tr key={channel.id} className="h-12 border-b border-[var(--border)] last:border-b-0">
-                      <td className="py-3 pr-4 text-[var(--text-primary)]">
-                        <Link to={`/channels/${channel.id}`} className="hover:text-[var(--accent)]">
+                    <tr key={channel.id} className="h-12 border-b border-border last:border-b-0">
+                      <td className="py-3 pr-4 text-foreground">
+                        <Link to={`/channels/${channel.id}`} className="hover:text-primary">
                           {displayName(channel)}
                         </Link>
                       </td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">
+                      <td className="py-3 pr-4 text-muted-foreground">
                         {groupNameById.get(channel.groupId) ?? '—'}
                       </td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">
+                      <td className="py-3 pr-4 text-muted-foreground">
                         {channel.viewerState.lastViewedAt ? formatDate(channel.viewerState.lastViewedAt) : 'Never'}
                       </td>
                       <td className="py-3 pr-4">
                         {channel.viewerState.hasNewArticles ? <Badge variant="accent">New</Badge> : null}
                       </td>
                       <td className="py-3">
-                        <IconButton
-                          icon={Share2}
+                        <ActionIconButton
                           label="Copy channel link"
-                          size="sm"
+                          icon={Share2}
                           onClick={() =>
                             void copyChannelLink(channel.id, user?.currentProjectId ?? null, user?.currentGroupId ?? null)
                           }

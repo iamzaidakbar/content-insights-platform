@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { Link2, Pencil, RefreshCw, Unlink } from 'lucide-react';
 
 import {
   UPSTREAM_ENTITY_TYPES,
@@ -18,13 +18,14 @@ import { fetchEntityMapping, mapEntityMappingEntry, syncEntityMapping } from '..
 import { formatDate } from '../../lib/format';
 import { fetchProjects } from '../../lib/projects-api';
 import EmptyState from '../EmptyState';
-import Alert from '../ui/Alert';
-import Badge from '../ui/Badge';
-import Button from '../ui/Button';
-import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
-import { Input, Select } from '../ui/Input';
-import Skeleton from '../ui/Skeleton';
-import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import Alert from '../ui/alert';
+import { ActionIconButton } from '../ui/action-icon-button';
+import Badge from '../ui/badge';
+import Button from '../ui/button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/card';
+import { Input, Select } from '../ui/input';
+import Skeleton from '../ui/skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/data-table';
 
 const ENTITY_TYPE_LABELS: Record<UpstreamEntityType, string> = {
   project: 'Project',
@@ -103,7 +104,7 @@ function MapEntryEditor({
   const canSave = localId.length > 0 && !mapMutation.isPending;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-2.5">
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-card p-2.5">
       <Select
         value={localType}
         onChange={(event) => handleTypeChange(event.target.value as UpstreamEntityType)}
@@ -228,16 +229,16 @@ export default function AdminEntityMappingSection() {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="shrink-0">
+    <Card className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden py-4">
+      <CardHeader className="shrink-0 px-4">
         <CardTitle className="text-base">Entity mapping</CardTitle>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Reconciles upstream sources against this org&apos;s local Projects, Concepts, and article domains.
         </p>
       </CardHeader>
-      <CardBody className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-3">
-          <p className="max-w-2xl text-xs leading-relaxed text-[var(--text-secondary)]">
+      <CardBody className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4">
+        <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 rounded-md border border-border bg-card p-3">
+          <p className="max-w-2xl text-xs leading-relaxed text-muted-foreground">
             No external content platform is connected in this environment — &quot;Sync&quot; scans this org&apos;s own
             already-ingested Projects, Concepts, and article domains as stand-ins for upstream entities, rather than
             calling a live integration. It never overwrites an existing mapping decision, only adds newly-discovered
@@ -273,7 +274,7 @@ export default function AdminEntityMappingSection() {
           />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-            <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
+            <Table scrollable>
               <THead>
                 <TR className="hover:bg-transparent">
                   <TH>Upstream entity</TH>
@@ -287,45 +288,42 @@ export default function AdminEntityMappingSection() {
                 {entries.map((entry) => (
                   <TR key={entry.id} className="align-top">
                     <TD>
-                      <p className="text-[var(--text-primary)]">{entry.upstreamName}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{ENTITY_TYPE_LABELS[entry.upstreamType]}</p>
+                      <p className="text-foreground">{entry.upstreamName}</p>
+                      <p className="text-xs text-muted-foreground">{ENTITY_TYPE_LABELS[entry.upstreamType]}</p>
                     </TD>
                     <TD>
                       {editingEntryId === entry.id ? null : entry.localId ? (
                         <>
-                          <p className="text-[var(--text-primary)]">{entry.localName ?? entry.localId}</p>
-                          <p className="text-xs text-[var(--text-muted)]">{ENTITY_TYPE_LABELS[entry.localType]}</p>
+                          <p className="text-foreground">{entry.localName ?? entry.localId}</p>
+                          <p className="text-xs text-muted-foreground">{ENTITY_TYPE_LABELS[entry.localType]}</p>
                         </>
                       ) : (
-                        <span className="text-xs text-[var(--text-muted)]">Unmapped</span>
+                        <span className="text-xs text-muted-foreground">Unmapped</span>
                       )}
                     </TD>
                     <TD>
                       <StatusPill status={entry.status} />
                     </TD>
-                    <TD className="text-[var(--text-secondary)]">
+                    <TD className="text-muted-foreground">
                       {entry.lastSyncedAt ? formatDate(entry.lastSyncedAt) : '—'}
                     </TD>
                     {canManage ? (
                       <TD>
                         {editingEntryId !== entry.id ? (
-                          <div className="flex items-center gap-3 text-xs">
-                            <button
-                              type="button"
+                          <div className="flex items-center gap-0.5">
+                            <ActionIconButton
+                              label={entry.localId ? 'Change mapping' : 'Map'}
+                              icon={entry.localId ? Pencil : Link2}
                               onClick={() => setEditingEntryId(entry.id)}
-                              className="font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
-                            >
-                              {entry.localId ? 'Change' : 'Map'}
-                            </button>
+                            />
                             {entry.localId ? (
-                              <button
-                                type="button"
+                              <ActionIconButton
+                                label="Unmap"
+                                icon={Unlink}
                                 onClick={() => unmapMutation.mutate(entry)}
                                 disabled={unmapMutation.isPending}
-                                className="text-[var(--text-secondary)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Unmap
-                              </button>
+                                destructive
+                              />
                             ) : null}
                           </div>
                         ) : null}
@@ -337,7 +335,7 @@ export default function AdminEntityMappingSection() {
             </Table>
 
             {canManage && editingEntryId ? (
-              <div className="shrink-0 overflow-y-auto rounded-[var(--radius-card)] border border-[var(--border)] p-3">
+              <div className="shrink-0 overflow-y-auto rounded-lg border border-border p-3">
                 {(() => {
                   const editing = entries.find((entry) => entry.id === editingEntryId);
                   return editing ? (
@@ -349,7 +347,7 @@ export default function AdminEntityMappingSection() {
           </div>
         )}
         {!canManage && !mappingQuery.isLoading && !mappingQuery.isError ? (
-          <p className="shrink-0 text-xs text-[var(--text-muted)]">
+          <p className="shrink-0 text-xs text-muted-foreground">
             You have read-only access to entity mapping. Ask an admin with the entity-mapping:manage permission to sync
             or map entries.
           </p>

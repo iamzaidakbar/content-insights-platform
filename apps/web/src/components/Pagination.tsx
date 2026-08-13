@@ -1,5 +1,13 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import {
+  Pagination as PaginationNav,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+} from '@/components/ui/pagination';
+
 interface PaginationProps {
   page: number;
   totalPages: number;
@@ -43,51 +51,55 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
   const tokens = getPageTokens(page, totalPages);
 
   return (
-    <nav className="flex items-center gap-0.5" aria-label="Pagination">
-      <button
-        type="button"
-        disabled={page <= 1}
-        onClick={() => onPageChange(page - 1)}
-        aria-label="Previous page"
-        className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <ChevronLeft size={16} />
-      </button>
-
-      {tokens.map((token, index) =>
-        token === 'ellipsis' ? (
-          <span
-            key={`ellipsis-${index}`}
-            className="flex h-8 w-8 items-center justify-center text-sm text-[var(--text-muted)]"
-          >
-            …
-          </span>
-        ) : (
-          <button
-            key={token}
+    <PaginationNav className="mx-0 w-auto justify-start">
+      <PaginationContent>
+        <PaginationItem>
+          <Button
             type="button"
-            onClick={() => onPageChange(token)}
-            aria-current={token === page ? 'page' : undefined}
-            className={`flex h-8 min-w-8 items-center justify-center rounded-[var(--radius-button)] px-2 text-sm transition-colors ${
-              token === page
-                ? 'bg-[var(--accent)] font-medium text-white'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
-            }`}
+            variant="ghost"
+            size="icon-sm"
+            disabled={page <= 1}
+            onClick={() => onPageChange(page - 1)}
+            aria-label="Previous page"
           >
-            {token.toLocaleString()}
-          </button>
-        ),
-      )}
+            <ChevronLeft />
+          </Button>
+        </PaginationItem>
 
-      <button
-        type="button"
-        disabled={page >= totalPages}
-        onClick={() => onPageChange(page + 1)}
-        aria-label="Next page"
-        className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <ChevronRight size={16} />
-      </button>
-    </nav>
+        {tokens.map((token, index) =>
+          token === 'ellipsis' ? (
+            <PaginationItem key={`ellipsis-${index}`}>
+              <PaginationEllipsis className="size-8" />
+            </PaginationItem>
+          ) : (
+            <PaginationItem key={token}>
+              <Button
+                type="button"
+                variant={token === page ? 'outline' : 'ghost'}
+                size="icon-sm"
+                onClick={() => onPageChange(token)}
+                aria-label={`Page ${token}`}
+                {...(token === page ? { 'aria-current': 'page' as const } : {})}
+              >
+                {token.toLocaleString()}
+              </Button>
+            </PaginationItem>
+          ),
+        )}
+
+        <PaginationItem>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={page >= totalPages}
+            onClick={() => onPageChange(page + 1)}
+            aria-label="Next page"
+          >
+            <ChevronRight />
+          </Button>
+        </PaginationItem>
+      </PaginationContent>
+    </PaginationNav>
   );
 }

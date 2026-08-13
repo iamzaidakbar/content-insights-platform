@@ -14,15 +14,15 @@ interface ChartTooltipProps {
 export default function ChartTooltip({ x, y, label, value, swatchColor }: ChartTooltipProps) {
   return (
     <div
-      className="pointer-events-none absolute z-10 flex items-center gap-2 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs shadow-lg"
+      className="pointer-events-none absolute z-10 flex items-center gap-2 whitespace-nowrap rounded-md border border-border bg-card px-2.5 py-1.5 text-xs shadow-lg"
       style={{ left: x, top: y, transform: 'translate(-50%, calc(-100% - 10px))' }}
       role="tooltip"
     >
       {swatchColor ? (
         <span className="h-0.5 w-3 shrink-0 rounded-full" style={{ backgroundColor: swatchColor }} aria-hidden="true" />
       ) : null}
-      <span className="font-semibold text-[var(--text-primary)]">{value}</span>
-      <span className="text-[var(--text-secondary)]">{label}</span>
+      <span className="font-semibold text-foreground">{value}</span>
+      <span className="text-muted-foreground">{label}</span>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import RequireAuth from './auth/RequireAuth';
 import AppShell from './layouts/AppShell';
 import PageSkeleton from './components/PageSkeleton';
+import { TooltipProvider } from './components/ui/tooltip';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
@@ -48,6 +49,7 @@ const ADMIN_CLUSTER_PERMISSIONS = [
 
 export default function App() {
   return (
+    <TooltipProvider delayDuration={300}>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -165,5 +167,6 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </TooltipProvider>
   );
 }

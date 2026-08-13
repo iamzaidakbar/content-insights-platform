@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Calendar,
   Download,
@@ -22,15 +22,15 @@ import { useAuth } from '../auth/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import ArticleAssetViewer, { pickPreviewAsset } from '../components/ArticleAssetViewer';
 import ArticleNotesPanel from '../components/ArticleNotesPanel';
-import Alert from '../components/ui/Alert';
-import Badge from '../components/ui/Badge';
+import Alert from '../components/ui/alert';
+import Badge from '../components/ui/badge';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
-import Button from '../components/ui/Button';
-import { Card, CardBody, CardTitle } from '../components/ui/Card';
+import Button from '../components/ui/button';
+import { Card, CardBody, CardTitle } from '../components/ui/card';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-import { Input } from '../components/ui/Input';
+import { Input } from '../components/ui/input';
 import PageHeader, { PageBody } from '../components/ui/PageHeader';
-import Skeleton from '../components/ui/Skeleton';
+import Skeleton from '../components/ui/skeleton';
 import { getApiErrorMessage } from '../lib/api-client';
 import { bulkArticleOperation, downloadArticle, fetchArticle, hideArticle, unhideArticle } from '../lib/articles-api';
 import { fetchConcepts } from '../lib/concepts-api';
@@ -70,8 +70,8 @@ function SectionCard({ title, icon, children }: { title: string; icon?: React.Re
 function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5 text-sm">
-      <span className="shrink-0 text-[var(--text-secondary)]">{label}</span>
-      <span className="min-w-0 truncate text-right text-[var(--text-primary)]">{value}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right text-foreground">{value}</span>
     </div>
   );
 }
@@ -82,7 +82,7 @@ function renderBodyParagraphs(text: string): React.ReactNode[] | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   return trimmed.split(/\n{2,}/).map((paragraph, index) => (
-    <p key={index} className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--text-primary)] first:mt-0">
+    <p key={index} className="mt-3 whitespace-pre-wrap text-sm leading-6 text-foreground first:mt-0">
       {paragraph.trim()}
     </p>
   ));
@@ -125,10 +125,10 @@ function AddTagPopover({ candidateTags, isBusy, onSelectTag, onCreateTag, onClos
   return (
     <div
       ref={containerRef}
-      className="absolute left-0 top-full z-20 mt-2 w-64 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-lg"
+      className="absolute left-0 top-full z-20 mt-2 w-64 rounded-md border border-border bg-card p-3 shadow-lg"
     >
       <div className="relative">
-        <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+        <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           autoFocus
@@ -141,7 +141,7 @@ function AddTagPopover({ candidateTags, isBusy, onSelectTag, onCreateTag, onClos
 
       <div className="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
         {visibleTags.length === 0 ? (
-          <p className="py-1 text-xs text-[var(--text-muted)]">No matching tags.</p>
+          <p className="py-1 text-xs text-muted-foreground">No matching tags.</p>
         ) : (
           visibleTags.map((tag) => (
             <button
@@ -149,7 +149,7 @@ function AddTagPopover({ candidateTags, isBusy, onSelectTag, onCreateTag, onClos
               type="button"
               disabled={isBusy}
               onClick={() => onSelectTag(tag)}
-              className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="min-w-0 flex-1 truncate">{tag.name}</span>
             </button>
@@ -162,7 +162,7 @@ function AddTagPopover({ candidateTags, isBusy, onSelectTag, onCreateTag, onClos
           type="button"
           disabled={isBusy}
           onClick={() => onCreateTag(trimmedQuery)}
-          className="mt-2 flex w-full items-center gap-1.5 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={14} />
           Create &quot;{trimmedQuery}&quot;
@@ -402,13 +402,13 @@ export default function ArticleDetailPage() {
         }
       />
 
-      <div className="-mt-2 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[var(--text-secondary)]">
+      <div className="-mt-2 mb-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
         {article.url ? (
           <a
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-[var(--accent)] hover:underline"
+            className="flex items-center gap-1.5 text-primary hover:underline"
           >
             <Globe size={14} className="shrink-0" />
             {article.domain}
@@ -449,7 +449,7 @@ export default function ArticleDetailPage() {
         <div className="lg:col-span-2">
           <SectionCard title="Article">
             {renderBodyParagraphs(article.body) ?? (
-              <p className="text-sm text-[var(--text-muted)]">
+              <p className="text-sm text-muted-foreground">
                 No article text is available yet.
                 {article.url ? ' Try "Open full article" to read it at the source.' : ''}
               </p>
@@ -459,7 +459,7 @@ export default function ArticleDetailPage() {
 
         <div className="space-y-4">
           <SectionCard title="Details">
-            <div className="divide-y divide-[var(--border)]">
+            <div className="divide-y divide-border">
               <MetaRow label="Domain" value={article.domain} />
               <MetaRow label="Source type" value={SOURCE_TYPE_LABEL[article.sourceType]} />
               <MetaRow label="Published" value={formatDate(article.publishedAt)} />
@@ -471,12 +471,12 @@ export default function ArticleDetailPage() {
 
           <SectionCard title="Taxonomy">
             {taxonomyEntries.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)]">No taxonomy metadata for this article.</p>
+              <p className="text-sm text-muted-foreground">No taxonomy metadata for this article.</p>
             ) : (
               <div className="space-y-3">
                 {taxonomyEntries.map(([key, values]) => (
                   <div key={key}>
-                    <p className="text-xs text-[var(--text-secondary)]">{conceptByKey.get(key)?.displayLabel ?? key}</p>
+                    <p className="text-xs text-muted-foreground">{conceptByKey.get(key)?.displayLabel ?? key}</p>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                       {values.map((value) => (
                         <Badge key={value} variant="default">
@@ -490,16 +490,16 @@ export default function ArticleDetailPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Tags" icon={<TagIcon size={15} className="text-[var(--text-secondary)]" />}>
+          <SectionCard title="Tags" icon={<TagIcon size={15} className="text-muted-foreground" />}>
             <div className="flex flex-wrap items-center gap-1.5">
               {articleTags.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)]">No tags yet.</p>
+                <p className="text-sm text-muted-foreground">No tags yet.</p>
               ) : (
                 articleTags.map((tag) => (
                   <span
                     key={tag.id}
-                    className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-1 text-[13px]"
-                    style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                    className="flex items-center gap-1 rounded-sm px-2 py-1 text-[13px]"
+                    style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
                   >
                     {tag.name}
                     {canManageTags ? (

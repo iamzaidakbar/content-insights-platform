@@ -104,19 +104,19 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] gap-4 overflow-hidden px-3 py-3 sm:px-4">
+    <div className="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] gap-3 overflow-hidden p-3">
       <nav className="min-h-0 overflow-y-auto overscroll-contain">
-        <PageHeader title="Admin" className="mb-3 sm:mb-3" />
+        <PageHeader title="Admin" className="mb-2 gap-1 sm:mb-2" />
         <div className="space-y-0.5">
           {visibleSections.map((section) => (
             <button
               key={section.key}
               type="button"
               onClick={() => selectSection(section.key)}
-              className={`block w-full rounded-[var(--radius-button)] px-2.5 py-1.5 text-left text-sm transition-colors ${
+              className={`block w-full rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
                 activeSection === section.key
-                  ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                  ? 'bg-accent font-medium text-primary'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
             >
               {section.label}

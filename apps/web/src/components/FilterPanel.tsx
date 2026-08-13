@@ -18,7 +18,8 @@ import {
 } from '@content-insights/shared';
 
 import { countsByUserTagId } from '../lib/search-api';
-import Button from './ui/Button';
+import Button from './ui/button';
+import { Input } from './ui/input';
 
 // FilterPanel is a pure controlled component: it owns no filter state of its own (only
 // ephemeral, non-filter UI state — collapsed sections, the per-session facet sort-order
@@ -121,16 +122,16 @@ function CollapsibleSection({
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-[var(--border)] py-3 last:border-b-0">
+    <div className="border-b border-border py-3 last:border-b-0">
       <button
         type="button"
         onClick={() => setIsOpen((open) => !open)}
-        className="flex w-full items-center justify-between text-left text-sm font-medium text-[var(--text-primary)]"
+        className="flex w-full items-center justify-between text-left text-sm font-medium text-foreground"
       >
         {title}
         <ChevronDown
           size={16}
-          className={`text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
       {isOpen ? <div className="mt-3 min-w-0">{children}</div> : null}
@@ -150,13 +151,13 @@ function Checkbox({
   trailing?: ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-2 py-1 text-sm text-[var(--text-secondary)]">
+    <label className="flex cursor-pointer items-center justify-between gap-2 py-1 text-sm text-muted-foreground">
       <span className="flex min-w-0 items-center gap-2">
         <input
           type="checkbox"
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
-          className="h-4 w-4 shrink-0 rounded border-[var(--border)] accent-[var(--accent)]"
+          className="h-4 w-4 shrink-0 rounded border-border accent-primary"
         />
         <span className="truncate">{label}</span>
       </span>
@@ -168,9 +169,6 @@ function Checkbox({
 function toggleInArray(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
 }
-
-const DATE_INPUT_CLASSNAME =
-  'mt-1 h-9 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
 
 function DateFilterFields({
   value,
@@ -203,14 +201,14 @@ function DateFilterFields({
         {DATE_FILTER_UI_MODES.map((uiMode) => (
           <label
             key={uiMode}
-            className="flex cursor-pointer items-center gap-2 py-1 text-sm text-[var(--text-secondary)]"
+            className="flex cursor-pointer items-center gap-2 py-1 text-sm text-muted-foreground"
           >
             <input
               type="radio"
               name="filter-date-mode"
               checked={mode === uiMode}
               onChange={() => selectMode(uiMode)}
-              className="h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
+              className="h-4 w-4 border-border accent-primary"
             />
             {DATE_FILTER_UI_LABELS[uiMode]}
           </label>
@@ -219,43 +217,43 @@ function DateFilterFields({
 
       {mode === 'between' ? (
         <div className="grid grid-cols-2 gap-2 pl-6">
-          <label className="block text-xs text-[var(--text-secondary)]">
+          <label className="block text-xs text-muted-foreground">
             From
-            <input
+            <Input
               type="date"
               value={value?.start ?? ''}
               onChange={(event) => patch({ start: event.target.value || null })}
-              className={DATE_INPUT_CLASSNAME}
+              className="mt-1"
             />
           </label>
-          <label className="block text-xs text-[var(--text-secondary)]">
+          <label className="block text-xs text-muted-foreground">
             To
-            <input
+            <Input
               type="date"
               value={value?.end ?? ''}
               onChange={(event) => patch({ end: event.target.value || null })}
-              className={DATE_INPUT_CLASSNAME}
+              className="mt-1"
             />
           </label>
         </div>
       ) : null}
 
       {mode === 'untilNow' ? (
-        <label className="block pl-6 text-xs text-[var(--text-secondary)]">
+        <label className="block pl-6 text-xs text-muted-foreground">
           From
-          <input
+          <Input
             type="date"
             value={value?.start ?? ''}
             onChange={(event) => patch({ start: event.target.value || null })}
-            className={DATE_INPUT_CLASSNAME}
+            className="mt-1"
           />
         </label>
       ) : null}
 
       {mode === 'lastNDays' ? (
-        <label className="block pl-6 text-xs text-[var(--text-secondary)]">
+        <label className="block pl-6 text-xs text-muted-foreground">
           Number of days
-          <input
+          <Input
             type="number"
             min={1}
             step={1}
@@ -265,7 +263,7 @@ function DateFilterFields({
               const parsed = raw === '' ? null : Math.max(1, Math.trunc(Number(raw)));
               patch({ lastNDays: parsed !== null && Number.isFinite(parsed) ? parsed : null });
             }}
-            className={DATE_INPUT_CLASSNAME}
+            className="mt-1"
           />
         </label>
       ) : null}
@@ -349,13 +347,13 @@ function ConceptFilterSection({
   return (
     <CollapsibleSection title={concept.label} defaultOpen={false}>
       {isDenied ? (
-        <p className="text-xs text-[var(--text-muted)]">
+        <p className="text-xs text-muted-foreground">
           {concept.denialNote || 'Your group has no access to this filter.'}
         </p>
       ) : (
         <>
           {visibleOptions.length === 0 ? (
-            <p className="py-1 text-xs text-[var(--text-muted)]">No values.</p>
+            <p className="py-1 text-xs text-muted-foreground">No values.</p>
           ) : (
             <>
               <div className="mb-2 flex min-w-0 flex-col gap-1.5">
@@ -363,17 +361,17 @@ function ConceptFilterSection({
                   <button
                     type="button"
                     onClick={() => onSelectAll(visibleOptions.map((option) => option.value))}
-                    className="whitespace-nowrap text-[var(--accent)] hover:underline"
+                    className="whitespace-nowrap text-primary hover:underline"
                   >
                     Select All
                   </button>
-                  <span className="text-[var(--text-muted)]" aria-hidden="true">
+                  <span className="text-muted-foreground" aria-hidden="true">
                     ·
                   </span>
                   <button
                     type="button"
                     onClick={onClearAll}
-                    className="whitespace-nowrap text-[var(--accent)] hover:underline"
+                    className="whitespace-nowrap text-primary hover:underline"
                   >
                     Clear All
                   </button>
@@ -382,7 +380,7 @@ function ConceptFilterSection({
                   aria-label={`Sort ${concept.label}`}
                   value={sortOrder}
                   onChange={(event) => onSortOrderChange(event.target.value as FacetSortOrder)}
-                  className="h-7 w-full min-w-0 max-w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] py-1 pl-2 pr-7 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]"
+                  className="h-7 w-full min-w-0 max-w-full rounded-md border border-border bg-card py-1 pl-2 pr-7 text-xs text-muted-foreground outline-none focus-visible:border-ring"
                 >
                   {FACET_SORT_ORDERS.map((order) => (
                     <option key={order} value={order}>
@@ -398,7 +396,7 @@ function ConceptFilterSection({
                     checked={selected.includes(option.value)}
                     onChange={() => onToggleValue(option.value)}
                     label={option.value}
-                    trailing={<span className="shrink-0 text-xs text-[var(--text-muted)]">{option.count}</span>}
+                    trailing={<span className="shrink-0 text-xs text-muted-foreground">{option.count}</span>}
                   />
                 ))}
               </div>
@@ -500,14 +498,14 @@ export default function FilterPanel({
           {HIDDEN_ARTICLES_MODES.map((mode) => (
             <label
               key={mode}
-              className="flex cursor-pointer items-center gap-2 py-1 text-sm text-[var(--text-secondary)]"
+              className="flex cursor-pointer items-center gap-2 py-1 text-sm text-muted-foreground"
             >
               <input
                 type="radio"
                 name="filter-hidden-articles"
                 checked={value.hiddenArticles === mode}
                 onChange={() => patch({ hiddenArticles: mode })}
-                className="h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
+                className="h-4 w-4 border-border accent-primary"
               />
               {HIDDEN_ARTICLES_LABELS[mode]}
             </label>
@@ -521,7 +519,7 @@ export default function FilterPanel({
 
       <CollapsibleSection title="Project" defaultOpen={false}>
         {projects.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)]">No accessible projects.</p>
+          <p className="text-xs text-muted-foreground">No accessible projects.</p>
         ) : (
           <div className="space-y-0.5">
             {projects.map((project) => (
@@ -534,7 +532,7 @@ export default function FilterPanel({
             ))}
           </div>
         )}
-        <p className="mt-2 text-xs text-[var(--text-muted)]">
+        <p className="mt-2 text-xs text-muted-foreground">
           No selection searches every project you can access.
         </p>
       </CollapsibleSection>
@@ -543,18 +541,18 @@ export default function FilterPanel({
         <div className="relative mb-2">
           <Search
             size={14}
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
           />
           <input
             type="search"
             value={userTagQuery}
             onChange={(event) => setUserTagQuery(event.target.value)}
             placeholder="Search tags…"
-            className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            className="h-8 w-full rounded-md border border-border bg-card pl-8 pr-2 text-sm text-foreground outline-none focus-visible:border-ring"
           />
         </div>
         {visibleUserTags.length === 0 ? (
-          <p className="py-1 text-xs text-[var(--text-muted)]">No matching tags.</p>
+          <p className="py-1 text-xs text-muted-foreground">No matching tags.</p>
         ) : (
           <div className="cip-scroll max-h-48 space-y-0.5">
             {visibleUserTags.map((tag) => (
@@ -564,7 +562,7 @@ export default function FilterPanel({
                 onChange={() => toggleUserTag(tag.id)}
                 label={tag.name}
                 trailing={
-                  <span className="shrink-0 text-xs text-[var(--text-muted)]">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     {userTagCountById[tag.id] ?? 0}
                   </span>
                 }
@@ -594,14 +592,14 @@ export default function FilterPanel({
   );
 
   const header = (
-    <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
-      <h2 className="text-sm font-semibold text-[var(--text-primary)]">Filters</h2>
+    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <h2 className="text-sm font-semibold text-foreground">Filters</h2>
       {isColumn ? null : (
         <button
           type="button"
           onClick={onClose}
           aria-label="Close filters"
-          className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+          className="rounded-[6px] p-1 text-muted-foreground hover:bg-accent"
         >
           <X size={18} />
         </button>
@@ -610,7 +608,7 @@ export default function FilterPanel({
   );
 
   const footer = (
-    <div className="flex items-center gap-2 border-t border-[var(--border)] px-4 py-3">
+    <div className="flex items-center gap-2 border-t border-border px-4 py-3">
       <Button type="button" variant="outline" onClick={handleClearAll} className={isColumn ? 'w-full' : 'flex-1'}>
         Clear All
       </Button>
@@ -630,7 +628,7 @@ export default function FilterPanel({
       <aside
         role="complementary"
         aria-label="Filters"
-        className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-surface)]"
+        className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-card"
       >
         {header}
         <div className="cip-scroll min-h-0 flex-1 px-4">{sections}</div>
@@ -648,7 +646,7 @@ export default function FilterPanel({
         role="dialog"
         aria-label="Filters"
         aria-hidden={!isOpen}
-        className={`fixed inset-y-0 left-0 z-50 w-80 transform border-r border-[var(--border)] bg-[var(--bg-surface)] shadow-2xl transition-transform duration-200 motion-reduce:transition-none ${
+        className={`fixed inset-y-0 left-0 z-50 w-80 transform border-r border-border bg-card shadow-2xl transition-transform duration-200 motion-reduce:transition-none ${
           isOpen ? 'translate-x-0' : '-translate-x-full motion-reduce:hidden'
         }`}
       >

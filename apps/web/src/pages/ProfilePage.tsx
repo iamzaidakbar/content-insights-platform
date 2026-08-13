@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../lib/api-client';
@@ -35,21 +35,21 @@ export default function ProfilePage() {
       <Card>
         <CardBody className="space-y-4">
           <div>
-            <span className="block text-sm font-medium text-[var(--text-secondary)]">Email</span>
-            <p className="mt-1 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]">
+            <span className="block text-sm font-medium text-muted-foreground">Email</span>
+            <p className="mt-1 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground">
               {user?.email ?? '—'}
             </p>
           </div>
 
           <div>
-            <span className="block text-sm font-medium text-[var(--text-secondary)]">Organization</span>
-            <p className="mt-1 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)]">
+            <span className="block text-sm font-medium text-muted-foreground">Organization</span>
+            <p className="mt-1 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground">
               {org?.name ?? '—'}
             </p>
           </div>
 
           <div>
-            <span className="block text-sm font-medium text-[var(--text-secondary)]">Permissions</span>
+            <span className="block text-sm font-medium text-muted-foreground">Permissions</span>
             <div className="mt-1 flex flex-wrap gap-2">
               {permissions.map((permission) => (
                 <Badge key={permission} variant="default">
@@ -63,21 +63,21 @@ export default function ProfilePage() {
 
       <Card className="mt-4">
         <CardBody className="space-y-3">
-          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Active sessions</h2>
+          <h2 className="text-sm font-semibold text-foreground">Active sessions</h2>
           {(sessionsQuery.data ?? []).length === 0 ? (
-            <p className="text-sm text-[var(--text-secondary)]">No refresh sessions found.</p>
+            <p className="text-sm text-muted-foreground">No refresh sessions found.</p>
           ) : (
             <ul className="space-y-2">
               {(sessionsQuery.data ?? []).map((session) => (
                 <li
                   key={session.jti}
-                  className="flex items-center justify-between gap-3 rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm text-[var(--text-primary)]">
+                    <p className="truncate text-sm text-foreground">
                       {session.userAgent ?? 'Browser session'}
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">
+                    <p className="text-xs text-muted-foreground">
                       {formatDate(session.createdAt)}
                       {session.ip ? ` · ${session.ip}` : ''}
                     </p>
@@ -100,23 +100,23 @@ export default function ProfilePage() {
       {canShareTeams ? (
         <Card className="mt-4">
           <CardBody className="space-y-3">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Teams share history</h2>
-            <p className="text-xs text-[var(--text-muted)]">
+            <h2 className="text-sm font-semibold text-foreground">Teams share history</h2>
+            <p className="text-xs text-muted-foreground">
               Recorded shares from this account. Nothing is posted to a live Teams channel.
             </p>
             {(sharesQuery.data?.items ?? []).length === 0 ? (
-              <p className="text-sm text-[var(--text-secondary)]">No Teams shares yet.</p>
+              <p className="text-sm text-muted-foreground">No Teams shares yet.</p>
             ) : (
               <ul className="space-y-2">
                 {(sharesQuery.data?.items ?? []).map((share) => (
-                  <li key={share.id} className="rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2">
-                    <p className="text-sm text-[var(--text-primary)]">
+                  <li key={share.id} className="rounded-md border border-border px-3 py-2">
+                    <p className="text-sm text-foreground">
                       {share.articleCount} article{share.articleCount === 1 ? '' : 's'}
                       {share.simulated ? ' · simulated' : ''}
                     </p>
-                    <p className="text-xs text-[var(--text-muted)]">{formatDate(share.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground">{formatDate(share.createdAt)}</p>
                     {share.message ? (
-                      <p className="mt-1 line-clamp-2 text-sm text-[var(--text-secondary)]">{share.message}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{share.message}</p>
                     ) : null}
                   </li>
                 ))}

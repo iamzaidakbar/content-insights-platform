@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 import type { Concept, Group, HardFilterGrant, Project, SoftFilterConceptGrant } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../lib/api-client';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { fetchConcepts, fetchConceptValues } from '../lib/concepts-api';
 import {
   clearGroupDefaultQuery,
@@ -19,6 +18,8 @@ import {
 import { fetchAllProjects } from '../lib/projects-api';
 import { fetchSavedSearches } from '../lib/saved-searches-api';
 import { SETTINGS_SELECT_CLASSNAME } from './settings/SettingsSection';
+import { ActionIconButton } from './ui/action-icon-button';
+import { Input, Textarea } from './ui/input';
 import Modal from './ui/Modal';
 
 // ---------------------------------------------------------------------------------------
@@ -71,38 +72,37 @@ function ProjectsTab({ group, onSaved }: { group: Group; onSaved: (updated: Grou
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-muted-foreground">
         Projects this group's members may access. Membership in this group is what grants project visibility at
         all — everything else in this modal only narrows what's visible within a granted project.
       </p>
       {projectsQuery.isError ? (
-        <p className="text-sm text-[var(--red)]">{getApiErrorMessage(projectsQuery.error, 'Unable to load projects.')}</p>
+        <p className="text-sm text-destructive">{getApiErrorMessage(projectsQuery.error, 'Unable to load projects.')}</p>
       ) : null}
 
-      <input
+      <Input
         type="text"
         value={filter}
         onChange={(event) => setFilter(event.target.value)}
         placeholder="Filter projects…"
-        className={INPUT_CLASSNAME}
       />
 
-      <div className="max-h-64 space-y-1 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border)] p-2">
+      <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border border-border p-2">
         {projectsQuery.isLoading ? (
-          <p className="p-2 text-xs text-[var(--text-muted)]">Loading…</p>
+          <p className="p-2 text-xs text-muted-foreground">Loading…</p>
         ) : visible.length === 0 ? (
-          <p className="p-2 text-xs text-[var(--text-muted)]">No projects found.</p>
+          <p className="p-2 text-xs text-muted-foreground">No projects found.</p>
         ) : (
           visible.map((project) => (
             <label
               key={project.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent"
             >
               <input
                 type="checkbox"
                 checked={selected.has(project.id)}
                 onChange={() => toggle(project.id)}
-                className="h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+                className="h-4 w-4 rounded border-border accent-primary"
               />
               {project.name}
             </label>
@@ -110,12 +110,12 @@ function ProjectsTab({ group, onSaved }: { group: Group; onSaved: (updated: Grou
         )}
       </div>
 
-      <div className="flex justify-end border-t border-[var(--border)] pt-3">
+      <div className="flex justify-end border-t border-border pt-3">
         <button
           type="button"
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
-          className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saveMutation.isPending ? 'Saving…' : 'Save projects'}
         </button>
@@ -204,15 +204,15 @@ function HardGrantForm({
   }
 
   return (
-    <div className="space-y-3 rounded-[var(--radius-input)] border border-[var(--border)] p-3">
+    <div className="space-y-3 rounded-md border border-border p-3">
       {existing ? (
-        <p className="text-sm text-[var(--text-primary)]">
+        <p className="text-sm text-foreground">
           Concept: <span className="font-medium">{existing.conceptName}</span>
         </p>
       ) : (
         <>
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)]">Project</label>
+            <label className="block text-xs font-medium text-muted-foreground">Project</label>
             <select
               value={projectId}
               onChange={(event) => {
@@ -231,7 +231,7 @@ function HardGrantForm({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)]">Concept (hard filter)</label>
+            <label className="block text-xs font-medium text-muted-foreground">Concept (hard filter)</label>
             <select
               value={conceptId}
               disabled={!projectId}
@@ -251,7 +251,7 @@ function HardGrantForm({
               ))}
             </select>
             {projectId && !conceptsQuery.isLoading && hardConcepts.length === 0 ? (
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
+              <p className="mt-1 text-xs text-muted-foreground">
                 No available hard-filter concepts in this project.
               </p>
             ) : null}
@@ -261,28 +261,28 @@ function HardGrantForm({
 
       {conceptId ? (
         <div>
-          <label className="block text-xs font-medium text-[var(--text-secondary)]">Allowed values</label>
+          <label className="block text-xs font-medium text-muted-foreground">Allowed values</label>
           {valuesQuery.isLoading ? (
-            <p className="mt-1 text-xs text-[var(--text-muted)]">Loading values…</p>
+            <p className="mt-1 text-xs text-muted-foreground">Loading values…</p>
           ) : values.length === 0 ? (
-            <p className="mt-1 text-xs text-[var(--text-muted)]">No indexed values for this concept yet.</p>
+            <p className="mt-1 text-xs text-muted-foreground">No indexed values for this concept yet.</p>
           ) : (
-            <div className="mt-1 max-h-40 space-y-1 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border)] p-2">
+            <div className="mt-1 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border p-2">
               {values.map((bucket) => (
                 <label
                   key={bucket.key}
-                  className="flex cursor-pointer items-center justify-between gap-2 text-sm text-[var(--text-secondary)]"
+                  className="flex cursor-pointer items-center justify-between gap-2 text-sm text-muted-foreground"
                 >
                   <span className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={selectedValues.has(bucket.key)}
                       onChange={() => toggleValue(bucket.key)}
-                      className="h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+                      className="h-4 w-4 rounded border-border accent-primary"
                     />
                     {bucket.key}
                   </span>
-                  <span className="text-xs text-[var(--text-muted)]">{bucket.count}</span>
+                  <span className="text-xs text-muted-foreground">{bucket.count}</span>
                 </label>
               ))}
             </div>
@@ -291,15 +291,15 @@ function HardGrantForm({
       ) : null}
 
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">
-          Denial note <span className="text-[var(--text-muted)]">(optional — explains withheld values)</span>
+        <label className="block text-xs font-medium text-muted-foreground">
+          Denial note <span className="text-muted-foreground">(optional — explains withheld values)</span>
         </label>
-        <textarea
+        <Textarea
           value={denialNote}
           onChange={(event) => setDenialNote(event.target.value)}
           maxLength={500}
           rows={2}
-          className={`mt-1 w-full ${INPUT_CLASSNAME}`}
+          className="mt-1"
         />
       </div>
 
@@ -307,7 +307,7 @@ function HardGrantForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-[var(--radius-button)] border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)]"
+          className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
         >
           Cancel
         </button>
@@ -315,7 +315,7 @@ function HardGrantForm({
           type="button"
           onClick={handleSubmit}
           disabled={!conceptId}
-          className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {existing ? 'Update grant' : 'Add grant'}
         </button>
@@ -369,15 +369,15 @@ function HardFiltersTab({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-muted-foreground">
         Restrict which values of a hard-placement concept this group's members can see or filter by at all — values
         left unchecked are withheld entirely, not merely hidden from the filter panel. An optional note can explain
         why values were withheld.
       </p>
       {projectOptions.length === 0 ? (
-        <p className="text-xs text-[var(--amber)]">No projects available yet — grant this group a project first.</p>
+        <p className="text-xs text-warning">No projects available yet — grant this group a project first.</p>
       ) : grantedProjects.length === 0 ? (
-        <p className="text-xs text-[var(--amber)]">
+        <p className="text-xs text-warning">
           This group has no granted projects yet — showing every org project below; save the Projects tab first for
           a scoped picker.
         </p>
@@ -385,7 +385,7 @@ function HardFiltersTab({
 
       <div className="space-y-2">
         {pending.length === 0 ? (
-          <p className="text-xs text-[var(--text-muted)]">No hard filter grants configured.</p>
+          <p className="text-xs text-muted-foreground">No hard filter grants configured.</p>
         ) : (
           pending.map((grant) =>
             formMode === grant.conceptId ? (
@@ -400,30 +400,27 @@ function HardFiltersTab({
             ) : (
               <div
                 key={grant.conceptId}
-                className="flex items-center justify-between rounded-[var(--radius-input)] border border-[var(--border)] p-3 text-sm"
+                className="flex items-center justify-between rounded-md border border-border p-3 text-sm"
               >
                 <div>
-                  <p className="font-medium text-[var(--text-primary)]">{grant.conceptName}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="font-medium text-foreground">{grant.conceptName}</p>
+                  <p className="text-xs text-muted-foreground">
                     {grant.allowedValues.length} allowed value{grant.allowedValues.length === 1 ? '' : 's'}
                     {grant.denialNote ? ` · “${grant.denialNote}”` : ''}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 text-xs">
-                  <button
-                    type="button"
+                <div className="flex items-center gap-0.5">
+                  <ActionIconButton
+                    label="Edit"
+                    icon={Pencil}
                     onClick={() => setFormMode(grant.conceptId)}
-                    className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
+                  />
+                  <ActionIconButton
+                    label="Remove"
+                    icon={Trash2}
                     onClick={() => removeGrant(grant.conceptId)}
-                    className="text-[var(--red)] hover:underline"
-                  >
-                    Remove
-                  </button>
+                    destructive
+                  />
                 </div>
               </div>
             ),
@@ -443,18 +440,18 @@ function HardFiltersTab({
           type="button"
           onClick={() => setFormMode('add')}
           disabled={projectOptions.length === 0}
-          className="text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="text-sm font-medium text-primary hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           + Add hard filter grant
         </button>
       )}
 
-      <div className="flex justify-end border-t border-[var(--border)] pt-3">
+      <div className="flex justify-end border-t border-border pt-3">
         <button
           type="button"
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
-          className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saveMutation.isPending ? 'Saving…' : 'Save hard filter values'}
         </button>
@@ -538,29 +535,29 @@ function SoftFiltersTab({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-muted-foreground">
         Choose which soft-placement concepts this group's members see in their filter panel, and the order they
         appear in — use the arrows to reorder.
       </p>
       {grantedProjects.length === 0 ? (
-        <p className="text-xs text-[var(--amber)]">No granted projects yet — save the Projects tab first.</p>
+        <p className="text-xs text-warning">No granted projects yet — save the Projects tab first.</p>
       ) : null}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Available</p>
-          <div className="mt-1.5 max-h-56 space-y-1 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border)] p-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Available</p>
+          <div className="mt-1.5 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border p-2">
             {softConceptsQuery.isLoading ? (
-              <p className="p-1 text-xs text-[var(--text-muted)]">Loading…</p>
+              <p className="p-1 text-xs text-muted-foreground">Loading…</p>
             ) : availableConcepts.length === 0 ? (
-              <p className="p-1 text-xs text-[var(--text-muted)]">Nothing available.</p>
+              <p className="p-1 text-xs text-muted-foreground">Nothing available.</p>
             ) : (
               availableConcepts.map((concept) => (
                 <button
                   key={concept.id}
                   type="button"
                   onClick={() => addConcept(concept)}
-                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                  className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm text-muted-foreground hover:bg-accent"
                 >
                   {concept.displayLabel || concept.name}
                   <Plus size={13} />
@@ -570,44 +567,39 @@ function SoftFiltersTab({
           </div>
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Selected &amp; ordered</p>
-          <div className="mt-1.5 max-h-56 space-y-1 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border)] p-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Selected &amp; ordered</p>
+          <div className="mt-1.5 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border p-2">
             {pending.length === 0 ? (
-              <p className="p-1 text-xs text-[var(--text-muted)]">None selected.</p>
+              <p className="p-1 text-xs text-muted-foreground">None selected.</p>
             ) : (
               pending.map((concept, index) => (
                 <div
                   key={concept.conceptId}
-                  className="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-sm text-[var(--text-secondary)]"
+                  className="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-sm text-muted-foreground"
                 >
                   <span>{concept.conceptName}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
+                  <div className="flex items-center gap-0.5">
+                    <ActionIconButton
+                      size="icon-xs"
+                      label="Move up"
+                      icon={ArrowUp}
                       onClick={() => move(index, -1)}
                       disabled={index === 0}
-                      aria-label="Move up"
-                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowUp size={13} />
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ActionIconButton
+                      size="icon-xs"
+                      label="Move down"
+                      icon={ArrowDown}
                       onClick={() => move(index, 1)}
                       disabled={index === pending.length - 1}
-                      aria-label="Move down"
-                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowDown size={13} />
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ActionIconButton
+                      size="icon-xs"
+                      label="Remove"
+                      icon={X}
                       onClick={() => removeConcept(concept.conceptId)}
-                      aria-label="Remove"
-                      className="text-[var(--text-muted)] hover:text-[var(--red)]"
-                    >
-                      <X size={13} />
-                    </button>
+                      destructive
+                    />
                   </div>
                 </div>
               ))
@@ -616,12 +608,12 @@ function SoftFiltersTab({
         </div>
       </div>
 
-      <div className="flex justify-end border-t border-[var(--border)] pt-3">
+      <div className="flex justify-end border-t border-border pt-3">
         <button
           type="button"
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
-          className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {saveMutation.isPending ? 'Saving…' : 'Save soft filter concepts'}
         </button>
@@ -676,13 +668,13 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-muted-foreground">
         Pick the saved search each project should land on for this group's members. This screen only shows saved
         searches already visible to this group (owned within it, shared into it, or admin-tier) — share a search
         into this group first (Saved Searches) to use it as a default here.
       </p>
       {savedSearchesQuery.isError || defaultsQuery.isError ? (
-        <p className="text-xs text-[var(--red)]">
+        <p className="text-xs text-destructive">
           {getApiErrorMessage(
             savedSearchesQuery.error ?? defaultsQuery.error,
             'Unable to load default queries.',
@@ -690,7 +682,7 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
         </p>
       ) : null}
       {grantedProjects.length === 0 ? (
-        <p className="text-xs text-[var(--amber)]">No granted projects yet — save the Projects tab first.</p>
+        <p className="text-xs text-warning">No granted projects yet — save the Projects tab first.</p>
       ) : null}
 
       <div className="space-y-3">
@@ -698,9 +690,9 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
           const existing = defaultsByProject.get(project.id);
           const selected = selectedByProject[project.id] ?? existing?.savedSearchId ?? '';
           return (
-            <div key={project.id} className="rounded-[var(--radius-input)] border border-[var(--border)] p-3">
-              <p className="text-sm font-medium text-[var(--text-primary)]">{project.name}</p>
-              <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+            <div key={project.id} className="rounded-md border border-border p-3">
+              <p className="text-sm font-medium text-foreground">{project.name}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {existing
                   ? `Current default: ${existing.savedSearchName}`
                   : 'No default query configured'}
@@ -724,7 +716,7 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
                   type="button"
                   disabled={!selected || setMutation.isPending}
                   onClick={() => setMutation.mutate({ projectId: project.id, savedSearchId: selected })}
-                  className="rounded-[var(--radius-button)] bg-[var(--accent)] px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Set
                 </button>
@@ -732,7 +724,7 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
                   type="button"
                   disabled={clearMutation.isPending}
                   onClick={() => clearMutation.mutate(project.id)}
-                  className="rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Clear
                 </button>
@@ -766,16 +758,16 @@ export default function GroupDataAccessModal({ group, onClose }: { group: Group;
 
   return (
     <Modal open onClose={onClose} title="Data access" description={liveGroup.name} size="xl" scrollable>
-      <div className="-mx-5 -mt-4 mb-4 flex gap-1 border-b border-[var(--border)] px-5">
+      <div className="-mx-5 -mt-4 mb-4 flex gap-1 border-b border-border px-5">
         {TABS.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setTab(item.key)}
-            className={`rounded-t-[var(--radius-button)] px-3 py-2.5 text-sm font-medium transition-colors ${
+            className={`rounded-t-md px-3 py-2.5 text-sm font-medium transition-colors ${
               tab === item.key
-                ? 'border-b-2 border-[var(--accent)] text-[var(--accent)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {item.label}

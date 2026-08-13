@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { BarChart3, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { EMPTY_FILTER_PANEL_STATE, type Insight } from '@content-insights/shared';
@@ -9,7 +9,8 @@ import { useAuth } from '../auth/AuthContext';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import InsightBuilderModal from '../components/insights/InsightBuilderModal';
-import { Alert, Button, Card, IconButton, PageBody, PageHeader } from '../components/ui';
+import { Alert, Button, Card, PageBody, PageHeader } from '../components/ui';
+import { ActionIconButton } from '../components/ui/action-icon-button';
 import { getApiErrorMessage } from '../lib/api-client';
 import { fetchConcepts } from '../lib/concepts-api';
 import { formatDate } from '../lib/format';
@@ -27,21 +28,21 @@ function isAssignmentActiveNow(assignment: { startDate?: string | null; endDate?
 
 function SkeletonRow() {
   return (
-    <tr className="h-11 border-b border-[var(--border)]">
+    <tr className="h-11 border-b border-border">
       <td className="py-3 pr-4">
-        <div className="h-4 w-44 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-44 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3 pr-4">
-        <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-16 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3 pr-4">
-        <div className="h-4 w-24 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-24 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3 pr-4">
-        <div className="h-4 w-32 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-32 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3">
-        <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-16 animate-pulse rounded bg-accent" />
       </td>
     </tr>
   );
@@ -135,7 +136,7 @@ export default function InsightsPage() {
         <div className="overflow-x-auto px-4 py-2">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+              <tr className="border-b border-border text-muted-foreground">
                 <th className="pb-2 pr-4 font-medium">Name</th>
                 <th className="pb-2 pr-4 font-medium">Chart type</th>
                 <th className="pb-2 pr-4 font-medium">Owner</th>
@@ -147,40 +148,38 @@ export default function InsightsPage() {
               {insightsQuery.isLoading
                 ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => <SkeletonRow key={index} />)
                 : insights.map((insight) => (
-                    <tr key={insight.id} className="h-11 border-b border-[var(--border)] last:border-b-0">
+                    <tr key={insight.id} className="h-11 border-b border-border last:border-b-0">
                       <td className="py-3 pr-4">
                         <button
                           type="button"
                           onClick={() => setEditingInsight(insight)}
-                          className="text-left font-medium text-[var(--text-primary)] hover:text-[var(--accent)]"
+                          className="text-left font-medium text-foreground hover:text-primary"
                           title="Open"
                         >
                           {insight.name}
                         </button>
                       </td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{CHART_TYPE_META[insight.chartType].label}</td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{insight.ownerEmail}</td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{formatDate(insight.updatedAt)}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{CHART_TYPE_META[insight.chartType].label}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{insight.ownerEmail}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{formatDate(insight.updatedAt)}</td>
                       <td className="py-3">
                         {canManage(insight) ? (
-                          <div className="flex items-center gap-1">
-                            <IconButton
-                              icon={Pencil}
+                          <div className="flex items-center gap-0.5">
+                            <ActionIconButton
                               label={`Edit ${insight.name}`}
-                              size="sm"
+                              icon={Pencil}
                               onClick={() => setEditingInsight(insight)}
                             />
-                            <IconButton
-                              icon={Trash2}
+                            <ActionIconButton
                               label={`Delete ${insight.name}`}
-                              size="sm"
+                              icon={Trash2}
                               onClick={() => handleDelete(insight)}
                               disabled={deleteMutation.isPending}
-                              className="hover:text-[var(--error)]"
+                              destructive
                             />
                           </div>
                         ) : (
-                          <span className="text-xs text-[var(--text-muted)]">—</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </td>
                     </tr>

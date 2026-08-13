@@ -20,8 +20,8 @@ import {
 } from '@content-insights/shared';
 
 import { describeAdvancedSearch, describeDateFilter } from '../lib/advanced-search';
-import { INPUT_CLASSNAME } from '../lib/form-styles';
-import Button from './ui/Button';
+import Button from './ui/button';
+import { Input, Select } from './ui/input';
 import Modal from './ui/Modal';
 
 // ---------------------------------------------------------------------------------------
@@ -148,19 +148,19 @@ function ChipInput({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1.5 focus-within:border-[var(--accent)]">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-1.5 focus-within:border-ring">
         {values.map((value) => (
           <span
             key={value}
-            className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-medium"
-            style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+            className="flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
+            style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
           >
             {value}
             <button
               type="button"
               onClick={() => onChange(values.filter((v) => v !== value))}
               aria-label={`Remove ${value}`}
-              className="hover:text-[var(--red)]"
+              className="hover:text-destructive"
             >
               <X size={11} />
             </button>
@@ -175,7 +175,7 @@ function ChipInput({
           onBlur={commit}
           placeholder={values.length === 0 ? placeholder : 'Add another…'}
           data-testid="advanced-condition-value-input"
-          className="min-w-[140px] flex-1 bg-transparent py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+          className="min-w-[140px] flex-1 bg-transparent py-0.5 text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
       </div>
       {remainingSuggestions.length > 0 ? (
@@ -198,8 +198,8 @@ function ChipInput({
 function OperatorToggle({ value, onChange }: { value: BooleanOperator; onChange: (value: BooleanOperator) => void }) {
   return (
     <div className="flex items-center gap-2 py-1.5">
-      <span className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
-      <div className="flex overflow-hidden rounded-full border border-[var(--border)]">
+      <span className="h-px flex-1 bg-border" />
+      <div className="flex overflow-hidden rounded-full border border-border">
         {BOOLEAN_OPERATORS.map((operator) => (
           <button
             key={operator}
@@ -207,15 +207,15 @@ function OperatorToggle({ value, onChange }: { value: BooleanOperator; onChange:
             onClick={() => onChange(operator)}
             className={`px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-colors ${
               operator === value
-                ? 'bg-[var(--accent)] text-white'
-                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-accent'
             }`}
           >
             {operator}
           </button>
         ))}
       </div>
-      <span className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
+      <span className="h-px flex-1 bg-border" />
     </div>
   );
 }
@@ -245,56 +245,54 @@ function ConditionRow({ condition, onChange, onRemove, concepts, facets }: Condi
         : undefined;
 
   return (
-    <div className="rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-3" data-testid="advanced-condition-row">
+    <div className="rounded-md border border-border bg-card p-3" data-testid="advanced-condition-row">
       <div className="flex items-start gap-2">
         <div className="grid flex-1 gap-2 sm:grid-cols-[200px_1fr]">
           <div>
-            <select
+            <Select
               value={condition.mode}
               onChange={(event) => onChange(withMode(condition, event.target.value as AdvancedConditionMode, concepts))}
               data-testid="advanced-condition-mode-select"
-              className={INPUT_CLASSNAME}
             >
               {ADVANCED_CONDITION_MODES.map((mode) => (
                 <option key={mode} value={mode}>
                   {MODE_LABELS[mode]}
                 </option>
               ))}
-            </select>
-            <p className="mt-1 text-xs leading-snug text-[var(--text-muted)]">{MODE_DESCRIPTIONS[condition.mode]}</p>
+            </Select>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">{MODE_DESCRIPTIONS[condition.mode]}</p>
           </div>
 
           <div className="space-y-2">
             {condition.mode === 'taxonomy' ? (
               concepts.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)]">No taxonomies are available to search.</p>
+                <p className="text-xs text-muted-foreground">No taxonomies are available to search.</p>
               ) : (
-                <select
+                <Select
                   value={condition.conceptKey ?? ''}
                   onChange={(event) => patch({ conceptKey: event.target.value })}
                   data-testid="advanced-condition-concept-select"
-                  className={INPUT_CLASSNAME}
                 >
                   {concepts.map((concept) => (
                     <option key={concept.key} value={concept.key}>
                       {concept.displayLabel || concept.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               )
             ) : null}
 
             {condition.mode === 'crossConcept' ? (
               concepts.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)]">No taxonomies are available to search.</p>
+                <p className="text-xs text-muted-foreground">No taxonomies are available to search.</p>
               ) : (
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-[var(--radius-input)] border border-[var(--border)] p-2">
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-border p-2">
                   {concepts.map((concept) => {
                     const checked = (condition.conceptKeys ?? []).includes(concept.key);
                     return (
                       <label
                         key={concept.key}
-                        className="flex cursor-pointer items-center gap-1.5 text-sm text-[var(--text-secondary)]"
+                        className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground"
                       >
                         <input
                           type="checkbox"
@@ -307,7 +305,7 @@ function ConditionRow({ condition, onChange, onRemove, concepts, facets }: Condi
                                 : [...current, concept.key],
                             });
                           }}
-                          className="h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+                          className="h-4 w-4 rounded border-border accent-primary"
                         />
                         {concept.displayLabel || concept.name}
                       </label>
@@ -335,15 +333,15 @@ function ConditionRow({ condition, onChange, onRemove, concepts, facets }: Condi
           onClick={onRemove}
           title="Remove condition"
           aria-label="Remove condition"
-          className="mt-1 shrink-0 rounded p-1 text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--red)]"
+          className="mt-1 shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
         >
           <Trash2 size={14} />
         </button>
       </div>
 
       <div className="mt-2.5 flex items-center gap-2">
-        <span className="text-xs font-medium text-[var(--text-secondary)]">Match logic:</span>
-        <div className="flex overflow-hidden rounded-[var(--radius-button)] border border-[var(--border)]">
+        <span className="text-xs font-medium text-muted-foreground">Match logic:</span>
+        <div className="flex overflow-hidden rounded-md border border-border">
           {TAXONOMY_MATCH_LOGICS.map((logic) => (
             <button
               key={logic}
@@ -351,8 +349,8 @@ function ConditionRow({ condition, onChange, onRemove, concepts, facets }: Condi
               onClick={() => patch({ matchLogic: logic })}
               className={`px-2.5 py-1 text-xs font-medium transition-colors ${
                 logic === condition.matchLogic
-                  ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                  ? 'bg-accent text-primary'
+                  : 'text-muted-foreground hover:bg-accent'
               }`}
             >
               {MATCH_LOGIC_LABELS[logic]}
@@ -395,22 +393,22 @@ function GroupCard({ group, index, onChange, onRemove, concepts, facets }: Group
   }
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-3">
+    <div className="rounded-lg border border-border bg-card p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Group {index + 1}
         </span>
         <button
           type="button"
           onClick={onRemove}
-          className="flex items-center gap-1 text-xs text-[var(--text-secondary)] transition-colors hover:text-[var(--red)]"
+          className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
         >
           <Trash2 size={12} /> Remove group
         </button>
       </div>
 
       {group.conditions.length === 0 ? (
-        <p className="py-2 text-xs text-[var(--text-muted)]">This group has no conditions yet.</p>
+        <p className="py-2 text-xs text-muted-foreground">This group has no conditions yet.</p>
       ) : (
         <div className="space-y-1">
           {group.conditions.map((condition, ci) => (
@@ -436,7 +434,7 @@ function GroupCard({ group, index, onChange, onRemove, concepts, facets }: Group
       <button
         type="button"
         onClick={addCondition}
-        className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
+        className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/90"
       >
         <Plus size={13} /> Add condition
       </button>
@@ -472,14 +470,14 @@ function DateRangeBlock({
   }
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-3">
+    <div className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[var(--text-primary)]">Date range</span>
+        <span className="text-sm font-medium text-foreground">Date range</span>
         {value ? (
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             Clear date range
           </button>
@@ -488,13 +486,13 @@ function DateRangeBlock({
 
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5">
         {DATE_FILTER_MODES.map((m) => (
-          <label key={m} className="flex cursor-pointer items-center gap-1.5 text-sm text-[var(--text-secondary)]">
+          <label key={m} className="flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground">
             <input
               type="radio"
               name="advanced-date-mode"
               checked={value !== null && mode === m}
               onChange={() => setMode(m)}
-              className="h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
+              className="h-4 w-4 border-border accent-primary"
             />
             {DATE_MODE_LABELS[m]}
           </label>
@@ -505,54 +503,54 @@ function DateRangeBlock({
         <div className="mt-3 grid max-w-md grid-cols-2 gap-3">
           {mode === 'between' ? (
             <>
-              <label className="block text-xs text-[var(--text-secondary)]">
+              <label className="block text-xs text-muted-foreground">
                 From
-                <input
+                <Input
                   type="date"
                   value={toDateInputValue(value.start)}
                   onChange={(event) => onChange({ ...value, start: event.target.value || null })}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                  className="mt-1"
                 />
               </label>
-              <label className="block text-xs text-[var(--text-secondary)]">
+              <label className="block text-xs text-muted-foreground">
                 To
-                <input
+                <Input
                   type="date"
                   value={toDateInputValue(value.end)}
                   onChange={(event) => onChange({ ...value, end: event.target.value || null })}
-                  className={`mt-1 ${INPUT_CLASSNAME}`}
+                  className="mt-1"
                 />
               </label>
             </>
           ) : null}
           {mode === 'untilNow' ? (
-            <label className="col-span-2 block text-xs text-[var(--text-secondary)]">
+            <label className="col-span-2 block text-xs text-muted-foreground">
               From
-              <input
+              <Input
                 type="date"
                 value={toDateInputValue(value.start)}
                 onChange={(event) => onChange({ ...value, start: event.target.value || null })}
-                className={`mt-1 ${INPUT_CLASSNAME}`}
+                className="mt-1"
               />
             </label>
           ) : null}
           {mode === 'lastNDays' ? (
-            <label className="col-span-2 block text-xs text-[var(--text-secondary)]">
+            <label className="col-span-2 block text-xs text-muted-foreground">
               Number of days
-              <input
+              <Input
                 type="number"
                 min={1}
                 value={value.lastNDays ?? ''}
                 onChange={(event) =>
                   onChange({ ...value, lastNDays: event.target.value ? Number(event.target.value) : null })
                 }
-                className={`mt-1 ${INPUT_CLASSNAME}`}
+                className="mt-1"
               />
             </label>
           ) : null}
         </div>
       ) : (
-        <p className="mt-2 text-xs text-[var(--text-muted)]">No date range applied — pick an option above to add one.</p>
+        <p className="mt-2 text-xs text-muted-foreground">No date range applied — pick an option above to add one.</p>
       )}
     </div>
   );
@@ -587,23 +585,23 @@ export function AdvancedSearchSummaryBanner({
 
   return (
     <div
-      className="flex flex-wrap items-start justify-between gap-3 rounded-[var(--radius-card)] border border-[var(--accent)] bg-[var(--accent-soft)] px-4 py-2.5"
+      className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-primary bg-accent px-4 py-2.5"
       data-testid="advanced-search-summary-banner"
     >
       <div className="flex min-w-0 items-start gap-2">
-        <SlidersHorizontal size={15} className="mt-0.5 shrink-0 text-[var(--accent)]" />
-        <p className="min-w-0 text-sm text-[var(--text-primary)]">
-          <span className="font-medium text-[var(--accent)]">Advanced search active — </span>
+        <SlidersHorizontal size={15} className="mt-0.5 shrink-0 text-primary" />
+        <p className="min-w-0 text-sm text-foreground">
+          <span className="font-medium text-primary">Advanced search active — </span>
           {criteria}
           {criteria && dateText ? '; ' : ''}
           {dateText ? dateText.charAt(0).toUpperCase() + dateText.slice(1) : ''}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-3 text-xs font-medium">
-        <button type="button" onClick={onEdit} className="text-[var(--accent)] hover:text-[var(--accent-hover)]">
+        <button type="button" onClick={onEdit} className="text-primary hover:text-primary/90">
           Edit
         </button>
-        <button type="button" onClick={onClear} className="text-[var(--text-secondary)] hover:text-[var(--red)]">
+        <button type="button" onClick={onClear} className="text-muted-foreground hover:text-destructive">
           Clear
         </button>
       </div>
@@ -690,7 +688,7 @@ export default function AdvancedSearchModal({
       testId="advanced-search-modal"
       footer={
         <>
-          <Button variant="ghost" className="mr-auto text-[var(--text-secondary)] hover:text-[var(--red)]" onClick={handleClear}>
+          <Button variant="ghost" className="mr-auto text-muted-foreground hover:text-destructive" onClick={handleClear}>
             Clear advanced search
           </Button>
           <Button variant="outline" onClick={onClose}>
@@ -701,7 +699,7 @@ export default function AdvancedSearchModal({
       }
     >
       {groups.length === 0 ? (
-        <p className="text-sm text-[var(--text-muted)]">No groups yet — add one to start building a query.</p>
+        <p className="text-sm text-muted-foreground">No groups yet — add one to start building a query.</p>
       ) : (
         <div className="space-y-2">
           {groups.map((group, gi) => (
@@ -728,7 +726,7 @@ export default function AdvancedSearchModal({
       <button
         type="button"
         onClick={addGroup}
-        className="mt-4 flex items-center gap-1.5 text-sm font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
+        className="mt-4 flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/90"
       >
         <Plus size={14} /> Add group
       </button>

@@ -149,7 +149,7 @@ export default function DashboardGrid({ dashboardId, insights, layout, canManage
           type="button"
           onClick={onAddInsight}
           style={{ gridColumn: `span ${SIZE_PRESETS.small.w}`, gridRow: `span ${SIZE_PRESETS.small.h}` }}
-          className="flex flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border-2 border-dashed border-[var(--border)] text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
         >
           <Plus size={22} />
           <span className="text-sm font-medium">Add insight</span>

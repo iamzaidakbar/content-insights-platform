@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-import Button from './ui/Button';
+import Button from './ui/button';
 
 interface Props {
   children: ReactNode;
@@ -26,10 +26,10 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          <h2 className="text-lg font-semibold text-foreground">
             {this.props.fallbackTitle ?? 'Something went wrong'}
           </h2>
-          <p className="max-w-md text-sm text-[var(--text-secondary)]">
+          <p className="max-w-md text-sm text-muted-foreground">
             {this.state.error.message || 'An unexpected error occurred while rendering this page.'}
           </p>
           <Button className="mt-2" onClick={() => this.setState({ error: null })}>

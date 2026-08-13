@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ComponentType, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Calendar,
@@ -22,9 +22,9 @@ import { formatDate } from '../lib/format';
 import { cn } from '../lib/cn';
 import ArticlePreviewModal from './ArticlePreviewModal';
 import HighlightedSnippet from './HighlightedSnippet';
-import IconButton from './ui/IconButton';
-import Tooltip from './ui/Tooltip';
-import Badge from './ui/Badge';
+import { Button } from './ui/button';
+import Tooltip from './ui/tooltip';
+import Badge from './ui/badge';
 
 export interface ArticleCardProps {
   hit: SearchHit;
@@ -60,6 +60,34 @@ function ActionTip({ label, children }: { label: string; children: ReactNode }) 
   return <Tooltip content={label}>{children}</Tooltip>;
 }
 
+function CardActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+  active = false,
+}: {
+  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <Button
+      type="button"
+      variant={active ? 'secondary' : 'ghost'}
+      size="icon-sm"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      <Icon size={15} strokeWidth={1.75} />
+    </Button>
+  );
+}
+
 function TaxonomyRow({
   taxonomyValues,
   concepts,
@@ -78,9 +106,9 @@ function TaxonomyRow({
       {entries.slice(0, 3).map(([conceptKey, values]) => {
         const label = concepts.find((concept) => concept.key === conceptKey)?.displayLabel ?? conceptKey;
         return (
-          <div key={conceptKey} className="flex min-w-0 items-center gap-1 text-xs text-[var(--text-muted)]">
+          <div key={conceptKey} className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
             <Layers size={10} className="shrink-0" />
-            <span className="font-medium text-[var(--text-secondary)]">{label}:</span>
+            <span className="font-medium text-muted-foreground">{label}:</span>
             <span className="truncate">
               {values.slice(0, 2).map((value, index) => (
                 <span key={value}>
@@ -88,7 +116,7 @@ function TaxonomyRow({
                   <button
                     type="button"
                     onClick={() => onValueClick(conceptKey, value)}
-                    className="hover:text-[var(--accent)] hover:underline"
+                    className="hover:text-primary hover:underline"
                   >
                     {value}
                   </button>
@@ -132,19 +160,18 @@ function TagChipsRow({
           type="button"
           onClick={() => onTagClick(id)}
           title={`Filter by "${tag.name}"`}
-          className="rounded-[var(--radius-tag)] px-1.5 py-px text-xs font-medium transition-opacity hover:opacity-80"
-          style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+          className="rounded-sm bg-muted px-1.5 py-px text-xs font-medium text-foreground transition-opacity hover:opacity-80"
         >
           {tag.name}
         </button>
       ))}
       {!showAll && overflow > 0 ? (
-        <button type="button" onClick={() => setShowAll(true)} className="text-xs text-[var(--accent)] hover:underline">
+        <button type="button" onClick={() => setShowAll(true)} className="text-xs text-primary hover:underline">
           +{overflow}
         </button>
       ) : null}
       {showAll && resolved.length > MAX_VISIBLE_TAGS ? (
-        <button type="button" onClick={() => setShowAll(false)} className="text-xs text-[var(--accent)] hover:underline">
+        <button type="button" onClick={() => setShowAll(false)} className="text-xs text-primary hover:underline">
           Less
         </button>
       ) : null}
@@ -184,32 +211,25 @@ export default function ArticleCard({
   const actions = (
     <div className="flex items-center gap-0.5">
       <ActionTip label="Tag">
-        <IconButton icon={TagIcon} label="Tag" size="sm" onClick={() => onOpenTagPicker(hit.articleId)} />
+        <CardActionButton icon={TagIcon} label="Tag" onClick={() => onOpenTagPicker(hit.articleId)} />
       </ActionTip>
       {canHide ? (
         <ActionTip label={hit.hidden ? 'Unhide' : 'Hide'}>
-          <IconButton
+          <CardActionButton
             icon={hit.hidden ? Eye : EyeOff}
             label={hit.hidden ? 'Unhide' : 'Hide'}
-            size="sm"
             onClick={() => onHideToggle(hit.articleId, hit.hidden)}
             disabled={isHidePending}
           />
         </ActionTip>
       ) : null}
       <ActionTip label="Preview">
-        <IconButton
-          icon={Maximize2}
-          label="Preview"
-          size="sm"
-          onClick={() => setIsPreviewOpen(true)}
-        />
+        <CardActionButton icon={Maximize2} label="Preview" onClick={() => setIsPreviewOpen(true)} />
       </ActionTip>
       <ActionTip label={isExpanded ? 'Collapse' : 'Expand'}>
-        <IconButton
+        <CardActionButton
           icon={isExpanded ? ChevronUp : ChevronDown}
           label={isExpanded ? 'Collapse' : 'Expand'}
-          size="sm"
           onClick={() => onToggleExpand(hit.articleId)}
           active={isExpanded}
         />
@@ -218,7 +238,7 @@ export default function ArticleCard({
   );
 
   const meta = (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-[var(--text-muted)]">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-muted-foreground">
       <span className="flex min-w-0 items-center gap-1">
         <Globe size={11} className="shrink-0" />
         <span className="truncate">{hit.domain}</span>
@@ -234,7 +254,7 @@ export default function ArticleCard({
     <div className={isList ? 'mt-1' : 'mt-1.5'}>
       {!isExpanded ? (
         <p
-          className="text-xs leading-relaxed text-[var(--text-secondary)]"
+          className="text-xs leading-relaxed text-muted-foreground"
           style={clampStyle(snippetLines)}
         >
           {hit.highlight ? <HighlightedSnippet fragment={hit.highlight} /> : hit.summary || 'No summary available.'}
@@ -246,9 +266,9 @@ export default function ArticleCard({
           ))}
         </div>
       ) : detailQuery.isError ? (
-        <p className="text-xs text-[var(--error)]">Unable to load the full article content.</p>
+        <p className="text-xs text-destructive">Unable to load the full article content.</p>
       ) : (
-        <p className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--text-secondary)]">
+        <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
           {detail?.body.trim() || hit.summary || 'No content available for this article.'}
         </p>
       )}
@@ -263,7 +283,7 @@ export default function ArticleCard({
             href={detail.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[var(--accent)] hover:underline"
+            className="inline-flex items-center gap-1 text-primary hover:underline"
           >
             <ExternalLink size={12} /> Open full article
           </a>
@@ -272,7 +292,7 @@ export default function ArticleCard({
           <button
             type="button"
             onClick={() => void downloadArticle(hit.articleId, `${hit.title}.txt`, 'full_text')}
-            className="inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
           >
             <FileDown size={12} /> Download text
           </button>
@@ -281,7 +301,7 @@ export default function ArticleCard({
           <button
             type="button"
             onClick={() => void downloadArticle(hit.articleId, `${hit.title}.pdf`, 'pdf')}
-            className="inline-flex items-center gap-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
           >
             <FileText size={12} /> Download PDF
           </button>
@@ -299,10 +319,10 @@ export default function ArticleCard({
         {preview}
       <div
         className={cn(
-          'rounded-[var(--radius-card)] border transition-colors hover:border-[var(--border-strong)]',
+          'rounded-lg border transition-colors hover:border-border',
           isSelected
-            ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-            : 'border-[var(--border)] bg-[var(--bg-card)]',
+            ? 'border-primary bg-accent'
+            : 'border-border bg-card',
         )}
         data-testid="article-card"
         data-article-id={hit.articleId}
@@ -313,7 +333,7 @@ export default function ArticleCard({
             checked={isSelected}
             onChange={(event) => onSelect(hit.articleId, event.target.checked)}
             aria-label={isSelected ? 'Deselect article' : 'Select article'}
-            className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+            className="mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-border accent-primary"
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-start gap-2">
@@ -321,7 +341,7 @@ export default function ArticleCard({
                 type="button"
                 onClick={() => onToggleExpand(hit.articleId)}
                 data-testid="article-card-title"
-                className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-5 text-[var(--text-primary)] hover:text-[var(--accent)]"
+                className="min-w-0 flex-1 truncate text-left text-sm font-medium leading-5 text-foreground hover:text-primary"
               >
                 {hit.title}
               </button>
@@ -356,10 +376,10 @@ export default function ArticleCard({
       {preview}
     <div
       className={cn(
-        'group flex h-full flex-col rounded-[var(--radius-card)] border transition-colors hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)]',
+        'group flex h-full flex-col rounded-lg border transition-colors hover:border-border hover:shadow-sm',
         isSelected
-          ? 'border-[var(--accent)] bg-[var(--accent-soft)] shadow-[var(--shadow-sm)]'
-          : 'border-[var(--border)] bg-[var(--bg-card)]',
+          ? 'border-primary bg-accent shadow-sm'
+          : 'border-border bg-card',
       )}
       data-testid="article-card"
       data-article-id={hit.articleId}
@@ -371,13 +391,13 @@ export default function ArticleCard({
             checked={isSelected}
             onChange={(event) => onSelect(hit.articleId, event.target.checked)}
             aria-label={isSelected ? 'Deselect article' : 'Select article'}
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer rounded border-border accent-primary"
           />
           <button
             type="button"
             onClick={() => onToggleExpand(hit.articleId)}
             data-testid="article-card-title"
-            className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-[var(--text-primary)] hover:text-[var(--accent)]"
+            className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-foreground hover:text-primary"
             style={clampStyle(2)}
           >
             {hit.title}
@@ -404,12 +424,12 @@ export default function ArticleCard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-[var(--border)] px-3 py-1.5">
+      <div className="flex items-center justify-between border-t border-border px-3 py-1.5">
         {actions}
         <button
           type="button"
           onClick={() => onToggleExpand(hit.articleId)}
-          className="text-xs font-medium text-[var(--accent)] opacity-0 transition-opacity hover:underline group-hover:opacity-100 focus:opacity-100"
+          className="text-xs font-medium text-primary opacity-0 transition-opacity hover:underline group-hover:opacity-100 focus:opacity-100"
         >
           {isExpanded ? 'Collapse' : 'Read more'}
         </button>

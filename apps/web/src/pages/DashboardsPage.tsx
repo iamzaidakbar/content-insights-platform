@@ -90,17 +90,14 @@ export default function DashboardsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dashboardsQuery.isLoading
-            ? Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-32 rounded-[var(--radius-card)]" />)
+            ? Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-32 rounded-lg" />)
             : dashboards.map((dashboard) => (
                 <Link key={dashboard.id} to={`/dashboards/${dashboard.id}`} className="block">
-                  <Card className="h-full transition-colors hover:border-[var(--accent)]">
+                  <Card className="h-full transition-colors hover:border-primary">
                     <CardBody className="p-5">
                       <div className="flex items-center gap-1.5">
                         {dashboard.insights.length === 0 ? (
-                          <span
-                            className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-[var(--accent)]"
-                            style={{ backgroundColor: 'var(--accent-soft)' }}
-                          >
+                          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                             <LayoutDashboard size={16} />
                           </span>
                         ) : (
@@ -108,16 +105,15 @@ export default function DashboardsPage() {
                             <span
                               key={insight.insightId}
                               title={insight.insightName}
-                              className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-button)] text-[var(--accent)]"
-                              style={{ backgroundColor: 'var(--accent-soft)' }}
+                              className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground"
                             >
                               <ChartTypeIcon type={insight.chartType} size={15} />
                             </span>
                           ))
                         )}
                       </div>
-                      <h3 className="mt-3 truncate text-sm font-semibold text-[var(--text-primary)]">{dashboard.name}</h3>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                      <h3 className="mt-3 truncate text-sm font-semibold text-foreground">{dashboard.name}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {dashboard.insights.length} insight{dashboard.insights.length === 1 ? '' : 's'} · Updated{' '}
                         {formatDate(dashboard.updatedAt)}
                       </p>

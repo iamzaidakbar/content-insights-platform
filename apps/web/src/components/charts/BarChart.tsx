@@ -168,7 +168,7 @@ function BarChartCore({ categories, series, values, valueFormatter }: BarChartOw
 
   const chart = (
     <div ref={containerRef} className="relative">
-      <div className="rounded-[var(--radius-input)] p-3" style={{ backgroundColor: 'var(--chart-surface)' }}>
+      <div className="rounded-md p-3" style={{ backgroundColor: 'var(--chart-surface)' }}>
         <svg
           viewBox={`0 0 ${VIEW_WIDTH} ${totalHeight}`}
           preserveAspectRatio="none"
@@ -270,7 +270,7 @@ function BarChartCore({ categories, series, values, valueFormatter }: BarChartOw
                 style={{ backgroundColor: categoricalColor(index) }}
                 aria-hidden="true"
               />
-              <span className="text-[var(--text-secondary)]">{seriesMeta.label}</span>
+              <span className="text-muted-foreground">{seriesMeta.label}</span>
             </li>
           ))}
         </ul>

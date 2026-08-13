@@ -114,20 +114,20 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
   const shell = (
     <div
       className={cn(
-        'flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)]',
+        'flex flex-col overflow-hidden rounded-lg border border-border bg-card',
         isFullscreen ? 'fixed inset-3 z-50 shadow-2xl' : fill ? 'h-full min-h-0' : 'min-h-[420px]',
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
           {asset.kind === 'image' ? (
-            <ImageIcon size={18} className="shrink-0 text-[var(--text-secondary)]" />
+            <ImageIcon size={18} className="shrink-0 text-muted-foreground" />
           ) : (
-            <FileText size={18} className="shrink-0 text-[var(--text-secondary)]" />
+            <FileText size={18} className="shrink-0 text-muted-foreground" />
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-[var(--text-primary)]">{article.title}</p>
-            <p className="truncate text-xs text-[var(--text-muted)]">
+            <p className="truncate text-sm font-medium text-foreground">{article.title}</p>
+            <p className="truncate text-xs text-muted-foreground">
               {KIND_LABEL[asset.kind]} attachment
               {typeof asset.fileSizeBytes === 'number' ? ` · ${formatBytes(asset.fileSizeBytes)}` : ''}
             </p>
@@ -141,16 +141,16 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
                 type="button"
                 aria-label="Zoom out"
                 onClick={() => setZoom((z) => Math.max(40, z - 20))}
-                className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
               >
                 <ZoomOut size={16} />
               </button>
-              <span className="min-w-10 text-center text-xs text-[var(--text-muted)]">{zoom}%</span>
+              <span className="min-w-10 text-center text-xs text-muted-foreground">{zoom}%</span>
               <button
                 type="button"
                 aria-label="Zoom in"
                 onClick={() => setZoom((z) => Math.min(300, z + 20))}
-                className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
               >
                 <ZoomIn size={16} />
               </button>
@@ -158,7 +158,7 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
                 type="button"
                 aria-label="Reset zoom"
                 onClick={() => setZoom(100)}
-                className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
               >
                 <Shrink size={16} />
               </button>
@@ -169,7 +169,7 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
             type="button"
             aria-label="Reload preview"
             onClick={() => void previewQuery.refetch()}
-            className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
           >
             <RefreshCw size={16} />
           </button>
@@ -178,7 +178,7 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
               type="button"
               aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               onClick={() => setIsFullscreen((v) => !v)}
-              className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
             >
               {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
@@ -187,7 +187,7 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
             type="button"
             aria-label="Download"
             onClick={() => void handleDownload()}
-            className="ml-1 flex items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] hover:border-[var(--accent)]"
+            className="ml-1 flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground hover:border-primary"
           >
             <Download size={14} />
             Download
@@ -197,19 +197,19 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
 
       <div className={cn('relative flex-1 overflow-auto', overlay ? 'min-h-0' : 'max-h-[70vh]')}>
         {previewQuery.isLoading ? (
-          <div className="flex min-h-[380px] flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
-            <Loader2 size={22} className="animate-spin text-[var(--accent)]" />
+          <div className="flex min-h-[380px] flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 size={22} className="animate-spin text-primary" />
             <span className="text-sm">Loading preview…</span>
           </div>
         ) : previewQuery.isError ? (
           <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 px-6 text-center">
-            <p className="text-sm text-[var(--red)]">
+            <p className="text-sm text-destructive">
               {getApiErrorMessage(previewQuery.error, 'Unable to load this file.')}
             </p>
             <button
               type="button"
               onClick={() => void handleDownload()}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-1.5 text-sm text-white"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground"
             >
               Download instead
             </button>
@@ -221,12 +221,12 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
             className="h-full min-h-[560px] w-full border-0 bg-white"
           />
         ) : isImage && blobUrl ? (
-          <div className="flex min-h-[380px] items-center justify-center overflow-auto bg-[var(--bg-primary)] p-6">
+          <div className="flex min-h-[380px] items-center justify-center overflow-auto bg-background p-6">
             <img
               src={blobUrl}
               alt={article.title}
               style={{ width: `${zoom}%`, maxWidth: 'none' }}
-              className="rounded-[var(--radius-input)] shadow-lg transition-[width] duration-150"
+              className="rounded-md shadow-lg transition-[width] duration-150"
             />
           </div>
         ) : isHtml && previewQuery.data?.text !== undefined ? (
@@ -237,7 +237,7 @@ export default function ArticleAssetViewer({ article, onDownload, fill = false }
             className="h-full min-h-[560px] w-full border-0 bg-white"
           />
         ) : isText && previewQuery.data?.text !== undefined ? (
-          <pre className="min-h-[380px] whitespace-pre-wrap break-words p-4 text-sm leading-relaxed text-[var(--text-primary)]">
+          <pre className="min-h-[380px] whitespace-pre-wrap break-words p-4 text-sm leading-relaxed text-foreground">
             {previewQuery.data.text}
           </pre>
         ) : null}

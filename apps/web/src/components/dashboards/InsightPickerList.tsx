@@ -39,15 +39,15 @@ export default function InsightPickerList({ selectedIds, onToggle, excludeInsigh
   return (
     <div>
       {insightsQuery.isError ? (
-        <p className="mb-2 text-sm text-[var(--red)]">
+        <p className="mb-2 text-sm text-destructive">
           {getApiErrorMessage(insightsQuery.error, 'Unable to load insights.')}
         </p>
       ) : null}
 
-      <div className="max-h-72 space-y-1 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border)] p-1.5">
+      <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-border p-1.5">
         {insightsQuery.isLoading
           ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-              <div key={index} className="h-11 animate-pulse rounded-[var(--radius-button)] bg-[var(--bg-hover)]" />
+              <div key={index} className="h-11 animate-pulse rounded-md bg-accent" />
             ))
           : items.map((insight) => {
               const isSelected = selectedIds.has(insight.id);
@@ -56,8 +56,8 @@ export default function InsightPickerList({ selectedIds, onToggle, excludeInsigh
                 <label
                   key={insight.id}
                   title={isDisabled ? `A dashboard can have at most ${maxSelectable} insights` : undefined}
-                  className={`flex items-center gap-3 rounded-[var(--radius-button)] px-2 py-2 text-sm transition-colors ${
-                    isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-[var(--bg-hover)]'
+                  className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-colors ${
+                    isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent'
                   }`}
                 >
                   <input
@@ -65,17 +65,14 @@ export default function InsightPickerList({ selectedIds, onToggle, excludeInsigh
                     checked={isSelected}
                     disabled={isDisabled}
                     onChange={() => onToggle(insight.id)}
-                    className="accent-[var(--accent)]"
+                    className="accent-primary"
                   />
-                  <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-[var(--accent)]"
-                    style={{ backgroundColor: 'var(--accent-soft)' }}
-                  >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
                     <ChartTypeIcon type={insight.chartType} size={14} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[var(--text-primary)]">{insight.name}</span>
-                    <span className="block truncate text-xs text-[var(--text-secondary)]">
+                    <span className="block truncate text-foreground">{insight.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
                       {CHART_TYPE_META[insight.chartType].label}
                       {insight.ownerId !== user?.id ? ` · ${insight.ownerEmail}` : ''}
                     </span>

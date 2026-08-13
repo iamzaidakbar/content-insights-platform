@@ -58,7 +58,7 @@ export default function TagSelectPopover({
 
   return (
     <div>
-      <p className="text-xs text-[var(--text-secondary)]">
+      <p className="text-xs text-muted-foreground">
         {selectedCount === undefined
           ? 'Select a tag'
           : `Tag ${selectedCount} selected article${selectedCount === 1 ? '' : 's'}`}
@@ -69,7 +69,7 @@ export default function TagSelectPopover({
           <div className="relative mt-2">
             <Search
               size={14}
-              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+              className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <input
               type="search"
@@ -77,13 +77,13 @@ export default function TagSelectPopover({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search tags…"
-              className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-8 pr-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+              className="h-8 w-full rounded-md border border-border bg-card pl-8 pr-2 text-sm text-foreground outline-none focus-visible:border-ring"
             />
           </div>
 
           <div className="mt-2 max-h-40 space-y-0.5 overflow-y-auto">
             {visibleTags.length === 0 ? (
-              <p className="py-1 text-xs text-[var(--text-muted)]">No matching tags.</p>
+              <p className="py-1 text-xs text-muted-foreground">No matching tags.</p>
             ) : (
               visibleTags.map((tag) => (
                 <button
@@ -94,13 +94,13 @@ export default function TagSelectPopover({
                     onSelectTag(tag);
                     onClose();
                   }}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {tag.isPrivate ? (
-                    <Lock size={11} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+                    <Lock size={11} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                   ) : null}
                   <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                  <span className="shrink-0 text-xs text-[var(--text-muted)]">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     {countsByTagId ? (countsByTagId[tag.id] ?? 0) : tag.articleCount}
                   </span>
                 </button>
@@ -112,7 +112,7 @@ export default function TagSelectPopover({
             <button
               type="button"
               onClick={() => setIsCreatingNew(true)}
-              className="mt-2 flex w-full items-center gap-1.5 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm text-[var(--accent)] hover:bg-[var(--bg-hover)]"
+              className="mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-primary hover:bg-accent"
             >
               <Plus size={14} />
               Create new tag
@@ -128,23 +128,23 @@ export default function TagSelectPopover({
             onChange={(event) => setNewTagName(event.target.value)}
             placeholder="Tag name"
             maxLength={USER_TAG_NAME_MAX_LENGTH}
-            className="h-8 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            className="h-8 w-full rounded-md border border-border bg-card px-2 text-sm text-foreground outline-none focus-visible:border-ring"
           />
-          <p className="text-right text-xs text-[var(--text-muted)]">
+          <p className="text-right text-xs text-muted-foreground">
             {newTagName.length}/{USER_TAG_NAME_MAX_LENGTH}
           </p>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setIsCreatingNew(false)}
-              className="h-8 flex-1 rounded-[var(--radius-button)] border border-[var(--border)] text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--accent)]"
+              className="h-8 flex-1 rounded-md border border-border text-sm text-muted-foreground transition-colors hover:border-primary"
             >
               Back
             </button>
             <button
               type="submit"
               disabled={!newTagName.trim() || isCreating}
-              className="h-8 flex-1 rounded-[var(--radius-button)] bg-[var(--accent)] text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="h-8 flex-1 rounded-md bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isCreating ? 'Creating…' : 'Create & apply'}
             </button>

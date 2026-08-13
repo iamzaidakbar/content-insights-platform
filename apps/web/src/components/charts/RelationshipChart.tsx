@@ -261,28 +261,28 @@ export default function RelationshipChart({ edges = [], aggregations = [], sourc
 
       {hover && hoveredNode ? (
         <div
-          className="pointer-events-none absolute z-10 flex flex-col gap-0.5 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--chart-gridline)] px-2.5 py-1.5 text-xs shadow-lg"
+          className="pointer-events-none absolute z-10 flex flex-col gap-0.5 whitespace-nowrap rounded-md border border-border px-2.5 py-1.5 text-xs shadow-lg"
           style={{ left: hover.x, top: hover.y, transform: 'translate(-50%, calc(-100% - 10px))', backgroundColor: 'var(--chart-surface)' }}
           role="tooltip"
         >
           <div className="flex items-center gap-2">
             <span className="h-0.5 w-3 shrink-0 rounded-full" style={{ backgroundColor: hover.side === 'source' ? sourceColor : targetColor }} aria-hidden="true" />
-            <span className="font-semibold text-[var(--chart-ink-primary)]">{formatCompactNumber(hoveredNode.total)}</span>
-            <span className="text-[var(--chart-ink-secondary)]">{hoveredNode.key}</span>
+            <span className="font-semibold text-foreground">{formatCompactNumber(hoveredNode.total)}</span>
+            <span className="text-muted-foreground">{hoveredNode.key}</span>
           </div>
-          <span className="text-[10px] text-[var(--chart-ink-muted)]">
+          <span className="text-[10px] text-muted-foreground">
             {hoveredNode.degree} connection{hoveredNode.degree === 1 ? '' : 's'}
           </span>
         </div>
       ) : null}
 
       {droppedCount > 0 ? (
-        <p className="mt-2 text-center text-[10px] text-[var(--chart-ink-muted)]">
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
           Showing the strongest {sourceNodes.length}×{targetNodes.length} values by connection — see the table view for every pair.
         </p>
       ) : null}
 
-      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-[var(--chart-ink-secondary)]">
+      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: sourceColor }} aria-hidden="true" />
           {sourceLabel}
@@ -303,24 +303,24 @@ export default function RelationshipChart({ edges = [], aggregations = [], sourc
 function RelationshipTable({ edges, sourceLabel, targetLabel }: { edges: RelationshipEdge[]; sourceLabel: string; targetLabel: string }) {
   const sorted = useMemo(() => [...edges].sort((a, b) => b.weight - a.weight), [edges]);
   return (
-    <div className="max-h-72 overflow-auto rounded-[var(--radius-input)] border border-[var(--chart-gridline)]">
+    <div className="max-h-72 overflow-auto rounded-md border border-border">
       <table className="w-full text-left text-xs">
         <thead className="sticky top-0" style={{ backgroundColor: 'var(--chart-surface)' }}>
           <tr>
-            <th scope="col" className="border-b border-[var(--chart-gridline)] px-2 py-1.5 font-medium" style={{ color: 'var(--chart-ink-secondary)' }}>
+            <th scope="col" className="border-b border-border px-2 py-1.5 font-medium" style={{ color: 'var(--chart-ink-secondary)' }}>
               {sourceLabel}
             </th>
-            <th scope="col" className="border-b border-[var(--chart-gridline)] px-2 py-1.5 font-medium" style={{ color: 'var(--chart-ink-secondary)' }}>
+            <th scope="col" className="border-b border-border px-2 py-1.5 font-medium" style={{ color: 'var(--chart-ink-secondary)' }}>
               {targetLabel}
             </th>
-            <th scope="col" className="border-b border-[var(--chart-gridline)] px-2 py-1.5 text-right font-medium" style={{ color: 'var(--chart-ink-secondary)' }}>
+            <th scope="col" className="border-b border-border px-2 py-1.5 text-right font-medium" style={{ color: 'var(--chart-ink-secondary)' }}>
               Strength
             </th>
           </tr>
         </thead>
         <tbody>
           {sorted.map((edge, index) => (
-            <tr key={`${edge.source}::${edge.target}::${index}`} className="border-b border-[var(--chart-gridline)] last:border-b-0">
+            <tr key={`${edge.source}::${edge.target}::${index}`} className="border-b border-border last:border-b-0">
               <td className="px-2 py-1.5" style={{ color: 'var(--chart-ink-primary)' }}>
                 {edge.source}
               </td>

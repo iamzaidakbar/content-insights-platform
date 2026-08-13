@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 import type { User } from '@content-insights/shared';
 
@@ -19,7 +19,7 @@ function isAssignmentActiveNow(
 }
 
 const SELECT_CLASS =
-  'h-8 max-w-[11rem] truncate rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-2 text-xs text-[var(--text-primary)]';
+  'h-8 max-w-[11rem] truncate rounded-md border border-border bg-background px-2 text-xs text-foreground';
 
 export default function WorkspaceContextSwitcher() {
   const { user, permissions, updateUser } = useAuth();

@@ -46,7 +46,7 @@ class TileErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
   override render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-40 items-center justify-center rounded-[var(--radius-input)] border border-dashed border-[var(--border)] px-4 text-center text-xs text-[var(--text-muted)]">
+        <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-border px-4 text-center text-xs text-muted-foreground">
           This chart couldn&apos;t be displayed.
         </div>
       );
@@ -70,7 +70,7 @@ function ChartBody({ insightRef, insight, data }: { insightRef: DashboardInsight
     const meta = CHART_TYPE_META[insightRef.chartType];
     const Icon = meta.icon;
     return (
-      <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-[var(--radius-input)] border border-dashed border-[var(--border)] px-4 text-center text-[var(--text-muted)]">
+      <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border px-4 text-center text-muted-foreground">
         <Icon size={22} strokeWidth={1.5} />
         <span className="text-xs">{meta.label} view isn&apos;t available yet.</span>
       </div>
@@ -80,7 +80,7 @@ function ChartBody({ insightRef, insight, data }: { insightRef: DashboardInsight
   const buckets = data.aggregations[0]?.buckets ?? [];
   return (
     <TileErrorBoundary>
-      <Suspense fallback={<div className="h-40 animate-pulse rounded-[var(--radius-input)] bg-[var(--bg-hover)]" />}>
+      <Suspense fallback={<div className="h-40 animate-pulse rounded-md bg-accent" />}>
         <ChartComponent insight={insight} total={data.total} buckets={buckets} aggregations={data.aggregations} />
       </Suspense>
     </TileErrorBoundary>
@@ -119,7 +119,7 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
   const HeaderIcon = meta.icon;
 
   return (
-    <div className="flex h-full flex-col rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <div className="flex h-full flex-col rounded-lg border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           {dragHandleProps ? (
@@ -127,20 +127,17 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
               type="button"
               {...dragHandleProps}
               title="Drag to reorder"
-              className="touch-none cursor-grab rounded-[var(--radius-button)] p-1 text-[var(--text-muted)] hover:bg-[var(--bg-hover)] active:cursor-grabbing"
+              className="touch-none cursor-grab rounded-md p-1 text-muted-foreground hover:bg-accent active:cursor-grabbing"
             >
               <GripVertical size={14} />
             </button>
           ) : null}
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-[var(--accent)]"
-            style={{ backgroundColor: 'var(--accent-soft)' }}
-          >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <HeaderIcon size={14} strokeWidth={1.75} />
           </span>
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-[var(--text-primary)]">{insightRef.insightName}</h3>
-            <p className="truncate text-xs text-[var(--text-secondary)]">{meta.label}</p>
+            <h3 className="truncate text-sm font-semibold text-foreground">{insightRef.insightName}</h3>
+            <p className="truncate text-xs text-muted-foreground">{meta.label}</p>
           </div>
         </div>
 
@@ -150,13 +147,13 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
               type="button"
               onClick={() => setIsMenuOpen((open) => !open)}
               aria-label="Insight actions"
-              className="rounded-[var(--radius-button)] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+              className="rounded-md p-1 text-muted-foreground hover:bg-accent"
             >
               <MoreVertical size={16} />
             </button>
             {isMenuOpen ? (
-              <div className="absolute right-0 z-10 mt-1 w-44 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-2 text-sm shadow-lg">
-                <p className="px-1 pb-1.5 text-xs font-medium text-[var(--text-muted)]">Size</p>
+              <div className="absolute right-0 z-10 mt-1 w-44 rounded-md border border-border bg-card p-2 text-sm shadow-lg">
+                <p className="px-1 pb-1.5 text-xs font-medium text-muted-foreground">Size</p>
                 <div className="flex gap-1 pb-2">
                   {SIZE_PRESET_ORDER.map((key) => (
                     <button
@@ -166,10 +163,10 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
                         onResize(key);
                         setIsMenuOpen(false);
                       }}
-                      className={`flex-1 rounded-[var(--radius-button)] border px-1.5 py-1 text-xs capitalize transition-colors ${
+                      className={`flex-1 rounded-md border px-1.5 py-1 text-xs capitalize transition-colors ${
                         sizePreset === key
-                          ? 'border-[var(--accent)] text-[var(--accent)]'
-                          : 'border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                          ? 'border-primary text-primary'
+                          : 'border-border text-muted-foreground hover:bg-accent'
                       }`}
                     >
                       {key}
@@ -182,7 +179,7 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
                     onRemove();
                     setIsMenuOpen(false);
                   }}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-[var(--red)] hover:bg-[var(--bg-hover)]"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-destructive hover:bg-accent"
                 >
                   <Trash2 size={14} /> Remove from dashboard
                 </button>
@@ -194,13 +191,13 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
 
       <div className="mt-3 flex-1">
         {insightQuery.isLoading || dataQuery.isLoading ? (
-          <div className="h-40 animate-pulse rounded-[var(--radius-input)] bg-[var(--bg-hover)]" />
+          <div className="h-40 animate-pulse rounded-md bg-accent" />
         ) : insightQuery.isError ? (
-          <p className="py-8 text-center text-sm text-[var(--red)]">
+          <p className="py-8 text-center text-sm text-destructive">
             {getApiErrorMessage(insightQuery.error, 'Unable to load this insight.')}
           </p>
         ) : dataQuery.isError ? (
-          <p className="py-8 text-center text-sm text-[var(--red)]">
+          <p className="py-8 text-center text-sm text-destructive">
             {getApiErrorMessage(dataQuery.error, "Unable to load this insight's data.")}
           </p>
         ) : insightQuery.data && dataQuery.data ? (
@@ -214,11 +211,11 @@ export default function InsightTile({ insightRef, canManage, sizePreset, onResiz
           them, since gating on chart type would hide it for a legitimately relevant one this
           form heuristic doesn't happen to name. */}
       {insightQuery.data ? (
-        <div className="mt-3 border-t border-[var(--border)] pt-2">
+        <div className="mt-3 border-t border-border pt-2">
           <button
             type="button"
             onClick={() => setShowTable((open) => !open)}
-            className="flex items-center gap-1.5 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             <Table2 size={13} />
             Underlying articles

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { ChevronDown, ChevronUp, Lock, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { CalendarOff, Lock, Settings2, UserMinus, Users } from 'lucide-react';
 
 import { asGroupId, type GroupMemberSummary } from '@content-insights/shared';
 
@@ -10,12 +10,13 @@ import { useAuth } from '../auth/AuthContext';
 import AddMemberModal from '../components/AddMemberModal';
 import EmptyState from '../components/EmptyState';
 import GroupDataAccessModal from '../components/GroupDataAccessModal';
-import Alert from '../components/ui/Alert';
+import Alert from '../components/ui/alert';
+import { ActionIconButton } from '../components/ui/action-icon-button';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
-import Button from '../components/ui/Button';
+import Button from '../components/ui/button';
 import PageHeader, { PageBody } from '../components/ui/PageHeader';
-import Skeleton from '../components/ui/Skeleton';
-import { Table, TBody, TD, TH, THead, TR } from '../components/ui/Table';
+import Skeleton from '../components/ui/skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../components/ui/data-table';
 import { getApiErrorMessage } from '../lib/api-client';
 import { formatDate } from '../lib/format';
 import { fetchGroup } from '../lib/groups-api';
@@ -122,63 +123,56 @@ function MemberRow({
     <>
       <TR>
         <TD>{member.userEmail}</TD>
-        <TD className="text-[var(--text-secondary)]">{member.roleName}</TD>
-        <TD className="text-xs text-[var(--text-secondary)]">
+        <TD className="text-muted-foreground">{member.roleName}</TD>
+        <TD className="text-xs text-muted-foreground">
           {member.startDate ? formatDate(member.startDate) : 'Open'} –{' '}
           {member.endDate ? formatDate(member.endDate) : 'Open'}
-          {!active ? <span className="ml-1.5 text-[var(--text-muted)]">(ended)</span> : null}
+          {!active ? <span className="ml-1.5 text-muted-foreground">(ended)</span> : null}
         </TD>
         {canManage ? (
           <TD>
-            <button
-              type="button"
+            <ActionIconButton
+              label={isManaging ? 'Hide membership actions' : 'Manage membership'}
+              icon={Settings2}
               onClick={() => setIsManaging((current) => !current)}
-              className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              Manage
-              {isManaging ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-            </button>
+            />
           </TD>
         ) : null}
       </TR>
       {canManage && isManaging ? (
-        <TR className="bg-[var(--bg-hover)]/40 hover:bg-[var(--bg-hover)]/40">
+        <TR className="bg-accent/40 hover:bg-accent/40">
           <TD colSpan={4} className="px-3 py-3">
             {detailQuery.isLoading ? (
-              <p className="text-xs text-[var(--text-muted)]">Loading…</p>
+              <p className="text-xs text-muted-foreground">Loading…</p>
             ) : detailQuery.isError ? (
-              <p className="text-xs text-[var(--error)]">
+              <p className="text-xs text-destructive">
                 {getApiErrorMessage(
                   detailQuery.error,
                   "Unable to manage this membership here — try Admin → Role Assignments instead.",
                 )}
               </p>
             ) : !assignment ? (
-              <p className="text-xs text-[var(--text-muted)]">Could not find this exact assignment.</p>
+              <p className="text-xs text-muted-foreground">Could not find this exact assignment.</p>
             ) : !active ? (
-              <p className="text-xs text-[var(--text-muted)]">This assignment has already ended.</p>
+              <p className="text-xs text-muted-foreground">This assignment has already ended.</p>
             ) : (
-              <div className="flex items-center gap-4 text-xs">
+              <div className="flex items-center gap-1">
                 {isAppAdmin ? (
-                  <button
-                    type="button"
+                  <ActionIconButton
+                    label={removeMutation.isPending ? 'Removing…' : 'Remove'}
+                    icon={UserMinus}
                     onClick={() => removeMutation.mutate()}
                     disabled={removeMutation.isPending}
-                    title="Application Admin access is always global and can't be time-bound — remove it to revoke immediately"
-                    className="font-medium text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {removeMutation.isPending ? 'Removing…' : 'Remove'}
-                  </button>
+                    destructive
+                  />
                 ) : (
-                  <button
-                    type="button"
+                  <ActionIconButton
+                    label={endMutation.isPending ? 'Ending…' : 'End membership'}
+                    icon={CalendarOff}
                     onClick={() => endMutation.mutate()}
                     disabled={endMutation.isPending}
-                    title="Ends this assignment as of today"
-                    className="font-medium text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {endMutation.isPending ? 'Ending…' : 'End membership'}
-                  </button>
+                    destructive
+                  />
                 )}
               </div>
             )}
@@ -291,7 +285,7 @@ export default function GroupDetailPage() {
       )}
 
       {group ? (
-        <p className="mt-4 text-xs text-[var(--text-muted)]">Created {formatDate(group.createdAt)}</p>
+        <p className="mt-4 text-xs text-muted-foreground">Created {formatDate(group.createdAt)}</p>
       ) : null}
 
       {isAddingMember && group ? (

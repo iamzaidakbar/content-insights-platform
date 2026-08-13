@@ -14,14 +14,14 @@ interface TagsPanelProps {
 
 export default function TagsPanel({ tags, isLoading, onTagClick, onClose }: TagsPanelProps) {
   return (
-    <aside className="w-80 shrink-0 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-4">
+    <aside className="w-80 shrink-0 rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)]">Tags</h3>
+        <h3 className="text-sm font-semibold text-foreground">Tags</h3>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close tags panel"
-          className="rounded-[6px] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+          className="rounded-[6px] p-1 text-muted-foreground hover:bg-accent"
         >
           <X size={16} />
         </button>
@@ -30,10 +30,10 @@ export default function TagsPanel({ tags, isLoading, onTagClick, onClose }: Tags
       <div className="mt-3 space-y-1">
         {isLoading ? (
           Array.from({ length: 6 }, (_, index) => (
-            <div key={index} className="h-8 animate-shimmer rounded-[var(--radius-button)]" />
+            <div key={index} className="h-8 animate-shimmer rounded-md" />
           ))
         ) : tags.length === 0 ? (
-          <p className="text-xs text-[var(--text-secondary)]">
+          <p className="text-xs text-muted-foreground">
             No tags yet. Create one from &quot;Tag Selected&quot; after checking an article.
           </p>
         ) : (
@@ -42,15 +42,15 @@ export default function TagsPanel({ tags, isLoading, onTagClick, onClose }: Tags
               key={tag.id}
               type="button"
               onClick={() => onTagClick(tag)}
-              className="flex w-full items-center gap-2 rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               {tag.isPrivate ? (
-                <Lock size={11} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+                <Lock size={11} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               ) : (
                 <span className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
               )}
               <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-              <span className="shrink-0 text-xs text-[var(--text-muted)]">{tag.articleCount}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{tag.articleCount}</span>
             </button>
           ))
         )}

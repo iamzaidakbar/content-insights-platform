@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 import { DEFAULT_USER_SETTINGS, type UserSettingsDefaults } from '@content-insights/shared';
 

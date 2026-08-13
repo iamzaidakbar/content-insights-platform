@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Bell } from 'lucide-react';
+import { Bell, Check } from 'lucide-react';
 
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
 import { Alert, Button, Card, Checkbox, PageBody, PageHeader, Skeleton } from '../components/ui';
+import { ActionIconButton } from '../components/ui/action-icon-button';
 import { getApiErrorMessage } from '../lib/api-client';
 import { formatDate } from '../lib/format';
 import {
@@ -82,7 +83,7 @@ export default function AlertsPage() {
               size="sm"
               onClick={() => markAllMutation.mutate()}
               disabled={markAllMutation.isPending}
-              className="text-[var(--accent)] hover:text-[var(--accent)]"
+              className="text-primary hover:text-primary"
             >
               Mark all read
             </Button>
@@ -94,7 +95,7 @@ export default function AlertsPage() {
         {listQuery.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }, (_, i) => (
-              <Skeleton key={i} className="h-16 rounded-[var(--radius-card)]" />
+              <Skeleton key={i} className="h-16 rounded-lg" />
             ))}
           </div>
         ) : listQuery.isError ? (
@@ -110,11 +111,11 @@ export default function AlertsPage() {
         ) : (
           <>
             <Card>
-              <ul className="divide-y divide-[var(--border)]">
+              <ul className="divide-y divide-border">
                 {items.map((n) => {
                   const href = entityPath(n.entityType, n.entityId);
                   return (
-                    <li key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-[var(--accent-soft)]/30'}`}>
+                    <li key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-accent/30'}`}>
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           {href ? (
@@ -123,28 +124,26 @@ export default function AlertsPage() {
                               onClick={() => {
                                 if (!n.read) markReadMutation.mutate(n.id);
                               }}
-                              className={`text-sm hover:text-[var(--accent)] ${n.read ? 'text-[var(--text-secondary)]' : 'font-medium text-[var(--text-primary)]'}`}
+                              className={`text-sm hover:text-primary ${n.read ? 'text-muted-foreground' : 'font-medium text-foreground'}`}
                             >
                               {n.title}
                             </Link>
                           ) : (
                             <p
-                              className={`text-sm ${n.read ? 'text-[var(--text-secondary)]' : 'font-medium text-[var(--text-primary)]'}`}
+                              className={`text-sm ${n.read ? 'text-muted-foreground' : 'font-medium text-foreground'}`}
                             >
                               {n.title}
                             </p>
                           )}
-                          <p className="mt-1 text-sm text-[var(--text-muted)]">{n.body}</p>
-                          <p className="mt-1 text-xs text-[var(--text-muted)]">{formatDate(n.createdAt)}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{formatDate(n.createdAt)}</p>
                         </div>
                         {!n.read ? (
-                          <button
-                            type="button"
+                          <ActionIconButton
+                            label="Mark read"
+                            icon={Check}
                             onClick={() => markReadMutation.mutate(n.id)}
-                            className="shrink-0 text-xs text-[var(--accent)] hover:underline"
-                          >
-                            Mark read
-                          </button>
+                          />
                         ) : null}
                       </div>
                     </li>

@@ -5,7 +5,7 @@ import type { Dashboard } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../../lib/api-client';
 import { updateDashboard } from '../../lib/dashboards-api';
-import Button from '../ui/Button';
+import Button from '../ui/button';
 import Modal from '../ui/Modal';
 import InsightPickerList from './InsightPickerList';
 
@@ -56,7 +56,7 @@ export default function AddInsightModal({ dashboardId, currentInsightIds, remain
       size="md"
       footer={
         <>
-          <span className="mr-auto text-xs text-[var(--text-muted)]">
+          <span className="mr-auto text-xs text-muted-foreground">
             {selectedIds.size}/{remainingSlots} selected
           </span>
           <Button variant="outline" onClick={onClose}>
@@ -78,7 +78,7 @@ export default function AddInsightModal({ dashboardId, currentInsightIds, remain
         excludeInsightIds={currentInsightIds}
         maxSelectable={remainingSlots}
       />
-      {error ? <p className="mt-3 text-sm text-[var(--red)]">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
     </Modal>
   );
 }

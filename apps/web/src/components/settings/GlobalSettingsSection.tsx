@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { ShieldAlert } from 'lucide-react';
 
 import type { MsTeamsGlobalSettings, UpdateGlobalSettingsInput } from '@content-insights/shared';
@@ -10,11 +10,9 @@ import { getApiErrorMessage } from '../../lib/api-client';
 import { fetchGlobalSettings, updateGlobalSettings } from '../../lib/global-settings-api';
 import EmptyState from '../EmptyState';
 import Toggle from '../Toggle';
+import { Input } from '../ui/input';
 import SettingsSaveBar from './SettingsSaveBar';
 import { SettingsRow, SettingsSection } from './SettingsSection';
-
-const NUMBER_INPUT_CLASSNAME =
-  'w-28 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
 
 interface GlobalSettingsDraft {
   maxSnapshotArticles: number;
@@ -65,7 +63,7 @@ export default function GlobalSettingsSection() {
       <SettingsSection title="Global Settings">
         <div className="space-y-3">
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="h-9 w-64 animate-shimmer rounded-[var(--radius-input)]" />
+            <div key={index} className="h-9 w-64 animate-shimmer rounded-md" />
           ))}
         </div>
       </SettingsSection>
@@ -75,7 +73,7 @@ export default function GlobalSettingsSection() {
   if (settingsQuery.isError) {
     return (
       <SettingsSection title="Global Settings">
-        <p className="text-sm" style={{ color: 'var(--red)' }}>
+        <p className="text-sm text-destructive">
           {getApiErrorMessage(settingsQuery.error, 'Unable to load global settings.')}
         </p>
       </SettingsSection>
@@ -110,13 +108,13 @@ function GlobalSettingsForm({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsSection
         title="Snapshots"
         description="Caps how many articles a saved-search snapshot can capture at once, org-wide."
       >
         <SettingsRow label="Max snapshot articles">
-          <input
+          <Input
             type="number"
             min={1}
             max={10_000}
@@ -127,7 +125,7 @@ function GlobalSettingsForm({
                 maxSnapshotArticles: Math.max(1, Math.min(10_000, Math.round(Number(event.target.value)))),
               }))
             }
-            className={NUMBER_INPUT_CLASSNAME}
+            className="w-28"
           />
         </SettingsRow>
       </SettingsSection>
@@ -144,7 +142,7 @@ function GlobalSettingsForm({
         </SettingsRow>
 
         <SettingsRow label="Max articles per share">
-          <input
+          <Input
             type="number"
             min={1}
             max={100}
@@ -158,13 +156,13 @@ function GlobalSettingsForm({
                 },
               }))
             }
-            className={NUMBER_INPUT_CLASSNAME}
+            className="w-28"
           />
         </SettingsRow>
 
         <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)]">Default bulk message</label>
-          <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+          <label className="block text-sm font-medium text-foreground">Default bulk message</label>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Pre-filled message text when sharing multiple articles at once.
           </p>
           <textarea
@@ -177,9 +175,9 @@ function GlobalSettingsForm({
             }
             maxLength={1000}
             rows={3}
-            className="mt-2 w-full max-w-lg resize-y rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            className="mt-2 w-full max-w-lg resize-y rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
           />
-          <p className="mt-1 text-right text-xs text-[var(--text-muted)]">{draft.msTeams.defaultBulkMessage.length}/1000</p>
+          <p className="mt-1 text-right text-xs text-muted-foreground">{draft.msTeams.defaultBulkMessage.length}/1000</p>
         </div>
       </SettingsSection>
 

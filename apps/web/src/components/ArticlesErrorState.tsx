@@ -1,6 +1,6 @@
 import { RefreshCw } from 'lucide-react';
 
-import Button from './ui/Button';
+import Button from './ui/button';
 import ErrorState from './ui/ErrorState';
 
 interface ArticlesErrorStateProps {
@@ -10,7 +10,7 @@ interface ArticlesErrorStateProps {
 
 export default function ArticlesErrorState({ message, onRetry }: ArticlesErrorStateProps) {
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)]">
+    <div className="rounded-lg border border-border bg-card">
       <ErrorState
         title="Unable to load articles"
         description={message}

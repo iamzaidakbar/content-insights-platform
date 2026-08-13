@@ -118,7 +118,7 @@ export default function ArticlesGrid({
               <button
                 type="button"
                 onClick={onClearFilters}
-                className="flex h-9 items-center rounded-[var(--radius-button)] border border-[var(--border)] px-4 text-sm text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+                className="flex h-9 items-center rounded-md border border-border px-4 text-sm text-foreground transition-colors hover:border-primary"
               >
                 Clear filters
               </button>
@@ -157,21 +157,21 @@ export default function ArticlesGrid({
   return (
     <div>
       {!isLoading && !isError && hits.length > 0 ? (
-        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
+        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={allOnPageSelected}
               onChange={(event) => onSelectAllOnPage(event.target.checked)}
               aria-label="Select all articles on this page"
-              className="h-3.5 w-3.5 cursor-pointer rounded border-[var(--border)] accent-[var(--accent)]"
+              className="h-3.5 w-3.5 cursor-pointer rounded border-border accent-primary"
             />
             <span>Select all on this page</span>
           </label>
           <button
             type="button"
             onClick={onToggleExpandAll}
-            className="flex items-center gap-1 text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+            className="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
           >
             {allOnPageExpanded ? <ChevronsDownUp size={13} /> : <ChevronsUpDown size={13} />}
             {allOnPageExpanded ? 'Collapse all' : 'Expand all'}

@@ -10,7 +10,7 @@ export default function ArticleCardSkeleton({ viewMode, contentLines }: ArticleC
 
   if (viewMode === 'list') {
     return (
-      <div className="overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] px-3 py-2">
+      <div className="overflow-hidden rounded-lg border border-border px-3 py-2">
         <div className="flex items-start gap-2.5">
           <div className="mt-1 h-3.5 w-3.5 shrink-0 animate-shimmer rounded" />
           <div className="min-w-0 flex-1 space-y-1.5">
@@ -24,7 +24,7 @@ export default function ArticleCardSkeleton({ viewMode, contentLines }: ArticleC
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-border">
       <div className="flex-1 space-y-2 p-3">
         <div className="flex items-start gap-2">
           <div className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-shimmer rounded" />
@@ -37,7 +37,7 @@ export default function ArticleCardSkeleton({ viewMode, contentLines }: ArticleC
           ))}
         </div>
       </div>
-      <div className="border-t border-[var(--border)] px-3 py-2">
+      <div className="border-t border-border px-3 py-2">
         <div className="h-6 w-20 animate-shimmer rounded" />
       </div>
     </div>

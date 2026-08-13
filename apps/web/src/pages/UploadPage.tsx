@@ -217,7 +217,7 @@ export default function UploadPage() {
           <CardBody className="p-5 sm:p-6">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="title" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <label htmlFor="title" className="block text-sm font-medium text-muted-foreground">
                   Title
                 </label>
                 <Input
@@ -231,7 +231,7 @@ export default function UploadPage() {
               </div>
 
               <div>
-                <label htmlFor="project" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <label htmlFor="project" className="block text-sm font-medium text-muted-foreground">
                   Project
                 </label>
                 <Select
@@ -250,7 +250,7 @@ export default function UploadPage() {
                   ))}
                 </Select>
                 {isBlocked ? (
-                  <p className="mt-1 text-xs text-[var(--error)]">
+                  <p className="mt-1 text-xs text-destructive">
                     You do not have access to any project. Ask an admin to grant you project access.
                   </p>
                 ) : null}
@@ -258,8 +258,8 @@ export default function UploadPage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="domain" className="block text-sm font-medium text-[var(--text-secondary)]">
-                    Source / domain <span className="text-[var(--text-muted)]">(optional)</span>
+                  <label htmlFor="domain" className="block text-sm font-medium text-muted-foreground">
+                    Source / domain <span className="text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     id="domain"
@@ -271,8 +271,8 @@ export default function UploadPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="publishedAt" className="block text-sm font-medium text-[var(--text-secondary)]">
-                    Published date <span className="text-[var(--text-muted)]">(optional)</span>
+                  <label htmlFor="publishedAt" className="block text-sm font-medium text-muted-foreground">
+                    Published date <span className="text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     id="publishedAt"
@@ -286,8 +286,8 @@ export default function UploadPage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="url" className="block text-sm font-medium text-[var(--text-secondary)]">
-                    Source URL <span className="text-[var(--text-muted)]">(optional)</span>
+                  <label htmlFor="url" className="block text-sm font-medium text-muted-foreground">
+                    Source URL <span className="text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     id="url"
@@ -299,8 +299,8 @@ export default function UploadPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="authors" className="block text-sm font-medium text-[var(--text-secondary)]">
-                    Authors <span className="text-[var(--text-muted)]">(optional)</span>
+                  <label htmlFor="authors" className="block text-sm font-medium text-muted-foreground">
+                    Authors <span className="text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     id="authors"
@@ -314,8 +314,8 @@ export default function UploadPage() {
               </div>
 
               <div>
-                <label htmlFor="summary" className="block text-sm font-medium text-[var(--text-secondary)]">
-                  Summary <span className="text-[var(--text-muted)]">(optional)</span>
+                <label htmlFor="summary" className="block text-sm font-medium text-muted-foreground">
+                  Summary <span className="text-muted-foreground">(optional)</span>
                 </label>
                 <Textarea
                   id="summary"
@@ -327,7 +327,7 @@ export default function UploadPage() {
               </div>
 
               <div>
-                <span className="block text-sm font-medium text-[var(--text-secondary)]">File</span>
+                <span className="block text-sm font-medium text-muted-foreground">File</span>
                 <div
                   role="button"
                   tabIndex={0}
@@ -336,16 +336,16 @@ export default function UploadPage() {
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`mt-1 cursor-pointer rounded-[var(--radius-card)] border-2 border-dashed px-6 py-10 text-center transition-colors ${
+                  className={`mt-1 cursor-pointer rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
                     isDraggingOver
-                      ? 'border-[var(--accent)] bg-[var(--bg-hover)]'
-                      : 'border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]'
+                      ? 'border-primary bg-accent'
+                      : 'border-border bg-card hover:border-primary'
                   }`}
                 >
-                  <p className="text-sm text-[var(--text-secondary)]">
+                  <p className="text-sm text-muted-foreground">
                     {file ? file.name : 'Drag and drop a file here, or click to browse'}
                   </p>
-                  <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {ACCEPTED_TYPES_LABEL} — up to {MAX_FILE_SIZE_LABEL}
                   </p>
                   <input
@@ -356,18 +356,18 @@ export default function UploadPage() {
                     onChange={handleFileInputChange}
                   />
                 </div>
-                {fileError ? <p className="mt-1 text-sm text-[var(--error)]">{fileError}</p> : null}
+                {fileError ? <p className="mt-1 text-sm text-destructive">{fileError}</p> : null}
               </div>
 
               {isUploading ? (
                 <div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[var(--bg-hover)]">
+                  <div className="h-2 overflow-hidden rounded-full bg-accent">
                     <div
-                      className="h-full bg-[var(--accent)] transition-all"
+                      className="h-full bg-primary transition-all"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {uploadProgress < 100 ? `${uploadProgress}%` : 'Processing…'}
                   </p>
                 </div>
@@ -387,22 +387,22 @@ export default function UploadPage() {
         <Card>
           <CardBody className="space-y-4 p-5 sm:p-6">
             <div className="flex items-start gap-3">
-              <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[var(--success)]" />
+              <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-success" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-[var(--text-primary)]">{createdArticle.title}</p>
-                <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+                <p className="truncate text-sm font-medium text-foreground">{createdArticle.title}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {createdArticle.domain} · {formatDate(createdArticle.publishedAt)}
                   {wordCount > 0 ? ` · ${wordCount.toLocaleString()} words` : ''}
                 </p>
               </div>
             </div>
 
-            <p className="text-sm text-[var(--success)]">Article added.</p>
+            <p className="text-sm text-success">Article added.</p>
 
             <div className="flex flex-wrap gap-3">
               <Link
                 to={`/articles/${createdArticle.id}`}
-                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
+                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 View article
               </Link>

@@ -1,16 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 import { useAuth } from '../../auth/AuthContext';
-import Button from '../ui/Button';
-import { Input } from '../ui/Input';
+import Button from '../ui/button';
+import { Input } from '../ui/input';
 import Modal from '../ui/Modal';
 import { getApiErrorMessage } from '../../lib/api-client';
 import { changePassword } from '../../lib/auth-api';
 import { deleteMe, updateMe } from '../../lib/users-api';
-import { INPUT_CLASSNAME } from '../../lib/form-styles';
 import { SettingsRow, SettingsSection } from './SettingsSection';
 
 // No client-side validation library is used elsewhere in this app (LoginPage/
@@ -27,7 +26,7 @@ function computePasswordStrength(password: string): number {
 }
 
 const STRENGTH_LABELS = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
-const STRENGTH_COLORS = ['var(--red)', 'var(--red)', '#f59e0b', '#eab308', 'var(--green)'];
+const STRENGTH_COLORS = ['var(--destructive)', 'var(--destructive)', '#f59e0b', '#eab308', 'var(--success)'];
 
 function PasswordStrengthBar({ password }: { password: string }) {
   if (!password) {
@@ -71,25 +70,20 @@ function DisplayNameField() {
 
   return (
     <div>
-      <label className="block text-sm font-medium text-[var(--text-secondary)]">Display name</label>
+      <label className="block text-sm font-medium text-muted-foreground">Display name</label>
       <div className="mt-1 flex items-center gap-2">
-        <input
+        <Input
           type="text"
           value={value}
           onChange={(event) => setValue(event.target.value)}
           placeholder="Add a display name"
           maxLength={100}
-          className={`max-w-xs ${INPUT_CLASSNAME}`}
+          className="max-w-xs"
         />
         {isDirty ? (
-          <button
-            type="button"
-            onClick={() => mutation.mutate(value.trim())}
-            disabled={mutation.isPending}
-            className="h-9 shrink-0 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {mutation.isPending ? 'Saving…' : 'Save'}
-          </button>
+          <Button type="button" onClick={() => mutation.mutate(value.trim())} loading={mutation.isPending}>
+            Save
+          </Button>
         ) : null}
       </div>
     </div>
@@ -138,50 +132,46 @@ function ChangePasswordForm() {
   return (
     <form onSubmit={(event) => void handleSubmit(event)} className="max-w-sm space-y-3">
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">Current password</label>
-        <input
+        <label className="block text-xs font-medium text-muted-foreground">Current password</label>
+        <Input
           type="password"
           autoComplete="current-password"
           required
           value={currentPassword}
           onChange={(event) => setCurrentPassword(event.target.value)}
-          className={`mt-1 ${INPUT_CLASSNAME}`}
+          className="mt-1"
         />
       </div>
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">New password</label>
-        <input
+        <label className="block text-xs font-medium text-muted-foreground">New password</label>
+        <Input
           type="password"
           autoComplete="new-password"
           required
           minLength={8}
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
-          className={`mt-1 ${INPUT_CLASSNAME}`}
+          className="mt-1"
         />
         <PasswordStrengthBar password={newPassword} />
       </div>
       <div>
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">Confirm new password</label>
-        <input
+        <label className="block text-xs font-medium text-muted-foreground">Confirm new password</label>
+        <Input
           type="password"
           autoComplete="new-password"
           required
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
-          className={`mt-1 ${INPUT_CLASSNAME}`}
+          className="mt-1"
         />
       </div>
 
-      {error ? <p className="text-sm" style={{ color: 'var(--red)' }}>{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isSubmitting ? 'Updating…' : 'Change password'}
-      </button>
+      <Button type="submit" loading={isSubmitting}>
+        Change password
+      </Button>
     </form>
   );
 }
@@ -213,7 +203,7 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       title="Delete account"
       size="sm"
-      className="border-2 border-[var(--red)]"
+      className="border-2 border-destructive"
       footer={
         <>
           <Button type="button" variant="outline" onClick={onClose}>
@@ -231,9 +221,9 @@ function DeleteAccountModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <p className="text-sm text-[var(--text-secondary)]">
+      <p className="text-sm text-muted-foreground">
         This permanently deletes your account and cannot be undone. Type{' '}
-        <strong className="text-[var(--text-primary)]">{user?.email}</strong> to confirm.
+        <strong className="text-foreground">{user?.email}</strong> to confirm.
       </p>
       <Input
         type="text"
@@ -252,15 +242,12 @@ export default function AccountSection() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsSection title="Profile">
         <DisplayNameField />
         <div>
-          <label className="block text-sm font-medium text-[var(--text-secondary)]">Email</label>
-          <p
-            className="mt-1 max-w-xs rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-sm"
-            style={{ color: 'var(--text-muted)' }}
-          >
+          <label className="block text-sm font-medium text-muted-foreground">Email</label>
+          <p className="mt-1 max-w-xs rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
             {user?.email ?? '—'}
           </p>
         </div>
@@ -272,16 +259,12 @@ export default function AccountSection() {
           natural home for "facts about you and your access." */}
       <SettingsSection title="Access">
         <SettingsRow label="Organization">
-          <span className="text-sm text-[var(--text-primary)]">{org?.name ?? '—'}</span>
+          <span className="text-sm text-foreground">{org?.name ?? '—'}</span>
         </SettingsRow>
         <SettingsRow label="Permissions">
           <div className="flex max-w-xs flex-wrap justify-end gap-1.5">
             {permissions.map((permission) => (
-              <span
-                key={permission}
-                className="rounded-[var(--radius-tag)] px-2 py-0.5 text-xs"
-                style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
-              >
+              <span key={permission} className="rounded-sm bg-muted px-2 py-0.5 text-xs text-foreground">
                 {permission}
               </span>
             ))}
@@ -293,24 +276,14 @@ export default function AccountSection() {
         <ChangePasswordForm />
       </SettingsSection>
 
-      <section
-        className="rounded-[var(--radius-card)] border-2 p-6"
-        style={{ borderColor: 'var(--red)', backgroundColor: 'var(--bg-card)' }}
-      >
-        <h2 className="text-base font-semibold" style={{ color: 'var(--red)' }}>
-          Danger zone
-        </h2>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
+      <section className="rounded-lg border-2 border-destructive bg-card p-4">
+        <h2 className="text-base font-semibold text-destructive">Danger zone</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Permanently delete your account and all associated data. This cannot be undone.
         </p>
-        <button
-          type="button"
-          onClick={() => setIsDeleteModalOpen(true)}
-          className="mt-4 h-9 rounded-[var(--radius-button)] border px-4 text-sm font-medium transition-colors"
-          style={{ borderColor: 'var(--red)', color: 'var(--red)' }}
-        >
+        <Button type="button" variant="destructive" className="mt-3" onClick={() => setIsDeleteModalOpen(true)}>
           Delete account
-        </button>
+        </Button>
       </section>
 
       {isDeleteModalOpen ? <DeleteAccountModal onClose={() => setIsDeleteModalOpen(false)} /> : null}

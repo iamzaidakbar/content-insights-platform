@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Check, Plus, X } from 'lucide-react';
 
 import {
@@ -21,9 +21,10 @@ import {
 import ErrorBoundary from '../ErrorBoundary';
 import { resolveChartRenderer } from '../charts/chart-registry';
 import type { ChartSeriesMeta } from '../charts/chart-types';
-import Button from '../ui/Button';
-import { Input, Select } from '../ui/Input';
+import Button from '../ui/button';
+import { Input, Select } from '../ui/input';
 import Modal from '../ui/Modal';
+import { cn } from '../../lib/cn';
 import { getApiErrorMessage } from '../../lib/api-client';
 import { CHART_FIELD_SLOTS, CHART_TYPE_META, isRoleSatisfied } from '../../lib/insight-chart-config';
 import { createInsight, updateInsight } from '../../lib/insights-api';
@@ -261,7 +262,7 @@ export default function InsightBuilderModal({
       <form id="insight-builder-form" onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="insight-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+            <label htmlFor="insight-name" className="block text-sm font-medium text-muted-foreground">
               Name
             </label>
             <Input
@@ -274,20 +275,20 @@ export default function InsightBuilderModal({
               onChange={(event) => setName(event.target.value)}
               className="mt-1"
             />
-            <p className="mt-1 text-right text-xs text-[var(--text-muted)]">
+            <p className="mt-1 text-right text-xs text-muted-foreground">
               {name.length}/{INSIGHT_NAME_MAX_LENGTH}
             </p>
           </div>
 
           <div>
-            <label htmlFor="insight-group" className="block text-sm font-medium text-[var(--text-secondary)]">
+            <label htmlFor="insight-group" className="block text-sm font-medium text-muted-foreground">
               Group
             </label>
             {isEditing ? (
               // An insight's group is fixed at creation (updateInsightSchema has no
               // groupId field) — shown read-only rather than as a disabled control that
               // implies it could be changed.
-              <p className="mt-1 flex h-9 items-center text-sm text-[var(--text-primary)]">
+              <p className="mt-1 flex h-9 items-center text-sm text-foreground">
                 {groupOptions.find((group) => group.id === groupId)?.name ?? groupId}
               </p>
             ) : (
@@ -309,7 +310,7 @@ export default function InsightBuilderModal({
         </div>
 
         <div>
-          <p className="text-sm font-medium text-[var(--text-secondary)]">Chart type</p>
+          <p className="text-sm font-medium text-muted-foreground">Chart type</p>
           <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
             {CHART_TYPES.map((type) => {
               const meta = CHART_TYPE_META[type];
@@ -321,11 +322,11 @@ export default function InsightBuilderModal({
                   type="button"
                   onClick={() => handleChartTypeSelect(type)}
                   title={meta.description}
-                  className="flex flex-col items-center gap-1.5 rounded-[var(--radius-input)] border px-2 py-3 text-xs transition-colors"
+                  className="flex flex-col items-center gap-1.5 rounded-md border px-2 py-3 text-xs transition-colors"
                   style={
                     isSelected
-                      ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                      : { borderColor: 'var(--border)', color: 'var(--text-secondary)' }
+                      ? { borderColor: 'var(--primary)', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+                      : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
                   }
                 >
                   <Icon size={18} strokeWidth={1.75} />
@@ -338,10 +339,10 @@ export default function InsightBuilderModal({
 
         {chartType === 'wordCloud' ? (
           <div className="space-y-3">
-            <p className="text-sm font-medium text-[var(--text-secondary)]">Word cloud settings</p>
+            <p className="text-sm font-medium text-muted-foreground">Word cloud settings</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label htmlFor="wc-max-words" className="block text-xs text-[var(--text-secondary)]">
+                <label htmlFor="wc-max-words" className="block text-xs text-muted-foreground">
                   Max words
                 </label>
                 <Input
@@ -357,7 +358,7 @@ export default function InsightBuilderModal({
                 />
               </div>
               <div>
-                <label htmlFor="wc-min-occurrence" className="block text-xs text-[var(--text-secondary)]">
+                <label htmlFor="wc-min-occurrence" className="block text-xs text-muted-foreground">
                   Minimum occurrences
                 </label>
                 <Input
@@ -373,7 +374,7 @@ export default function InsightBuilderModal({
               </div>
             </div>
             <div>
-              <label htmlFor="wc-exclusion" className="block text-xs text-[var(--text-secondary)]">
+              <label htmlFor="wc-exclusion" className="block text-xs text-muted-foreground">
                 Excluded words
               </label>
               <div className="mt-1 flex gap-2">
@@ -398,8 +399,8 @@ export default function InsightBuilderModal({
                   {wordCloud.permanentExclusions.map((word) => (
                     <li
                       key={word}
-                      className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs"
-                      style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                      className="flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs"
+                      style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
                     >
                       {word}
                       <button type="button" onClick={() => removeExclusion(word)} aria-label={`Remove ${word}`}>
@@ -413,17 +414,17 @@ export default function InsightBuilderModal({
           </div>
         ) : (
           <div>
-            <p className="text-sm font-medium text-[var(--text-secondary)]">Map fields</p>
-            <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+            <p className="text-sm font-medium text-muted-foreground">Map fields</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Click an available field below, then click a slot to assign it — or drag a field onto a slot.
             </p>
 
             <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Available fields</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Available fields</p>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
                   {concepts.length === 0 ? (
-                    <li className="text-xs text-[var(--text-muted)]">No fields available for this project.</li>
+                    <li className="text-xs text-muted-foreground">No fields available for this project.</li>
                   ) : (
                     concepts.map((concept) => {
                       const isArmed = armedConceptKey === concept.key;
@@ -434,11 +435,11 @@ export default function InsightBuilderModal({
                             draggable
                             onDragStart={(event) => event.dataTransfer.setData('text/plain', concept.key)}
                             onClick={() => handleFieldClick(concept.key)}
-                            className="cursor-grab rounded-[var(--radius-tag)] border px-2.5 py-1 text-xs transition-colors active:cursor-grabbing"
+                            className="cursor-grab rounded-sm border px-2.5 py-1 text-xs transition-colors active:cursor-grabbing"
                             style={
                               isArmed
-                                ? { borderColor: 'var(--accent)', backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                                : { borderColor: 'var(--border)', color: 'var(--text-primary)' }
+                                ? { borderColor: 'var(--primary)', backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+                                : { borderColor: 'var(--border)', color: 'var(--foreground)' }
                             }
                           >
                             {concept.displayLabel}
@@ -451,7 +452,7 @@ export default function InsightBuilderModal({
               </div>
 
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--text-muted)]">Chart slots</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Chart slots</p>
                 <div className="mt-2 space-y-2">
                   {slots.map((slot) => {
                     const assignedKey = mappingsByRole[slot.role];
@@ -470,23 +471,23 @@ export default function InsightBuilderModal({
                         }}
                         role="button"
                         tabIndex={0}
-                        className="flex cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-input)] border border-dashed px-3 py-2 text-sm transition-colors"
-                        style={{
-                          borderColor: assignedConcept ? 'var(--accent)' : armedConceptKey ? 'var(--accent)' : 'var(--border)',
-                          backgroundColor: assignedConcept ? 'var(--accent-soft)' : 'transparent',
-                        }}
+                        className={cn(
+                          'flex cursor-pointer items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2 text-sm transition-colors',
+                          assignedConcept || armedConceptKey ? 'border-primary' : 'border-border',
+                          assignedConcept && 'bg-accent',
+                        )}
                       >
-                        <span className="text-[var(--text-secondary)]">
+                        <span className="text-muted-foreground">
                           {slot.label}
-                          {slot.required ? <span style={{ color: 'var(--red)' }}> *</span> : null}
+                          {slot.required ? <span className="text-destructive"> *</span> : null}
                         </span>
                         {assignedConcept ? (
-                          <span className="flex items-center gap-1.5 font-medium text-[var(--accent)]">
+                          <span className="flex items-center gap-1.5 font-medium text-primary">
                             <Check size={13} />
                             {assignedConcept.displayLabel}
                           </span>
                         ) : (
-                          <span className="text-xs text-[var(--text-muted)]">Empty</span>
+                          <span className="text-xs text-muted-foreground">Empty</span>
                         )}
                       </div>
                     );
@@ -498,17 +499,17 @@ export default function InsightBuilderModal({
         )}
 
         <div>
-          <p className="text-sm font-medium text-[var(--text-secondary)]">Preview</p>
-          <p className="mt-0.5 text-xs text-[var(--text-muted)]">Sample preview — connects to real data once this insight is saved.</p>
+          <p className="text-sm font-medium text-muted-foreground">Preview</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Sample preview — connects to real data once this insight is saved.</p>
           <div className="mt-2">
             {PreviewRenderer ? (
               <ErrorBoundary fallbackTitle="Preview unavailable">
                 <PreviewRenderer categories={previewData.categories} series={previewData.series} values={previewData.values} />
               </ErrorBoundary>
             ) : (
-              <div className="flex flex-col items-center justify-center gap-1 rounded-[var(--radius-input)] border border-dashed border-[var(--border)] py-10 text-center">
-                <p className="text-sm font-medium text-[var(--text-primary)]">Chart type coming online</p>
-                <p className="text-xs text-[var(--text-muted)]">
+              <div className="flex flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border py-10 text-center">
+                <p className="text-sm font-medium text-foreground">Chart type coming online</p>
+                <p className="text-xs text-muted-foreground">
                   {CHART_TYPE_META[chartType].label} isn&apos;t wired up yet — you can still save this insight.
                 </p>
               </div>
@@ -516,7 +517,7 @@ export default function InsightBuilderModal({
           </div>
         </div>
 
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </form>
     </Modal>
   );

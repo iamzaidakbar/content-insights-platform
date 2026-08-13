@@ -6,10 +6,7 @@ import {
   Bookmark,
   LayoutDashboard,
   LogOut,
-  Menu,
   Newspaper,
-  PanelLeftClose,
-  PanelLeftOpen,
   Rss,
   ScrollText,
   Settings as SettingsIcon,
@@ -17,7 +14,6 @@ import {
   Tag,
   UserCog,
   Users,
-  X,
 } from 'lucide-react';
 
 import type { User } from '@content-insights/shared';
@@ -26,15 +22,40 @@ import { useAuth } from '../auth/AuthContext';
 import WorkspaceContextSwitcher from '../components/WorkspaceContextSwitcher';
 import CommandPalette from '../components/CommandPalette';
 import ErrorBoundary from '../components/ErrorBoundary';
+import ModeToggle from '../components/ModeToggle';
 import NotificationBell from '../components/NotificationBell';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-import { useIsDesktop } from '../hooks/useIsDesktop';
+import { Avatar, AvatarFallback } from '../components/ui/avatar';
+import { Button } from '../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '../components/ui/sidebar';
 import { cn } from '../lib/cn';
 
 interface NavItem {
   to: string;
   label: string;
-  icon: ComponentType<{ size?: number; strokeWidth?: number }>;
+  icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
   permissions: string[] | null;
 }
 
@@ -89,28 +110,13 @@ const PAGE_TITLES: Record<string, string> = {
   '/profile': 'Profile',
 };
 
-const SIDEBAR_EXPANDED = 232;
-const SIDEBAR_COMPACT = 64;
-
 function pageTitleFor(pathname: string): string {
-  if (PAGE_TITLES[pathname]) {
-    return PAGE_TITLES[pathname];
-  }
-  if (pathname.startsWith('/articles/')) {
-    return 'Article';
-  }
-  if (pathname.startsWith('/channels/')) {
-    return 'Channel';
-  }
-  if (pathname.startsWith('/dashboards/')) {
-    return 'Dashboard';
-  }
-  if (pathname.startsWith('/groups/')) {
-    return 'User Group';
-  }
-  if (pathname.startsWith('/admin')) {
-    return 'Admin';
-  }
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
+  if (pathname.startsWith('/articles/')) return 'Article';
+  if (pathname.startsWith('/channels/')) return 'Channel';
+  if (pathname.startsWith('/dashboards/')) return 'Dashboard';
+  if (pathname.startsWith('/groups/')) return 'User Group';
+  if (pathname.startsWith('/admin')) return 'Admin';
   const topSegment = `/${pathname.split('/')[1] ?? ''}`;
   return PAGE_TITLES[topSegment] ?? 'Content Insights';
 }
@@ -137,59 +143,44 @@ function initialsFromUser(user: User): string {
 }
 
 function isNavItemVisible(item: NavItem, permissions: string[]): boolean {
-  if (item.permissions === null) {
-    return true;
-  }
+  if (item.permissions === null) return true;
   return permissions.includes('*') || item.permissions.some((candidate) => permissions.includes(candidate));
 }
 
-function NavSectionLabel({ label, compact }: { label: string; compact: boolean }) {
-  if (compact) {
-    return <div className="mx-2 my-2 h-px bg-[var(--border)]" aria-hidden />;
-  }
-  return (
-    <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-      {label}
-    </p>
-  );
+function isItemActive(pathname: string, to: string): boolean {
+  if (to === '/articles') return pathname === '/articles' || pathname.startsWith('/articles/');
+  return pathname === to || pathname.startsWith(`${to}/`);
 }
 
-function NavList({
+function NavGroup({
+  label,
   items,
-  compact,
-  onNavigate,
 }: {
+  label: string;
   items: NavItem[];
-  compact: boolean;
-  onNavigate?: () => void;
 }) {
+  const location = useLocation();
   return (
-    <>
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            title={item.label}
-            end={item.to === '/articles'}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-[var(--radius-button)] px-3 py-2 text-sm transition-colors',
-                compact && 'justify-center px-2',
-                isActive
-                  ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
-              )
-            }
-          >
-            <Icon size={18} strokeWidth={1.75} />
-            {!compact ? <span className="truncate">{item.label}</span> : null}
-          </NavLink>
-        );
-      })}
-    </>
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton asChild isActive={isItemActive(location.pathname, item.to)} tooltip={item.label}>
+                  <NavLink to={item.to} end={item.to === '/articles'}>
+                    <Icon className="size-4" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
@@ -230,10 +221,7 @@ function useInsightsSyncLeaveWarning(pathname: string): { isVisible: boolean; di
 export default function AppShell() {
   const { user, permissions, logout } = useAuth();
   const location = useLocation();
-  const isDesktop = useIsDesktop();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [compact, setCompact] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   const pageTitle = pageTitleFor(location.pathname);
   const visibleAdminNavItems = ADMIN_NAV_ITEMS.filter((item) => isNavItemVisible(item, permissions));
@@ -242,14 +230,6 @@ export default function AppShell() {
   useEffect(() => {
     document.title = `${pageTitle} · Content Insights`;
   }, [pageTitle]);
-
-  // Close mobile drawer on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname, location.search]);
-
-  const sidebarWidth = isDesktop ? (compact ? SIDEBAR_COMPACT : SIDEBAR_EXPANDED) : 0;
-  const showExpandedLabels = isDesktop ? !compact : true;
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -260,157 +240,91 @@ export default function AppShell() {
     }
   }
 
-  const sidebarContent = (
-    <>
-      <div className={cn('flex items-center gap-2 px-3 pb-4 pt-1', !showExpandedLabels && 'justify-center')}>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-sm font-bold text-white"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
-            C
-          </div>
-          {showExpandedLabels ? (
-            <span className="truncate text-sm font-semibold text-[var(--text-primary)]">Content Insights</span>
-          ) : null}
-        </div>
-        {isDesktop && showExpandedLabels ? (
-          <button
-            type="button"
-            onClick={() => setCompact(true)}
-            title="Collapse sidebar"
-            aria-label="Collapse sidebar"
-            className="shrink-0 rounded-[var(--radius-button)] p-1 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-          >
-            <PanelLeftClose size={16} strokeWidth={1.75} />
-          </button>
-        ) : null}
-        {!isDesktop ? (
-          <button
-            type="button"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Close menu"
-            className="rounded-[var(--radius-button)] p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            <X size={18} />
-          </button>
-        ) : null}
-      </div>
-
-      {isDesktop && compact ? (
-        <button
-          type="button"
-          onClick={() => setCompact(false)}
-          title="Expand sidebar"
-          aria-label="Expand sidebar"
-          className="mx-auto mb-2 rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-        >
-          <PanelLeftOpen size={16} strokeWidth={1.75} />
-        </button>
-      ) : null}
-
-      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-        <NavSectionLabel label="Main" compact={!showExpandedLabels} />
-        <NavList items={MAIN_NAV_ITEMS} compact={!showExpandedLabels} onNavigate={() => setMobileOpen(false)} />
-
-        <NavSectionLabel label="Workspace" compact={!showExpandedLabels} />
-        <NavList items={WORKSPACE_NAV_ITEMS} compact={!showExpandedLabels} onNavigate={() => setMobileOpen(false)} />
-
-        {visibleAdminNavItems.length > 0 ? (
-          <>
-            <NavSectionLabel label="Admin" compact={!showExpandedLabels} />
-            <NavList
-              items={visibleAdminNavItems}
-              compact={!showExpandedLabels}
-              onNavigate={() => setMobileOpen(false)}
-            />
-          </>
-        ) : null}
-      </nav>
-
-      <div className="mt-auto border-t border-[var(--border)] px-2 pt-2">
-        <button
-          type="button"
-          title="Log out"
-          onClick={() => void handleLogout()}
-          disabled={isLoggingOut}
-          className={cn(
-            'flex w-full items-center gap-3 rounded-[var(--radius-button)] px-3 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--error)] disabled:opacity-60',
-            !showExpandedLabels && 'justify-center px-2',
-          )}
-        >
-          <LogOut size={18} strokeWidth={1.75} />
-          {showExpandedLabels ? <span>Log out</span> : null}
-        </button>
-      </div>
-    </>
-  );
-
   return (
-    <div className="flex h-full overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <SidebarProvider className="h-svh overflow-hidden">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[100] focus:rounded-[var(--radius-button)] focus:bg-[var(--bg-surface)] focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-[var(--text-primary)] focus:outline-none"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[100] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:font-medium"
       >
         Skip to main content
       </a>
-      {/* Desktop sidebar */}
-      {isDesktop ? (
-        <aside
-          style={{ width: sidebarWidth }}
-          className="flex h-full shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] py-3 transition-[width] duration-150 motion-reduce:transition-none"
-        >
-          {sidebarContent}
-        </aside>
-      ) : null}
+      <Sidebar collapsible="icon">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild>
+                <Link to="/articles">
+                  <div className="flex size-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
+                    C
+                  </div>
+                  <span className="truncate font-semibold">Content Insights</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          <NavGroup label="Main" items={MAIN_NAV_ITEMS} />
+          <NavGroup label="Workspace" items={WORKSPACE_NAV_ITEMS} />
+          {visibleAdminNavItems.length > 0 ? <NavGroup label="Admin" items={visibleAdminNavItems} /> : null}
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={() => void handleLogout()} disabled={isLoggingOut}>
+                <LogOut className="size-4" />
+                <span>Log out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
 
-      {/* Mobile overlay sidebar */}
-      {!isDesktop && mobileOpen ? (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/40"
-            onClick={() => setMobileOpen(false)}
-            aria-hidden
-          />
-          <aside className="fixed inset-y-0 left-0 z-50 flex w-[min(280px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-sidebar)] py-3 shadow-[var(--shadow-md)]">
-            {sidebarContent}
-          </aside>
-        </>
-      ) : null}
-
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="z-10 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 sm:px-6">
+      <SidebarInset className="min-h-0 overflow-hidden">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between gap-3 border-b bg-background px-4">
           <div className="flex min-w-0 items-center gap-2">
-            {!isDesktop ? (
-              <button
-                type="button"
-                onClick={() => setMobileOpen(true)}
-                aria-label="Open menu"
-                className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
-              >
-                <Menu size={20} strokeWidth={1.75} />
-              </button>
-            ) : null}
-            <h1 className="truncate text-base font-semibold sm:text-lg">{pageTitle}</h1>
+            <SidebarTrigger />
+            <h1 className="truncate text-base font-semibold">{pageTitle}</h1>
           </div>
-
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             <WorkspaceContextSwitcher />
+            <ModeToggle />
             <NotificationBell />
-            <Link to="/profile" className="flex items-center gap-2.5 rounded-[var(--radius-button)] p-0.5 hover:bg-[var(--bg-hover)]" title="Profile">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                {user ? initialsFromUser(user) : '?'}
-              </div>
-              {user ? (
-                <div className="hidden text-sm leading-tight md:block">
-                  <p className="font-medium text-[var(--text-primary)]">{resolveDisplayName(user)}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">{user.email}</p>
-                </div>
-              ) : null}
-            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-9 gap-2 px-1.5">
+                  <Avatar size="sm">
+                    <AvatarFallback>{user ? initialsFromUser(user) : '?'}</AvatarFallback>
+                  </Avatar>
+                  {user ? (
+                    <span className="hidden max-w-40 truncate text-left text-sm md:block">
+                      {resolveDisplayName(user)}
+                    </span>
+                  ) : null}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {user ? (
+                  <>
+                    <DropdownMenuLabel className="font-normal">
+                      <p className="truncate text-sm font-medium">{resolveDisplayName(user)}</p>
+                      <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                  </>
+                ) : null}
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">Profile</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">Settings</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => void handleLogout()} disabled={isLoggingOut}>
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -425,7 +339,7 @@ export default function AppShell() {
             <Outlet />
           </ErrorBoundary>
         </main>
-      </div>
+      </SidebarInset>
 
       <CommandPalette />
 
@@ -437,8 +351,8 @@ export default function AppShell() {
         description="Any Insight you were building from that search stops syncing to live results until you reopen it from Articles."
         confirmLabel="Got it"
         showCancel={false}
-        icon={<AlertTriangle size={18} strokeWidth={1.75} />}
+        icon={<AlertTriangle className="size-4" />}
       />
-    </div>
+    </SidebarProvider>
   );
 }

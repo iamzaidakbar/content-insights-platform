@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { ArrowDown, ArrowUp, ListFilter, Plus, ShieldAlert, X } from 'lucide-react';
 
 import {
@@ -18,6 +18,7 @@ import { fetchConcepts, updateConcept } from '../../lib/concepts-api';
 import { fetchFilterLayout, updateFilterLayout } from '../../lib/filter-layout-api';
 import { fetchProjects } from '../../lib/projects-api';
 import EmptyState from '../EmptyState';
+import { ActionIconButton } from '../ui/action-icon-button';
 import SettingsSaveBar from './SettingsSaveBar';
 import { SETTINGS_SELECT_CLASSNAME, SettingsSection } from './SettingsSection';
 
@@ -86,13 +87,13 @@ export default function FilterLayoutSection() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsSection
         title="Filter Layout"
         description="Controls which filters appear on the left of Articles search, their order, and their display labels. System filters (Date, Project, Hidden, User Tags) can be reordered and relabeled; Concepts additionally have a hard/soft placement."
       >
         <div>
-          <label className="block text-sm font-medium text-[var(--text-secondary)]">Layout scope</label>
+          <label className="block text-sm font-medium text-muted-foreground">Layout scope</label>
           <select
             className={`mt-1 ${SETTINGS_SELECT_CLASSNAME}`}
             value={scopeProjectId}
@@ -112,13 +113,13 @@ export default function FilterLayoutSection() {
         <SettingsSection title="Layout">
           <div className="space-y-2">
             {Array.from({ length: 4 }, (_, index) => (
-              <div key={index} className="h-11 animate-shimmer rounded-[var(--radius-input)]" />
+              <div key={index} className="h-11 animate-shimmer rounded-md" />
             ))}
           </div>
         </SettingsSection>
       ) : layoutQuery.isError ? (
         <SettingsSection title="Layout">
-          <p className="text-sm" style={{ color: 'var(--red)' }}>
+          <p className="text-sm text-destructive">
             {getApiErrorMessage(layoutQuery.error, 'Unable to load this filter layout.')}
           </p>
         </SettingsSection>
@@ -222,7 +223,7 @@ function FilterLayoutEditor({
     <>
       <SettingsSection title="Placed filters" description="Top to bottom is the order shown in the filter panel.">
         {itemsDraft.draft.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No filters placed yet — add one below.</p>
+          <p className="text-sm text-muted-foreground">No filters placed yet — add one below.</p>
         ) : (
           <div className="space-y-2">
             {itemsDraft.draft.map((item, index) => {
@@ -231,32 +232,28 @@ function FilterLayoutEditor({
               return (
                 <div
                   key={`${item.kind}:${item.key}`}
-                  className="flex items-center gap-3 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-2.5"
+                  className="flex items-center gap-3 rounded-md border border-border bg-card p-2.5"
                 >
                   <div className="flex shrink-0 flex-col">
-                    <button
-                      type="button"
+                    <ActionIconButton
+                      size="icon-xs"
+                      label="Move up"
+                      icon={ArrowUp}
                       onClick={() => moveAt(index, -1)}
                       disabled={index === 0}
-                      aria-label="Move up"
-                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowUp size={14} />
-                    </button>
-                    <button
-                      type="button"
+                    />
+                    <ActionIconButton
+                      size="icon-xs"
+                      label="Move down"
+                      icon={ArrowDown}
                       onClick={() => moveAt(index, 1)}
                       disabled={index === itemsDraft.draft.length - 1}
-                      aria-label="Move down"
-                      className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <ArrowDown size={14} />
-                    </button>
+                    />
                   </div>
 
                   <span
-                    className="shrink-0 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs"
-                    style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                    className="shrink-0 rounded-sm px-2 py-0.5 text-xs"
+                    style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
                   >
                     {item.kind === 'system' ? 'System' : 'Concept'}
                   </span>
@@ -266,22 +263,22 @@ function FilterLayoutEditor({
                     value={item.label}
                     onChange={(event) => relabel(index, event.target.value)}
                     maxLength={100}
-                    className="min-w-0 flex-1 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                    className="min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring"
                   />
 
                   {item.kind === 'concept' ? (
                     concept && placement ? (
-                      <div className="flex shrink-0 items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-0.5 text-xs">
+                      <div className="flex shrink-0 items-center gap-1 rounded-md border border-border p-0.5 text-xs">
                         {(['hard', 'soft'] as ConceptPlacement[]).map((option) => (
                           <button
                             key={option}
                             type="button"
                             onClick={() => togglePlacement(concept.id, placement)}
-                            className="rounded-[calc(var(--radius-button)-2px)] px-2 py-1 capitalize transition-colors"
+                            className="rounded-md px-2 py-1 capitalize transition-colors"
                             style={
                               placement === option
-                                ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                                : { color: 'var(--text-secondary)' }
+                                ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+                                : { color: 'var(--muted-foreground)' }
                             }
                           >
                             {option}
@@ -289,18 +286,17 @@ function FilterLayoutEditor({
                         ))}
                       </div>
                     ) : (
-                      <span className="shrink-0 text-xs text-[var(--text-muted)]">Hard/soft: switch to this project</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">Hard/soft: switch to this project</span>
                     )
                   ) : null}
 
-                  <button
-                    type="button"
+                  <ActionIconButton
+                    size="icon-xs"
+                    label="Remove"
+                    icon={X}
                     onClick={() => removeAt(index)}
-                    aria-label="Remove"
-                    className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--red)]"
-                  >
-                    <X size={16} />
-                  </button>
+                    destructive
+                  />
                 </div>
               );
             })}
@@ -311,7 +307,7 @@ function FilterLayoutEditor({
       <SettingsSection title="Add a filter">
         <div className="flex flex-wrap gap-4">
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)]">System filter</label>
+            <label className="block text-xs font-medium text-muted-foreground">System filter</label>
             <div className="mt-1 flex items-center gap-2">
               <select
                 id="add-system-filter"
@@ -334,12 +330,12 @@ function FilterLayoutEditor({
                   </option>
                 ))}
               </select>
-              <Plus size={16} className="text-[var(--text-muted)]" />
+              <Plus size={16} className="text-muted-foreground" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-[var(--text-secondary)]">Concept</label>
+            <label className="block text-xs font-medium text-muted-foreground">Concept</label>
             <div className="mt-1 flex items-center gap-2">
               <select
                 className={SETTINGS_SELECT_CLASSNAME}
@@ -368,12 +364,12 @@ function FilterLayoutEditor({
                   </option>
                 ))}
               </select>
-              <Plus size={16} className="text-[var(--text-muted)]" />
+              <Plus size={16} className="text-muted-foreground" />
             </div>
           </div>
         </div>
         {!scopeProjectId ? (
-          <p className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ListFilter size={12} /> Concepts belong to a specific project — choose one above to add its concepts here.
           </p>
         ) : null}

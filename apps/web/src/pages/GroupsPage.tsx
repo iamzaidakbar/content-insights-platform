@@ -14,18 +14,18 @@ const SKELETON_ROW_COUNT = 4;
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-[var(--border)]">
+    <tr className="border-b border-border">
       <td className="py-3 pr-4">
-        <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-40 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3 pr-4">
-        <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-16 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3 pr-4">
-        <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-16 animate-pulse rounded bg-accent" />
       </td>
       <td className="py-3">
-        <div className="h-4 w-28 animate-pulse rounded bg-[var(--bg-hover)]" />
+        <div className="h-4 w-28 animate-pulse rounded bg-accent" />
       </td>
     </tr>
   );
@@ -77,7 +77,7 @@ function NewGroupModal({ onClose }: { onClose: () => void }) {
     >
       <form id="new-group-form" className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label htmlFor="group-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+          <label htmlFor="group-name" className="block text-sm font-medium text-muted-foreground">
             Name
           </label>
           <Input
@@ -92,8 +92,8 @@ function NewGroupModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div>
-          <label htmlFor="group-description" className="block text-sm font-medium text-[var(--text-secondary)]">
-            Description <span className="text-[var(--text-muted)]">(optional)</span>
+          <label htmlFor="group-description" className="block text-sm font-medium text-muted-foreground">
+            Description <span className="text-muted-foreground">(optional)</span>
           </label>
           <Input
             id="group-description"
@@ -104,7 +104,7 @@ function NewGroupModal({ onClose }: { onClose: () => void }) {
           />
         </div>
 
-        {error ? <p className="text-sm text-[var(--error)]">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </form>
     </Modal>
   );
@@ -144,7 +144,7 @@ export default function GroupsPage() {
         <div className="overflow-x-auto px-4 py-2">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+              <tr className="border-b border-border text-muted-foreground">
                 <th className="pb-2 pr-4 font-medium">Name</th>
                 <th className="pb-2 pr-4 font-medium">Members</th>
                 <th className="pb-2 pr-4 font-medium">Projects</th>
@@ -155,15 +155,15 @@ export default function GroupsPage() {
               {groupsQuery.isLoading
                 ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => <SkeletonRow key={index} />)
                 : groups.map((group) => (
-                    <tr key={group.id} className="h-11 border-b border-[var(--border)] last:border-b-0">
-                      <td className="py-3 pr-4 text-[var(--text-primary)]">
-                        <Link to={`/groups/${group.id}`} className="hover:text-[var(--accent)]">
+                    <tr key={group.id} className="h-11 border-b border-border last:border-b-0">
+                      <td className="py-3 pr-4 text-foreground">
+                        <Link to={`/groups/${group.id}`} className="hover:text-primary">
                           {group.name}
                         </Link>
                       </td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{group.members.length}</td>
-                      <td className="py-3 pr-4 text-[var(--text-secondary)]">{group.dataAccess.projectIds.length}</td>
-                      <td className="py-3 text-[var(--text-secondary)]">{formatDate(group.createdAt)}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{group.members.length}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{group.dataAccess.projectIds.length}</td>
+                      <td className="py-3 text-muted-foreground">{formatDate(group.createdAt)}</td>
                     </tr>
                   ))}
             </tbody>

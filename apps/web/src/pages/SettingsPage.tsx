@@ -44,8 +44,12 @@ export default function SettingsPage() {
     : (visibleSections[0]?.key ?? 'general');
 
   return (
-    <PageBody>
-      <PageHeader title="Settings" description="Manage your preferences and organization configuration." />
+    <PageBody className="p-4">
+      <PageHeader
+        title="Settings"
+        description="Manage your preferences and organization configuration."
+        className="mb-4"
+      />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:gap-4">
         <nav className="w-full shrink-0 sm:w-[200px]">
@@ -55,10 +59,10 @@ export default function SettingsPage() {
                 key={section.key}
                 type="button"
                 onClick={() => setActiveSection(section.key)}
-                className={`block w-full rounded-[var(--radius-button)] px-3 py-2 text-left text-sm transition-colors ${
+                className={`block w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
                   resolvedSection === section.key
-                    ? 'bg-[var(--accent-soft)] font-medium text-[var(--accent)]'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+                    ? 'bg-accent font-medium text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                 }`}
               >
                 {section.label}
@@ -71,7 +75,7 @@ export default function SettingsPage() {
             rendering) so switching tabs never destroys another section's unsaved local
             draft — each section's dirty state is independent of which one is currently
             visible, not just independent of the others' values. */}
-        <div className="min-w-0 flex-1 pb-16">
+        <div className="min-w-0 flex-1">
           <div className={resolvedSection === 'general' ? '' : 'hidden'}>
             <GeneralSection />
           </div>

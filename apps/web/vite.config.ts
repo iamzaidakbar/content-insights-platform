@@ -1,7 +1,11 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { analyzer } from 'vite-bundle-analyzer';
+
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // The app's own network calls go straight to the absolute VITE_API_URL (see
 // lib/api-client.ts) — that's the tested, working path across both docker-compose and
@@ -13,6 +17,11 @@ import { analyzer } from 'vite-bundle-analyzer';
 const apiProxyTarget = `http://localhost:${process.env.API_PORT ?? 4000}`;
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(appRoot, './src'),
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

@@ -1,41 +1,48 @@
+import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
 
-import { cn } from '../../lib/cn';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { cn } from '@/lib/utils';
 
-export interface BreadcrumbItem {
+export interface BreadcrumbItemModel {
   label: string;
   to?: string;
 }
 
 export interface BreadcrumbsProps {
-  items: BreadcrumbItem[];
+  items: BreadcrumbItemModel[];
   className?: string;
 }
 
 export default function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   return (
-    <nav aria-label="Breadcrumb" className={cn('flex flex-wrap items-center gap-1 text-sm', className)}>
-      {items.map((item, index) => {
-        const isLast = index === items.length - 1;
-        return (
-          <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
-            {index > 0 ? <ChevronRight size={14} className="text-[var(--text-muted)]" /> : null}
-            {item.to && !isLast ? (
-              <Link
-                to={item.to}
-                className="text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)]"
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <span className={isLast ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}>
-                {item.label}
-              </span>
-            )}
-          </span>
-        );
-      })}
-    </nav>
+    <Breadcrumb className={cn(className)}>
+      <BreadcrumbList>
+        {items.map((item, index) => {
+          const isLast = index === items.length - 1;
+          return (
+            <Fragment key={`${item.label}-${index}`}>
+              {index > 0 ? <BreadcrumbSeparator /> : null}
+              <BreadcrumbItem>
+                {item.to && !isLast ? (
+                  <BreadcrumbLink asChild>
+                    <Link to={item.to}>{item.label}</Link>
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                )}
+              </BreadcrumbItem>
+            </Fragment>
+          );
+        })}
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }

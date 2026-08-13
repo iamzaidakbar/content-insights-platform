@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { Bookmark, RadioTower, Share2, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Bookmark, Download, FolderOpen, Pencil, RadioOff, RadioTower, Share2, Trash2, X } from 'lucide-react';
 
 import {
   SAVED_SEARCH_TYPES,
@@ -28,9 +28,10 @@ import {
   type LoadSavedSearchResult,
 } from '../lib/saved-searches-api';
 import { fetchGroups } from '../lib/groups-api';
-import Button from './ui/Button';
+import Button from './ui/button';
+import { ActionIconButton } from './ui/action-icon-button';
 import ConfirmDialog from './ui/ConfirmDialog';
-import { Input, Select } from './ui/Input';
+import { Input, Select } from './ui/input';
 import Modal from './ui/Modal';
 
 // ---------------------------------------------------------------------------------------
@@ -131,7 +132,7 @@ function RenameDialog({
     >
       <form id="rename-saved-search-form" onSubmit={handleSubmit} className="space-y-3">
         <Input autoFocus value={name} onChange={(event) => setName(event.target.value)} />
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </form>
     </Modal>
   );
@@ -196,27 +197,26 @@ function ShareDialog({
     >
       <div className="space-y-4">
         <div>
-          <p className="text-xs font-medium text-[var(--text-secondary)]">Currently shared with</p>
+          <p className="text-xs font-medium text-muted-foreground">Currently shared with</p>
           {search.sharedWithGroups.length === 0 ? (
-            <p className="mt-1 text-sm text-[var(--text-muted)]">Not shared into any other groups yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Not shared into any other groups yet.</p>
           ) : (
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {search.sharedWithGroups.map((grant) => (
                 <span
                   key={grant.groupId}
-                  className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-1 text-xs font-medium"
-                  style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                  className="flex items-center gap-1 rounded-sm px-2 py-1 text-xs font-medium"
+                  style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
                 >
                   {grant.groupName}
-                  <button
-                    type="button"
+                  <ActionIconButton
+                    size="icon-xs"
+                    label={`Stop sharing with ${grant.groupName}`}
+                    icon={X}
                     onClick={() => revokeMutation.mutate(grant.groupId)}
                     disabled={revokeMutation.isPending}
-                    aria-label={`Stop sharing with ${grant.groupName}`}
-                    className="hover:text-[var(--red)]"
-                  >
-                    <X size={11} />
-                  </button>
+                    destructive
+                  />
                 </span>
               ))}
             </div>
@@ -224,13 +224,13 @@ function ShareDialog({
         </div>
 
         <div>
-          <p className="text-xs font-medium text-[var(--text-secondary)]">Share with more groups</p>
+          <p className="text-xs font-medium text-muted-foreground">Share with more groups</p>
           {selectable.length === 0 ? (
-            <p className="mt-1 text-sm text-[var(--text-muted)]">No other groups available.</p>
+            <p className="mt-1 text-sm text-muted-foreground">No other groups available.</p>
           ) : (
-            <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-[var(--radius-input)] border border-[var(--border)] p-2">
+            <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border p-2">
               {selectable.map((group) => (
-                <label key={group.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-[var(--text-secondary)]">
+                <label key={group.id} className="flex cursor-pointer items-center gap-2 py-0.5 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
                     checked={selected.includes(group.id)}
@@ -239,7 +239,7 @@ function ShareDialog({
                         current.includes(group.id) ? current.filter((id) => id !== group.id) : [...current, group.id],
                       )
                     }
-                    className="h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+                    className="h-4 w-4 rounded border-border accent-primary"
                   />
                   {group.name}
                 </label>
@@ -248,7 +248,7 @@ function ShareDialog({
           )}
         </div>
 
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     </Modal>
   );
@@ -297,8 +297,8 @@ function ExposeChannelDialog({
       }
     >
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-[var(--text-secondary)]">
-          Channel name <span className="text-[var(--text-muted)]">(optional — defaults to this search's name)</span>
+        <label className="block text-sm font-medium text-muted-foreground">
+          Channel name <span className="text-muted-foreground">(optional — defaults to this search's name)</span>
           <Input
             value={channelName}
             onChange={(event) => setChannelName(event.target.value)}
@@ -306,7 +306,7 @@ function ExposeChannelDialog({
             className="mt-1"
           />
         </label>
-        {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     </Modal>
   );
@@ -354,11 +354,11 @@ function ExportDialog({ id, onClose }: { id: string; onClose: () => void }) {
       }
     >
       {exportQuery.isLoading ? (
-        <p className="text-sm text-[var(--text-secondary)]">Loading…</p>
+        <p className="text-sm text-muted-foreground">Loading…</p>
       ) : exportQuery.isError ? (
-        <p className="text-sm text-[var(--red)]">{getApiErrorMessage(exportQuery.error, 'Unable to export this search.')}</p>
+        <p className="text-sm text-destructive">{getApiErrorMessage(exportQuery.error, 'Unable to export this search.')}</p>
       ) : (
-        <pre className="max-h-72 overflow-auto rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] p-3 text-xs text-[var(--text-secondary)]">
+        <pre className="max-h-72 overflow-auto rounded-md border border-border bg-background p-3 text-xs text-muted-foreground">
           {json}
         </pre>
       )}
@@ -454,12 +454,12 @@ function SaveCurrentSearchTab({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">
-        Saving: <span className="text-[var(--text-primary)]">{describeFilters(filters)}</span>
+      <p className="text-sm text-muted-foreground">
+        Saving: <span className="text-foreground">{describeFilters(filters)}</span>
       </p>
 
       <div>
-        <label htmlFor="save-query-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+        <label htmlFor="save-query-name" className="block text-sm font-medium text-muted-foreground">
           Name
         </label>
         <Input
@@ -472,7 +472,7 @@ function SaveCurrentSearchTab({
       </div>
 
       <div>
-        <label htmlFor="save-query-group" className="block text-sm font-medium text-[var(--text-secondary)]">
+        <label htmlFor="save-query-group" className="block text-sm font-medium text-muted-foreground">
           Group
         </label>
         <Select
@@ -490,19 +490,19 @@ function SaveCurrentSearchTab({
       </div>
 
       <div>
-        <span className="block text-sm font-medium text-[var(--text-secondary)]">Type</span>
+        <span className="block text-sm font-medium text-muted-foreground">Type</span>
         <div className="mt-1.5 space-y-1.5">
           {SAVED_SEARCH_TYPES.map((option) => (
-            <label key={option} className="flex cursor-pointer items-start gap-2 text-sm text-[var(--text-secondary)]">
+            <label key={option} className="flex cursor-pointer items-start gap-2 text-sm text-muted-foreground">
               <input
                 type="radio"
                 name="save-query-type"
                 checked={type === option}
                 onChange={() => setType(option)}
-                className="mt-0.5 h-4 w-4 border-[var(--border)] accent-[var(--accent)]"
+                className="mt-0.5 h-4 w-4 border-border accent-primary"
               />
               <span>
-                <span className="font-medium text-[var(--text-primary)]">{option === 'dynamic' ? 'Dynamic' : 'Snapshot'}</span>
+                <span className="font-medium text-foreground">{option === 'dynamic' ? 'Dynamic' : 'Snapshot'}</span>
                 {' — '}
                 {option === 'dynamic'
                   ? 're-runs live every time it is opened.'
@@ -513,7 +513,7 @@ function SaveCurrentSearchTab({
         </div>
       </div>
 
-      {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Button type="submit" disabled={groupOptions.length === 0} loading={saveMutation.isPending} className="w-full">
         Save search
@@ -602,12 +602,12 @@ export function SavedQueriesPanel({
   return (
     <div>
       {currentFilters ? (
-        <div className="mb-4 flex gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
+        <div className="mb-4 flex gap-1 rounded-md border border-border p-1">
           <button
             type="button"
             onClick={() => setTab('browse')}
-            className={`flex-1 rounded-[calc(var(--radius-button)-2px)] py-1.5 text-sm font-medium transition-colors ${
-              tab === 'browse' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+            className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+              tab === 'browse' ? 'bg-accent text-primary' : 'text-muted-foreground hover:bg-accent'
             }`}
           >
             Load
@@ -615,8 +615,8 @@ export function SavedQueriesPanel({
           <button
             type="button"
             onClick={() => setTab('save')}
-            className={`flex-1 rounded-[calc(var(--radius-button)-2px)] py-1.5 text-sm font-medium transition-colors ${
-              tab === 'save' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+            className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+              tab === 'save' ? 'bg-accent text-primary' : 'text-muted-foreground hover:bg-accent'
             }`}
           >
             Save current search
@@ -637,13 +637,13 @@ export function SavedQueriesPanel({
       ) : (
         <div>
           {listQuery.isError ? (
-            <p className="mb-3 text-sm text-[var(--red)]">{getApiErrorMessage(listQuery.error, 'Unable to load saved searches.')}</p>
+            <p className="mb-3 text-sm text-destructive">{getApiErrorMessage(listQuery.error, 'Unable to load saved searches.')}</p>
           ) : null}
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+                <tr className="border-b border-border text-muted-foreground">
                   <th className="pb-2 pr-4 font-medium">Name</th>
                   <th className="pb-2 pr-4 font-medium">Type</th>
                   <th className="pb-2 pr-4 font-medium">Summary</th>
@@ -654,112 +654,91 @@ export function SavedQueriesPanel({
               <tbody>
                 {listQuery.isLoading
                   ? Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
-                      <tr key={index} className="h-12 border-b border-[var(--border)]">
+                      <tr key={index} className="h-12 border-b border-border">
                         <td className="py-3 pr-4">
-                          <div className="h-4 w-32 animate-pulse rounded bg-[var(--bg-hover)]" />
+                          <div className="h-4 w-32 animate-pulse rounded bg-accent" />
                         </td>
                         <td className="py-3 pr-4">
-                          <div className="h-4 w-16 animate-pulse rounded bg-[var(--bg-hover)]" />
+                          <div className="h-4 w-16 animate-pulse rounded bg-accent" />
                         </td>
                         <td className="py-3 pr-4">
-                          <div className="h-4 w-40 animate-pulse rounded bg-[var(--bg-hover)]" />
+                          <div className="h-4 w-40 animate-pulse rounded bg-accent" />
                         </td>
                         <td className="py-3 pr-4">
-                          <div className="h-4 w-20 animate-pulse rounded bg-[var(--bg-hover)]" />
+                          <div className="h-4 w-20 animate-pulse rounded bg-accent" />
                         </td>
                         <td className="py-3">
-                          <div className="h-4 w-24 animate-pulse rounded bg-[var(--bg-hover)]" />
+                          <div className="h-4 w-24 animate-pulse rounded bg-accent" />
                         </td>
                       </tr>
                     ))
                   : searches.map((search) => (
-                      <tr key={search.id} className="border-b border-[var(--border)] align-top">
-                        <td className="py-3 pr-4 text-[var(--text-primary)]">
+                      <tr key={search.id} className="border-b border-border align-top">
+                        <td className="py-3 pr-4 text-foreground">
                           <div className="flex items-center gap-1.5">
                             {search.isChannel ? (
                               <span title={`Channel: ${search.channelName ?? search.name}`}>
-                                <RadioTower size={13} className="shrink-0 text-[var(--accent)]" />
+                                <RadioTower size={13} className="shrink-0 text-primary" />
                               </span>
                             ) : null}
                             {search.sharedWithGroups.length > 0 ? (
                               <span title={`Shared with ${search.sharedWithGroups.length} other group(s)`}>
-                                <Share2 size={12} className="shrink-0 text-[var(--text-muted)]" />
+                                <Share2 size={12} className="shrink-0 text-muted-foreground" />
                               </span>
                             ) : null}
                             <span className="font-medium">{search.name}</span>
                           </div>
-                          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                          <p className="mt-0.5 text-xs text-muted-foreground">
                             {groupNameById.get(search.groupId) ?? 'Unknown group'} · {search.ownerEmail}
                           </p>
                         </td>
                         <td className="py-3 pr-4">
                           <span
-                            className="rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-medium"
-                            style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                            className="rounded-sm px-2 py-0.5 text-xs font-medium"
+                            style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
                           >
                             {search.type === 'dynamic' ? 'Dynamic' : 'Snapshot'}
                           </span>
                         </td>
-                        <td className="py-3 pr-4 text-[var(--text-secondary)]">{describeFilters(search.filters)}</td>
-                        <td className="py-3 pr-4 text-[var(--text-secondary)]">
+                        <td className="py-3 pr-4 text-muted-foreground">{describeFilters(search.filters)}</td>
+                        <td className="py-3 pr-4 text-muted-foreground">
                           {search.lastRunAt ? formatDate(search.lastRunAt) : 'Never'}
                         </td>
                         <td className="py-3">
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs">
-                            <button
-                              type="button"
+                          <div className="flex flex-wrap items-center gap-0.5">
+                            <ActionIconButton
+                              label={loadingId === search.id ? 'Loading…' : 'Load'}
+                              icon={FolderOpen}
                               onClick={() => void handleLoad(search)}
                               disabled={loadingId === search.id}
-                              className="font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {loadingId === search.id ? 'Loading…' : 'Load'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setRenaming(search)}
-                              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                              Rename
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSharing(search)}
-                              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                              Share
-                            </button>
+                            />
+                            <ActionIconButton label="Rename" icon={Pencil} onClick={() => setRenaming(search)} />
+                            <ActionIconButton label="Share" icon={Share2} onClick={() => setSharing(search)} />
                             {search.isChannel ? (
-                              <button
-                                type="button"
+                              <ActionIconButton
+                                label="Demote from channel"
+                                icon={RadioOff}
                                 onClick={() => demoteMutation.mutate(search.id)}
                                 disabled={demoteMutation.isPending}
-                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
-                              >
-                                Demote
-                              </button>
+                              />
                             ) : (
-                              <button
-                                type="button"
+                              <ActionIconButton
+                                label="Expose as channel"
+                                icon={RadioTower}
                                 onClick={() => setExposing(search)}
-                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                              >
-                                Expose
-                              </button>
+                              />
                             )}
-                            <button
-                              type="button"
+                            <ActionIconButton
+                              label="Export"
+                              icon={Download}
                               onClick={() => setExportingId(search.id)}
-                              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                            >
-                              Export
-                            </button>
-                            <button
-                              type="button"
+                            />
+                            <ActionIconButton
+                              label="Delete"
+                              icon={Trash2}
                               onClick={() => setDeleting(search)}
-                              className="text-[var(--red)] hover:underline"
-                            >
-                              Delete
-                            </button>
+                              destructive
+                            />
                           </div>
                         </td>
                       </tr>

@@ -3,10 +3,10 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../lib/api-client';
-import Alert from '../components/ui/Alert';
-import Button from '../components/ui/Button';
-import { Card, CardBody } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
+import Alert from '../components/ui/alert';
+import Button from '../components/ui/button';
+import { Card, CardBody } from '../components/ui/card';
+import { Input } from '../components/ui/input';
 
 export default function AcceptInvitePage() {
   const { acceptInvite } = useAuth();
@@ -34,7 +34,7 @@ export default function AcceptInvitePage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] px-4 text-[var(--text-primary)]">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="w-full max-w-sm">
         <h1 className="mb-6 text-center text-xl font-semibold tracking-tight">Accept your invite</h1>
         <Card>
@@ -45,7 +45,7 @@ export default function AcceptInvitePage() {
               <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
                 {error ? <Alert variant="error">{error}</Alert> : null}
                 <div>
-                  <label htmlFor="displayName" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  <label htmlFor="displayName" className="block text-sm font-medium text-muted-foreground">
                     Display name (optional)
                   </label>
                   <Input
@@ -56,7 +56,7 @@ export default function AcceptInvitePage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  <label htmlFor="password" className="block text-sm font-medium text-muted-foreground">
                     Password
                   </label>
                   <Input
@@ -75,9 +75,9 @@ export default function AcceptInvitePage() {
                 </Button>
               </form>
             )}
-            <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
+            <p className="mt-4 text-center text-sm text-muted-foreground">
               Already have an account?{' '}
-              <Link to="/login" className="text-[var(--accent)] hover:underline">
+              <Link to="/login" className="text-primary hover:underline">
                 Log in
               </Link>
             </p>

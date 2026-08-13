@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   BarChart3,
   Bookmark,
@@ -71,14 +71,15 @@ import TagSelectPopover from '../components/TagSelectPopover';
 import InsightBuilderModal from '../components/insights/InsightBuilderModal';
 import SavedQueriesModal from '../components/SavedQueriesModal';
 import TeamsShareModal from '../components/teams/TeamsShareModal';
+import Button from '../components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '../components/ui/DropdownMenu';
-import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/Popover';
+} from '../components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 
 const SORT_LABELS: Record<SearchSortOption, string> = {
   relevance: 'Relevance',
@@ -146,7 +147,7 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
       <DropdownMenuTrigger>
         <button
           type="button"
-          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]"
+          className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors hover:border-primary"
         >
           <span>Sort: {SORT_LABELS[value]}</span>
           <ChevronDown size={13} />
@@ -154,7 +155,11 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         {SEARCH_SORT_OPTIONS.map((option) => (
-          <DropdownMenuItem key={option} selected={option === value} onSelect={() => onChange(option)}>
+          <DropdownMenuItem
+            key={option}
+            className={option === value ? 'bg-accent' : undefined}
+            onSelect={() => onChange(option)}
+          >
             {SORT_LABELS[option]}
           </DropdownMenuItem>
         ))}
@@ -164,7 +169,7 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
 }
 
 const TOOLBAR_BTN =
-  'flex h-8 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]';
+  'flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs text-foreground transition-colors hover:border-primary';
 
 const FILTER_COLUMN_STORAGE_KEY = 'ci:articles-filter-column-open';
 
@@ -1011,34 +1016,35 @@ export default function ArticlesPage() {
           <ArticleTabs active={filters.sourceTypeTab} onChange={handleTabChange} />
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <Button
               type="button"
+              size="sm"
+              variant={isFiltersExpanded ? 'secondary' : 'outline'}
               onClick={toggleFilters}
               aria-expanded={isFiltersExpanded}
-              className={TOOLBAR_BTN}
-              style={isFiltersExpanded ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+              leftIcon={<Filter size={13} />}
+              className="text-xs"
             >
-              <Filter size={13} />
               Filters
-            </button>
+            </Button>
 
             <div className="relative min-w-[160px] flex-1">
               <SearchIcon
                 size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
               />
               <input
                 type="search"
                 value={queryInput}
                 onChange={(event) => setQueryInput(event.target.value)}
                 placeholder="Search articles…"
-                className="h-9 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] pl-9 pr-[6.5rem] text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-[6.5rem] text-sm text-foreground outline-none focus-visible:border-ring"
               />
               <button
                 type="button"
                 aria-label="Advanced Search"
                 onClick={() => setIsAdvancedSearchOpen(true)}
-                className="absolute right-1 top-1/2 flex h-7 -translate-y-1/2 items-center gap-1 rounded-[var(--radius-button)] px-2 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
+                className="absolute right-1 top-1/2 flex h-7 -translate-y-1/2 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 <SlidersHorizontal size={13} />
                 Advanced
@@ -1087,7 +1093,10 @@ export default function ArticlesPage() {
                   </>
                 ) : null}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem selected={filters.hiddenArticles === 'onlyHidden'} onSelect={toggleHiddenMode}>
+                <DropdownMenuItem
+                  className={filters.hiddenArticles === 'onlyHidden' ? 'bg-accent' : undefined}
+                  onSelect={toggleHiddenMode}
+                >
                   {filters.hiddenArticles === 'onlyHidden' ? <Eye size={13} /> : <EyeOff size={13} />}
                   {filters.hiddenArticles === 'onlyHidden' ? 'Hidden only' : 'Hidden'}
                 </DropdownMenuItem>
@@ -1103,14 +1112,14 @@ export default function ArticlesPage() {
                     key={chip.key}
                     type="button"
                     onClick={chip.onRemove}
-                    className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs transition-opacity hover:opacity-75"
-                    style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+                    className="flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs transition-opacity hover:opacity-75"
+                    style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
                   >
                     {chip.label}
                     <X size={11} />
                   </button>
                 ))}
-                <button type="button" onClick={handleClearAllFilters} className="text-xs text-[var(--accent)] hover:underline">
+                <button type="button" onClick={handleClearAllFilters} className="text-xs text-primary hover:underline">
                   Clear all
                 </button>
               </>
@@ -1118,7 +1127,7 @@ export default function ArticlesPage() {
 
             <div className="ml-auto flex items-center gap-1.5">
               <SortDropdown value={filters.sort as SearchSortOption} onChange={handleSortChange} />
-              <div className="flex items-center gap-0.5 rounded-[var(--radius-button)] border border-[var(--border)] p-0.5">
+              <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
                 {VIEW_MODE_OPTIONS.map((option) => {
                   const Icon = option.icon;
                   const isActive = option.value === viewMode;
@@ -1128,8 +1137,8 @@ export default function ArticlesPage() {
                       type="button"
                       title={option.label}
                       onClick={() => handleViewModeChange(option.value)}
-                      className="flex h-7 w-7 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
-                      style={isActive ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' } : undefined}
+                      className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                      style={isActive ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' } : undefined}
                     >
                       <Icon size={14} strokeWidth={1.75} />
                     </button>
@@ -1151,7 +1160,7 @@ export default function ArticlesPage() {
         {/* Scrollable results between toolbar and pagination */}
         <div className="mt-2 flex min-h-0 flex-1 flex-col">
           <p
-            className="mb-1.5 shrink-0 text-xs text-[var(--text-secondary)]"
+            className="mb-1.5 shrink-0 text-xs text-muted-foreground"
             data-testid="results-count"
             aria-live="polite"
           >
@@ -1191,22 +1200,22 @@ export default function ArticlesPage() {
         </div>
 
         {selectedIds.size > 0 ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5">
-            <span className="text-xs font-medium text-[var(--text-primary)]">{selectedIds.size} selected</span>
-            <button type="button" onClick={handleInvertSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-card px-2.5 py-1.5">
+            <span className="text-xs font-medium text-foreground">{selectedIds.size} selected</span>
+            <button type="button" onClick={handleInvertSelection} className="text-xs text-muted-foreground hover:text-foreground">
               Invert
             </button>
-            <button type="button" onClick={handleClearSelection} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+            <button type="button" onClick={handleClearSelection} className="text-xs text-muted-foreground hover:text-foreground">
               Clear
             </button>
-            <span className="h-3.5 w-px bg-[var(--border)]" />
+            <span className="h-3.5 w-px bg-border" />
 
             <Popover open={tagPickerMode === 'add'} onOpenChange={(open) => setTagPickerMode(open ? 'add' : null)}>
               <PopoverTrigger>
                 <button
                   type="button"
                   data-testid="bulk-tag-button"
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <TagIcon size={13} />
                   Tag
@@ -1231,7 +1240,7 @@ export default function ArticlesPage() {
               <PopoverTrigger>
                 <button
                   type="button"
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <TagIcon size={13} />
                   Untag
@@ -1257,7 +1266,7 @@ export default function ArticlesPage() {
                   type="button"
                   onClick={() => handleBulkHide(false)}
                   disabled={bulkMutation.isPending}
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
                 >
                   <EyeOff size={13} />
                   Hide
@@ -1266,7 +1275,7 @@ export default function ArticlesPage() {
                   type="button"
                   onClick={() => handleBulkHide(true)}
                   disabled={bulkMutation.isPending}
-                  className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-60"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
                 >
                   <Eye size={13} />
                   Unhide
@@ -1278,7 +1287,7 @@ export default function ArticlesPage() {
               <button
                 type="button"
                 onClick={handleOpenTeamsShare}
-                className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <Share2 size={13} />
                 Share to Teams
@@ -1289,7 +1298,7 @@ export default function ArticlesPage() {
               <button
                 type="button"
                 onClick={handleExportSelected}
-                className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <Download size={13} />
                 Export selected
@@ -1299,8 +1308,8 @@ export default function ArticlesPage() {
         ) : null}
 
         {/* Sticky pagination footer */}
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--bg-primary)] py-2">
-          <p className="text-xs text-[var(--text-muted)]">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-background py-2">
+          <p className="text-xs text-muted-foreground">
             {!searchQuery.isLoading && totalPages > 1
               ? `Page ${page.toLocaleString()} of ${totalPages.toLocaleString()}`
               : null}

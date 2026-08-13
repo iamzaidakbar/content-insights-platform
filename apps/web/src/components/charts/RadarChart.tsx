@@ -148,7 +148,7 @@ function RadarChartCore({ categories, series, values, valueFormatter }: RadarCha
   const chart = (
     <div ref={containerRef} className="relative">
       <div
-        className="mx-auto flex justify-center rounded-[var(--radius-input)] p-3"
+        className="mx-auto flex justify-center rounded-md p-3"
         style={{ backgroundColor: 'var(--chart-surface)', maxWidth: SIZE + 40 }}
       >
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full" role="img" aria-label="Radar chart">
@@ -258,7 +258,7 @@ function RadarChartCore({ categories, series, values, valueFormatter }: RadarCha
                 style={{ backgroundColor: categoricalColor(index) }}
                 aria-hidden="true"
               />
-              <span className="text-[var(--text-secondary)]">{seriesMeta.label}</span>
+              <span className="text-muted-foreground">{seriesMeta.label}</span>
             </li>
           ))}
         </ul>

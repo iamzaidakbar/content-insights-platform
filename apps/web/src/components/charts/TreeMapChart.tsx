@@ -37,26 +37,16 @@ const OTHER_COLOR = 'var(--chart-other)';
 
 function resolveIsDark(): boolean {
   if (typeof document === 'undefined') return false;
-  const attr = document.documentElement.getAttribute('data-theme');
-  if (attr === 'light') return false;
-  if (attr === 'dark') return true;
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return document.documentElement.classList.contains('dark');
 }
 
-// Tracks the resolved theme (attribute toggle OR system preference) so tile-label ink can
-// react to it live — mirrors index.css's own header comment on how 'system' resolves.
 function useIsDarkTheme(): boolean {
   const [isDark, setIsDark] = useState(resolveIsDark);
   useEffect(() => {
     const update = () => setIsDark(resolveIsDark());
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    mql.addEventListener('change', update);
     const observer = new MutationObserver(update);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => {
-      mql.removeEventListener('change', update);
-      observer.disconnect();
-    };
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
   }, []);
   return isDark;
 }
@@ -205,7 +195,7 @@ interface TreeMapChartProps {
 // Squarified treemap, sized by count, one hue per top-level category in fixed rank order
 // (categoricalColor from chart-types.ts — the same 8-slot ramp Bar/Radar/HeatMap use).
 // Canvas chrome (cell borders, tooltip, table) uses the dedicated --chart-* token set, not
-// the app's ambient --border/--bg-card/--text-* — see index.css's --chart-surface comment.
+// the app's ambient --border/--background/--foreground -- see index.css's --chart-surface comment.
 export default function TreeMapChart({ buckets = [] }: TreeMapChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<HoverState | null>(null);
@@ -308,13 +298,13 @@ export default function TreeMapChart({ buckets = [] }: TreeMapChartProps) {
 
       {hover && hoveredRect ? (
         <div
-          className="pointer-events-none absolute z-10 flex items-center gap-2 whitespace-nowrap rounded-[var(--radius-button)] border border-[var(--chart-gridline)] px-2.5 py-1.5 text-xs shadow-lg"
+          className="pointer-events-none absolute z-10 flex items-center gap-2 whitespace-nowrap rounded-md border border-border px-2.5 py-1.5 text-xs shadow-lg"
           style={{ left: hover.x, top: hover.y, transform: 'translate(-50%, calc(-100% - 10px))', backgroundColor: 'var(--chart-surface)' }}
           role="tooltip"
         >
           <span className="h-0.5 w-3 shrink-0 rounded-full" style={{ backgroundColor: hoveredRect.color }} aria-hidden="true" />
-          <span className="font-semibold text-[var(--chart-ink-primary)]">{formatCompactNumber(hoveredRect.count)}</span>
-          <span className="text-[var(--chart-ink-secondary)]">
+          <span className="font-semibold text-foreground">{formatCompactNumber(hoveredRect.count)}</span>
+          <span className="text-muted-foreground">
             {hoveredRect.key}
             {total > 0 ? ` (${((hoveredRect.count / total) * 100).toFixed(0)}%)` : ''}
           </span>

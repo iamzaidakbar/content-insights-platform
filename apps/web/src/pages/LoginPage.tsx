@@ -7,10 +7,11 @@ import type { ApiResponse } from '@content-insights/shared';
 import { useAuth } from '../auth/AuthContext';
 import { apiClient, getApiErrorMessage } from '../lib/api-client';
 import { env } from '../lib/env';
-import Alert from '../components/ui/Alert';
-import Button from '../components/ui/Button';
-import { Card, CardBody } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
+import Alert from '../components/ui/alert';
+import Button from '../components/ui/button';
+import { Card, CardBody } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 interface LocationState {
   from?: { pathname: string };
@@ -57,18 +58,15 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] px-4 text-[var(--text-primary)]">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-white"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-lg font-bold text-primary-foreground">
             C
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Content Insights</h1>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Welcome back — log in to continue.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Welcome back — log in to continue.</p>
           </div>
         </div>
 
@@ -78,14 +76,14 @@ export default function LoginPage() {
               <>
                 <a
                   href={`${env.apiUrl}/auth/sso/login`}
-                  className="flex h-9 w-full items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
+                  className="flex h-9 w-full items-center justify-center rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                 >
                   Sign in with SSO
                 </a>
                 <div className="my-4 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-[var(--border)]" />
-                  <span className="text-xs text-[var(--text-muted)]">or email</span>
-                  <div className="h-px flex-1 bg-[var(--border)]" />
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or email</span>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
               </>
             ) : null}
@@ -93,9 +91,9 @@ export default function LoginPage() {
             <form className="space-y-4" onSubmit={handleSubmit}>
               {error ? <Alert variant="error">{error}</Alert> : null}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <Label htmlFor="email" className="text-muted-foreground">
                   Email
-                </label>
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -108,9 +106,9 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <Label htmlFor="password" className="text-muted-foreground">
                   Password
-                </label>
+                </Label>
                 <Input
                   id="password"
                   type="password"
@@ -121,7 +119,7 @@ export default function LoginPage() {
                   className="mt-1"
                 />
                 <p className="mt-1 text-right text-xs">
-                  <Link to="/forgot-password" className="text-[var(--accent)] hover:underline">
+                  <Link to="/forgot-password" className="text-primary hover:underline">
                     Forgot password?
                   </Link>
                 </p>
@@ -139,9 +137,9 @@ export default function LoginPage() {
           </CardBody>
         </Card>
 
-        <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{' '}
-          <Link to="/register" className="font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]">
+          <Link to="/register" className="font-medium text-primary hover:text-primary/90">
             Register
           </Link>
         </p>

@@ -6,8 +6,8 @@ import { DASHBOARD_MAX_INSIGHTS, type Project } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../../lib/api-client';
 import { createDashboard, updateDashboard } from '../../lib/dashboards-api';
-import Button from '../ui/Button';
-import { Input, Select } from '../ui/Input';
+import Button from '../ui/button';
+import { Input, Select } from '../ui/input';
 import Modal from '../ui/Modal';
 import InsightPickerList from './InsightPickerList';
 
@@ -95,7 +95,7 @@ export default function CreateDashboardModal({ groupOptions, projectOptions, onC
       footer={
         step === 'insights' ? (
           <>
-            <span className="mr-auto text-xs text-[var(--text-muted)]">
+            <span className="mr-auto text-xs text-muted-foreground">
               {selectedIds.size}/{DASHBOARD_MAX_INSIGHTS} selected
             </span>
             <Button variant="outline" onClick={onClose}>
@@ -123,7 +123,7 @@ export default function CreateDashboardModal({ groupOptions, projectOptions, onC
       ) : (
         <form id="dashboard-create-form" className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="dashboard-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+            <label htmlFor="dashboard-name" className="block text-sm font-medium text-muted-foreground">
               Name
             </label>
             <Input
@@ -137,7 +137,7 @@ export default function CreateDashboardModal({ groupOptions, projectOptions, onC
             />
           </div>
           <div>
-            <label htmlFor="dashboard-group" className="block text-sm font-medium text-[var(--text-secondary)]">
+            <label htmlFor="dashboard-group" className="block text-sm font-medium text-muted-foreground">
               Group
             </label>
             <Select
@@ -155,8 +155,8 @@ export default function CreateDashboardModal({ groupOptions, projectOptions, onC
           </div>
           {projectOptions.length > 0 ? (
             <div>
-              <label htmlFor="dashboard-project" className="block text-sm font-medium text-[var(--text-secondary)]">
-                Project <span className="text-[var(--text-muted)]">(optional)</span>
+              <label htmlFor="dashboard-project" className="block text-sm font-medium text-muted-foreground">
+                Project <span className="text-muted-foreground">(optional)</span>
               </label>
               <Select
                 id="dashboard-project"
@@ -174,7 +174,7 @@ export default function CreateDashboardModal({ groupOptions, projectOptions, onC
             </div>
           ) : null}
 
-          {error ? <p className="text-sm text-[var(--red)]">{error}</p> : null}
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </form>
       )}
     </Modal>

@@ -2,10 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { apiClient, getApiErrorMessage } from '../lib/api-client';
-import Alert from '../components/ui/Alert';
-import Button from '../components/ui/Button';
-import { Card, CardBody } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
+import Alert from '../components/ui/alert';
+import Button from '../components/ui/button';
+import { Card, CardBody } from '../components/ui/card';
+import { Input } from '../components/ui/input';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -33,7 +33,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] px-4 text-[var(--text-primary)]">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="w-full max-w-sm">
         <h1 className="mb-6 text-center text-xl font-semibold tracking-tight">Set a new password</h1>
         <Card>
@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
               <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
                 {error ? <Alert variant="error">{error}</Alert> : null}
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
+                  <label htmlFor="password" className="block text-sm font-medium text-muted-foreground">
                     New password
                   </label>
                   <Input
@@ -63,8 +63,8 @@ export default function ResetPasswordPage() {
                 </Button>
               </form>
             )}
-            <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
-              <Link to="/login" className="text-[var(--accent)] hover:underline">
+            <p className="mt-4 text-center text-sm text-muted-foreground">
+              <Link to="/login" className="text-primary hover:underline">
                 Back to log in
               </Link>
             </p>

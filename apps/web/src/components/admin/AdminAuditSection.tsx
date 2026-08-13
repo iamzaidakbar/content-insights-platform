@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Download, ExternalLink } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 import {
   AUDIT_ACTIONS,
@@ -15,12 +15,12 @@ import { getApiErrorMessage } from '../../lib/api-client';
 import { fetchAuditLog, exportAuditLog } from '../../lib/audit-api';
 import { fetchProjects } from '../../lib/projects-api';
 import { formatDate } from '../../lib/format';
-import Alert from '../ui/Alert';
-import Button from '../ui/Button';
-import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
-import { Input, Select } from '../ui/Input';
-import Skeleton from '../ui/Skeleton';
-import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import Alert from '../ui/alert';
+import Button from '../ui/button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/card';
+import { Input, Select } from '../ui/input';
+import Skeleton from '../ui/skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/data-table';
 
 // Matches AuditEntityType (packages/shared/src/types/audit.ts) exactly — the pre-pivot
 // list here ('document', 'incident') no longer exists on that union at all.
@@ -75,7 +75,7 @@ function ArticleRefLine({ article }: { article: AuditedArticleRef }) {
         href={article.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-w-0 items-center gap-1 text-[var(--accent)] hover:underline"
+        className="inline-flex min-w-0 items-center gap-1 text-primary hover:underline"
         title={article.url}
       >
         <span className="truncate">{article.title}</span>
@@ -101,7 +101,7 @@ function ArticleAuditDetails({ details }: { details: Record<string, unknown> }) 
 
     return (
       <div className="max-w-xs">
-        <p className="text-xs text-[var(--text-secondary)]">
+        <p className="text-xs text-muted-foreground">
           {requested} article{requested === 1 ? '' : 's'} requested
           {typeof succeeded === 'number' ? ` · ${succeeded} succeeded` : ''}
           {typeof failed === 'number' && failed > 0 ? ` · ${failed} failed` : ''}
@@ -119,7 +119,7 @@ function ArticleAuditDetails({ details }: { details: Record<string, unknown> }) 
           <button
             type="button"
             onClick={() => setShowAll(true)}
-            className="mt-0.5 text-xs text-[var(--accent)] hover:underline"
+            className="mt-0.5 text-xs text-primary hover:underline"
           >
             +{overflow} more
           </button>
@@ -137,7 +137,7 @@ function ArticleAuditDetails({ details }: { details: Record<string, unknown> }) 
     );
   }
 
-  return <span className="text-xs text-[var(--text-muted)]">—</span>;
+  return <span className="text-xs text-muted-foreground">—</span>;
 }
 
 function formatDetailValue(value: unknown): string {
@@ -152,13 +152,13 @@ function formatDetailValue(value: unknown): string {
 function GenericAuditDetails({ details }: { details: Record<string, unknown> }) {
   const entries = Object.entries(details).filter(([, value]) => value !== undefined);
   if (entries.length === 0) {
-    return <span className="text-xs text-[var(--text-muted)]">—</span>;
+    return <span className="text-xs text-muted-foreground">—</span>;
   }
   return (
-    <div className="max-w-xs space-y-0.5 text-xs text-[var(--text-secondary)]">
+    <div className="max-w-xs space-y-0.5 text-xs text-muted-foreground">
       {entries.map(([key, value]) => (
         <div key={key} className="truncate" title={`${key}: ${formatDetailValue(value)}`}>
-          <span className="text-[var(--text-muted)]">{key}:</span> {formatDetailValue(value)}
+          <span className="text-muted-foreground">{key}:</span> {formatDetailValue(value)}
         </div>
       ))}
     </div>
@@ -232,17 +232,17 @@ export default function AdminAuditSection() {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="shrink-0">
+    <Card className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden py-4">
+      <CardHeader className="shrink-0 px-4">
         <CardTitle className="text-base">Audit log</CardTitle>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Immutable record of authentication, article, and admin activity — who did what, when, and (for article
           hide/unhide) exactly which articles.
         </p>
       </CardHeader>
-      <CardBody className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <CardBody className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4">
         <div className="flex shrink-0 flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             Action
             <Select
               value={action}
@@ -259,7 +259,7 @@ export default function AdminAuditSection() {
             </Select>
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             Entity type
             <Select
               value={entityType}
@@ -276,7 +276,7 @@ export default function AdminAuditSection() {
             </Select>
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             Project
             <Select
               value={projectId}
@@ -293,7 +293,7 @@ export default function AdminAuditSection() {
             </Select>
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             Actor id
             <Input
               value={actorId}
@@ -304,7 +304,7 @@ export default function AdminAuditSection() {
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             Entity id
             <Input
               value={entityId}
@@ -315,7 +315,7 @@ export default function AdminAuditSection() {
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             From
             <Input
               type="date"
@@ -326,7 +326,7 @@ export default function AdminAuditSection() {
             />
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+          <label className="flex flex-col gap-1 text-xs text-muted-foreground">
             To
             <Input
               type="date"
@@ -379,10 +379,10 @@ export default function AdminAuditSection() {
             {getApiErrorMessage(auditQuery.error, 'Unable to load the audit log.')}
           </Alert>
         ) : items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[var(--text-muted)]">No audit entries match these filters.</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">No audit entries match these filters.</p>
         ) : (
           <>
-            <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
+            <Table scrollable>
               <THead>
                 <TR className="hover:bg-transparent">
                   <TH>Date</TH>
@@ -395,14 +395,14 @@ export default function AdminAuditSection() {
               <TBody>
                 {items.map((entry) => (
                   <TR key={entry.id} className="align-top">
-                    <TD className="whitespace-nowrap text-[var(--text-secondary)]">{formatDate(entry.createdAt)}</TD>
+                    <TD className="whitespace-nowrap text-muted-foreground">{formatDate(entry.createdAt)}</TD>
                     <TD>{entry.actorEmail}</TD>
-                    <TD className="text-[var(--text-secondary)]">
+                    <TD className="text-muted-foreground">
                       {entry.projectId ? (projectNameById.get(entry.projectId) ?? `${entry.projectId.slice(0, 8)}…`) : '—'}
                     </TD>
                     <TD>
-                      <span className="font-mono text-xs text-[var(--text-primary)]">{entry.action}</span>
-                      <span className="ml-1.5 text-[10px] uppercase tracking-wide text-[var(--text-muted)]">
+                      <span className="font-mono text-xs text-foreground">{entry.action}</span>
+                      <span className="ml-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                         {entry.entityType}
                       </span>
                     </TD>

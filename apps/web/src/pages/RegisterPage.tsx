@@ -3,10 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import { getApiErrorMessage } from '../lib/api-client';
-import Alert from '../components/ui/Alert';
-import Button from '../components/ui/Button';
-import { Card, CardBody } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
+import Alert from '../components/ui/alert';
+import Button from '../components/ui/button';
+import { Card, CardBody } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 
 interface LocationState {
   from?: { pathname: string };
@@ -41,18 +42,15 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] px-4 text-[var(--text-primary)]">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-white"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
+          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-lg font-bold text-primary-foreground">
             C
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Create your organization</h1>
-            <p className="mt-1 text-sm text-[var(--text-secondary)]">Starts a new workspace on Content Insights.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Starts a new workspace on Content Insights.</p>
           </div>
         </div>
 
@@ -60,9 +58,9 @@ export default function RegisterPage() {
           <CardBody className="p-6 sm:p-8">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="orgName" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <Label htmlFor="orgName" className="text-muted-foreground">
                   Organization name
-                </label>
+                </Label>
                 <Input
                   id="orgName"
                   type="text"
@@ -75,9 +73,9 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <Label htmlFor="email" className="text-muted-foreground">
                   Email
-                </label>
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -90,9 +88,9 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)]">
+                <Label htmlFor="password" className="text-muted-foreground">
                   Password
-                </label>
+                </Label>
                 <Input
                   id="password"
                   type="password"
@@ -114,9 +112,9 @@ export default function RegisterPage() {
           </CardBody>
         </Card>
 
-        <p className="mt-4 text-center text-sm text-[var(--text-secondary)]">
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link to="/login" className="font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]">
+          <Link to="/login" className="font-medium text-primary hover:text-primary/90">
             Log in
           </Link>
         </p>

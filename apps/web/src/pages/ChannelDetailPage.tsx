@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Download, Grid2x2, Grid3x3, List, Share2 } from 'lucide-react';
 
 import {
@@ -15,11 +15,11 @@ import {
 import { useAuth } from '../auth/AuthContext';
 import AccessDeniedState from '../components/AccessDeniedState';
 import ArticlesGrid from '../components/ArticlesGrid';
-import Alert from '../components/ui/Alert';
-import Badge from '../components/ui/Badge';
+import Alert from '../components/ui/alert';
+import Badge from '../components/ui/badge';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
-import Button from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
+import Button from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import Modal from '../components/ui/Modal';
 import PageHeader, { PageBody } from '../components/ui/PageHeader';
 import {
@@ -27,7 +27,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '../components/ui/DropdownMenu';
+} from '../components/ui/dropdown-menu';
 import { getApiErrorMessage } from '../lib/api-client';
 import { exportArticles, hideArticle, unhideArticle } from '../lib/articles-api';
 import { ChannelAccessError, fetchChannel, openChannel } from '../lib/channels-api';
@@ -112,7 +112,7 @@ function TagArticleModal({ userTags, isApplying, onApply, onClose }: TagArticleM
       />
       <div className="mt-3 space-y-0.5">
         {visible.length === 0 ? (
-          <p className="py-6 text-center text-sm text-[var(--text-secondary)]">No matching tags.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">No matching tags.</p>
         ) : (
           visible.map((tag) => (
             <button
@@ -120,10 +120,10 @@ function TagArticleModal({ userTags, isApplying, onApply, onClose }: TagArticleM
               type="button"
               disabled={isApplying}
               onClick={() => onApply(tag)}
-              className="flex w-full items-center justify-between gap-2 rounded-[var(--radius-button)] px-3 py-2 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="min-w-0 truncate">{tag.name}</span>
-              <span className="shrink-0 text-xs text-[var(--text-muted)]">{tag.articleCount}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{tag.articleCount}</span>
             </button>
           ))
         )}
@@ -491,7 +491,7 @@ export default function ChannelDetailPage() {
         actions={
           <>
             <Badge variant="accent">{typeLabel}</Badge>
-            <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
+            <div className="flex items-center gap-1 rounded-md border border-border p-1">
               {VIEW_MODE_OPTIONS.map((option) => {
                 const Icon = option.icon;
                 const isActive = option.value === viewMode;
@@ -501,8 +501,8 @@ export default function ChannelDetailPage() {
                     type="button"
                     title={option.label}
                     onClick={() => handleViewModeChange(option.value)}
-                    className="flex h-7 w-7 items-center justify-center rounded-[calc(var(--radius-button)-2px)] transition-colors"
-                    style={isActive ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' } : undefined}
+                    className="flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                    style={isActive ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' } : undefined}
                   >
                     <Icon size={15} strokeWidth={1.75} />
                   </button>

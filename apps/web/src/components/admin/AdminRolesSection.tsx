@@ -1,19 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { Lock, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
+import { Check, Lock, Pencil, Shield, ShieldCheck, Trash2, X } from 'lucide-react';
 
 import { PERMISSIONS, SYSTEM_ROLE_NAMES, type Permission, type Role } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../../lib/api-client';
 import { createRole, deleteRole, fetchRoles, updateRole } from '../../lib/roles-api';
-import Alert from '../ui/Alert';
-import Badge from '../ui/Badge';
-import Button from '../ui/Button';
-import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
-import { Input } from '../ui/Input';
+import Alert from '../ui/alert';
+import { ActionIconButton } from '../ui/action-icon-button';
+import Badge from '../ui/badge';
+import Button from '../ui/button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
 import Modal from '../ui/Modal';
-import Skeleton from '../ui/Skeleton';
+import Skeleton from '../ui/skeleton';
 
 // ---------------------------------------------------------------------------------------
 // Group the flat PERMISSIONS catalog by its "resource" prefix (everything before the first
@@ -95,21 +96,21 @@ function PermissionChecklist({
     <div className="space-y-3">
       {PERMISSION_GROUPS.map((group) => (
         <fieldset key={group.resource} disabled={disabled}>
-          <legend className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+          <legend className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {resourceLabel(group.resource)}
           </legend>
           <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
             {group.permissions.map((permission) => (
               <label
                 key={permission}
-                className={`flex items-center gap-2 text-sm text-[var(--text-secondary)] ${disabled ? 'opacity-60' : 'cursor-pointer'}`}
+                className={`flex items-center gap-2 text-sm text-muted-foreground ${disabled ? 'opacity-60' : 'cursor-pointer'}`}
               >
                 <input
                   type="checkbox"
                   checked={selected.includes(permission)}
                   onChange={() => onToggle(permission)}
                   disabled={disabled}
-                  className="h-4 w-4 rounded border-[var(--border)] accent-[var(--accent)]"
+                  className="h-4 w-4 rounded border-border accent-primary"
                 />
                 {actionLabel(permission)}
               </label>
@@ -156,8 +157,8 @@ function DeleteRoleDialog({ role, onClose }: { role: Role; onClose: () => void }
         </>
       }
     >
-      <p className="text-sm text-[var(--text-secondary)]">
-        <span className="text-[var(--text-primary)]">{role.name}</span> will be permanently removed. This cannot be
+      <p className="text-sm text-muted-foreground">
+        <span className="text-foreground">{role.name}</span> will be permanently removed. This cannot be
         undone.
       </p>
       {error ? (
@@ -203,7 +204,7 @@ function RoleCard({ role, onRequestDelete }: { role: Role; onRequestDelete: (rol
   const hasWildcard = role.permissions.includes('*');
 
   return (
-    <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] p-3.5">
+    <div className="rounded-lg border border-border bg-card p-3.5">
       <div className="flex items-center justify-between gap-3">
         {isRenaming ? (
           <form
@@ -242,65 +243,51 @@ function RoleCard({ role, onRequestDelete }: { role: Role; onRequestDelete: (rol
           </form>
         ) : (
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">{role.name}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{role.name}</h3>
             {role.isSystem ? (
               <Badge variant="default" title={SYSTEM_ROLE_EXPLANATION} className="gap-1">
                 <Lock size={10} />
                 System
               </Badge>
             ) : null}
-            <button
-              type="button"
-              onClick={() => setIsRenaming(true)}
-              className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent)]"
-            >
-              Rename
-            </button>
+            <ActionIconButton label="Rename" icon={Pencil} onClick={() => setIsRenaming(true)} />
           </div>
         )}
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-0.5">
           {!role.isSystem && !hasWildcard ? (
             isEditingPermissions ? (
               <>
-                <button
-                  type="button"
+                <ActionIconButton
+                  label={permissionsMutation.isPending ? 'Saving…' : 'Save permissions'}
+                  icon={Check}
                   onClick={() => permissionsMutation.mutate()}
                   disabled={permissionsMutation.isPending}
-                  className="text-xs font-medium text-[var(--accent)] hover:text-[var(--accent-hover)] disabled:opacity-60"
-                >
-                  {permissionsMutation.isPending ? 'Saving…' : 'Save permissions'}
-                </button>
-                <button
-                  type="button"
+                />
+                <ActionIconButton
+                  label="Cancel"
+                  icon={X}
                   onClick={() => {
                     setIsEditingPermissions(false);
                     setPermissionsDraft(toKnownPermissions(role.permissions));
                   }}
-                  className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                >
-                  Cancel
-                </button>
+                />
               </>
             ) : (
-              <button
-                type="button"
+              <ActionIconButton
+                label="Edit permissions"
+                icon={Shield}
                 onClick={() => setIsEditingPermissions(true)}
-                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                Edit permissions
-              </button>
+              />
             )
           ) : null}
-          <button
-            type="button"
+          <ActionIconButton
+            label={role.isSystem ? 'System roles cannot be deleted' : 'Delete this role'}
+            icon={Trash2}
             onClick={() => onRequestDelete(role)}
             disabled={role.isSystem}
-            title={role.isSystem ? 'System roles cannot be deleted' : 'Delete this role'}
-            className="text-xs text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:text-[var(--text-muted)] disabled:no-underline"
-          >
-            Delete
-          </button>
+            destructive
+          />
         </div>
       </div>
 
@@ -312,14 +299,14 @@ function RoleCard({ role, onRequestDelete }: { role: Role; onRequestDelete: (rol
 
       <div className="mt-3">
         {hasWildcard ? (
-          <p className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
-            <ShieldCheck size={13} className="text-[var(--accent)]" />
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ShieldCheck size={13} className="text-primary" />
             Full access — every permission, current and future (
-            <code className="text-[var(--text-muted)]">*</code>).
+            <code className="text-muted-foreground">*</code>).
           </p>
         ) : (
           <>
-            {role.isSystem ? <p className="mb-2 text-xs text-[var(--text-muted)]">{SYSTEM_ROLE_EXPLANATION}</p> : null}
+            {role.isSystem ? <p className="mb-2 text-xs text-muted-foreground">{SYSTEM_ROLE_EXPLANATION}</p> : null}
             <PermissionChecklist
               selected={isEditingPermissions ? permissionsDraft : toKnownPermissions(role.permissions)}
               disabled={!isEditingPermissions}
@@ -381,14 +368,14 @@ export default function AdminRolesSection() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="gap-4 py-4">
+        <CardHeader className="px-4">
           <CardTitle className="text-base">Roles</CardTitle>
-          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Roles and their permissions for your organization.
           </p>
         </CardHeader>
-        <CardBody className="space-y-3">
+        <CardBody className="space-y-3 px-4">
           {rolesQuery.isError ? (
             <Alert variant="error">{getApiErrorMessage(rolesQuery.error, 'Unable to load roles.')}</Alert>
           ) : null}
@@ -399,18 +386,18 @@ export default function AdminRolesSection() {
         </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="gap-4 py-4">
+        <CardHeader className="px-4">
           <CardTitle className="text-base">Create custom role</CardTitle>
-          <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Custom roles can be edited or deleted freely — unlike the seeded system roles, whose permission sets are
             fixed.
           </p>
         </CardHeader>
-        <CardBody>
+        <CardBody className="px-4">
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="role-name" className="block text-sm font-medium text-[var(--text-secondary)]">
+              <label htmlFor="role-name" className="block text-sm font-medium text-muted-foreground">
                 Name
               </label>
               <Input
@@ -424,7 +411,7 @@ export default function AdminRolesSection() {
             </div>
 
             <div>
-              <span className="block text-sm font-medium text-[var(--text-secondary)]">Permissions</span>
+              <span className="block text-sm font-medium text-muted-foreground">Permissions</span>
               <div className="mt-2">
                 <PermissionChecklist selected={newRolePermissions} onToggle={togglePermission} />
               </div>

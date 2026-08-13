@@ -9,8 +9,8 @@ import { downloadArticle, fetchArticle } from '../lib/articles-api';
 import { formatDate } from '../lib/format';
 import ArticleAssetViewer, { pickPreviewAsset } from './ArticleAssetViewer';
 import EmptyState from './EmptyState';
-import Badge from './ui/Badge';
-import Button from './ui/Button';
+import Badge from './ui/badge';
+import Button from './ui/button';
 import Modal from './ui/Modal';
 
 const SOURCE_TYPE_LABEL: Record<Article['sourceType'], string> = {
@@ -39,7 +39,7 @@ function renderBodyParagraphs(text: string): ReactNode[] | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   return trimmed.split(/\n{2,}/).map((paragraph, index) => (
-    <p key={index} className="mt-2.5 whitespace-pre-wrap text-sm leading-6 text-[var(--text-primary)] first:mt-0">
+    <p key={index} className="mt-2.5 whitespace-pre-wrap text-sm leading-6 text-foreground first:mt-0">
       {paragraph.trim()}
     </p>
   ));
@@ -51,11 +51,11 @@ function ArticleReadingView({ article, extractedFile }: { article: Article; extr
   return (
     <div>
       {extractedFile ? (
-        <p className="mb-3 text-xs text-[var(--text-muted)]">
+        <p className="mb-3 text-xs text-muted-foreground">
           This file type cannot be previewed in the browser. Extracted text is shown below.
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-secondary)]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
           <Globe size={12} className="shrink-0" />
           {article.domain}
@@ -73,11 +73,11 @@ function ArticleReadingView({ article, extractedFile }: { article: Article; extr
         <Badge variant="default">{SOURCE_TYPE_LABEL[article.sourceType]}</Badge>
       </div>
       {article.summary.trim() ? (
-        <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">{article.summary.trim()}</p>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{article.summary.trim()}</p>
       ) : null}
       <div className="mt-4">
         {body ?? (
-          <p className="text-sm text-[var(--text-muted)]">
+          <p className="text-sm text-muted-foreground">
             No article text is available yet.
             {article.url ? ' Use “Open original” to read it at the source.' : ''}
           </p>
@@ -126,8 +126,8 @@ export default function ArticlePreviewModal({ articleId, onClose }: ArticlePrevi
     <Modal open onClose={onClose} title={article?.title ?? 'Preview'} size="lg" footer={footer}>
       <div className="max-h-[min(60vh,420px)] overflow-y-auto cip-scroll">
         {articleQuery.isLoading ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 text-[var(--text-secondary)]">
-            <Loader2 size={22} className="animate-spin text-[var(--accent)]" />
+          <div className="flex flex-col items-center justify-center gap-2 py-10 text-muted-foreground">
+            <Loader2 size={22} className="animate-spin text-primary" />
             <span className="text-sm">Loading preview…</span>
           </div>
         ) : articleQuery.isError || !article ? (

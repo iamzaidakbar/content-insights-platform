@@ -91,7 +91,7 @@ export default function SearchPreferencesSection() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsSection title="Search Preferences" description="Defaults applied every time you open Articles.">
         <SettingsRow label="Facet sort order" description="How values within each filter section are ordered by default.">
           <select
@@ -118,7 +118,7 @@ export default function SearchPreferencesSection() {
         </SettingsRow>
 
         <SettingsRow label="Default result view">
-          <div className="flex items-center gap-1 rounded-[var(--radius-button)] border border-[var(--border)] p-1">
+          <div className="flex items-center gap-1 rounded-md border border-border p-1">
             {VIEW_MODE_OPTIONS.map((option) => {
               const Icon = option.icon;
               const isActive = draft.defaultResultView === option.value;
@@ -128,11 +128,11 @@ export default function SearchPreferencesSection() {
                   type="button"
                   title={option.label}
                   onClick={() => setDraft((current) => ({ ...current, defaultResultView: option.value }))}
-                  className="flex h-8 items-center gap-1.5 rounded-[calc(var(--radius-button)-2px)] px-2 text-xs transition-colors"
+                  className="flex h-8 items-center gap-1.5 rounded-md px-2 text-xs transition-colors"
                   style={
                     isActive
-                      ? { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' }
-                      : { color: 'var(--text-secondary)' }
+                      ? { backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)' }
+                      : { color: 'var(--muted-foreground)' }
                   }
                 >
                   <Icon size={15} strokeWidth={1.75} />
@@ -155,18 +155,18 @@ export default function SearchPreferencesSection() {
             max={MAX_LINES}
             value={draft.cardContentLines['default'] ?? 3}
             onChange={(event) => setLinesFor('default', Number(event.target.value))}
-            className="w-20 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            className="w-20 rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring"
           />
         </SettingsRow>
 
         {projectsQuery.isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className="h-8 animate-shimmer rounded-[var(--radius-input)]" />
+              <div key={index} className="h-8 animate-shimmer rounded-md" />
             ))}
           </div>
         ) : projectsQuery.isError ? (
-          <p className="text-sm" style={{ color: 'var(--red)' }}>
+          <p className="text-sm text-destructive">
             {getApiErrorMessage(projectsQuery.error, 'Unable to load your projects.')}
           </p>
         ) : (
@@ -182,7 +182,7 @@ export default function SearchPreferencesSection() {
                 max={MAX_LINES}
                 value={draft.cardContentLines[project.id] ?? draft.cardContentLines['default'] ?? 3}
                 onChange={(event) => setLinesFor(project.id, Number(event.target.value))}
-                className="w-20 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+                className="w-20 rounded-md border border-border bg-card px-2 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring"
               />
             </SettingsRow>
           ))

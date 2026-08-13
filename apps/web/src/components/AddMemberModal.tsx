@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 import { asRoleId, type Group, type UserSummary } from '@content-insights/shared';
 
@@ -9,8 +9,8 @@ import { getApiErrorMessage } from '../lib/api-client';
 import { fetchRoles } from '../lib/roles-api';
 import { APPLICATION_ADMIN_ROLE_NAME } from '../lib/scoped-permissions';
 import { assignUserRole, searchUsers } from '../lib/users-api';
-import Button from './ui/Button';
-import { Input, Select } from './ui/Input';
+import Button from './ui/button';
+import { Input, Select } from './ui/input';
 import Modal from './ui/Modal';
 
 const DEBOUNCE_MS = 300;
@@ -107,7 +107,7 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
       }
     >
       <div>
-        <label htmlFor="member-search" className="block text-sm font-medium text-[var(--text-secondary)]">
+        <label htmlFor="member-search" className="block text-sm font-medium text-muted-foreground">
           Search users by email
         </label>
         <Input
@@ -125,21 +125,21 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
 
         <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
           {usersQuery.isLoading ? (
-            <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">Searching…</li>
+            <li className="px-2 py-1.5 text-xs text-muted-foreground">Searching…</li>
           ) : usersQuery.isError ? (
-            <li className="px-2 py-1.5 text-xs text-[var(--red)]">Unable to search users.</li>
+            <li className="px-2 py-1.5 text-xs text-destructive">Unable to search users.</li>
           ) : trimmedQuery.length === 0 ? null : searchResults.length === 0 ? (
-            <li className="px-2 py-1.5 text-xs text-[var(--text-muted)]">No matching users.</li>
+            <li className="px-2 py-1.5 text-xs text-muted-foreground">No matching users.</li>
           ) : (
             searchResults.map((candidate) => (
               <li key={candidate.id}>
                 <button
                   type="button"
                   onClick={() => setSelectedUser(candidate)}
-                  className={`w-full rounded-[var(--radius-button)] px-2 py-1.5 text-left text-sm transition-colors ${
+                  className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
                     selectedUser?.id === candidate.id
-                      ? 'bg-[var(--accent-soft)] text-[var(--accent)]'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
+                      ? 'bg-accent text-primary'
+                      : 'text-muted-foreground hover:bg-accent'
                   }`}
                 >
                   {candidate.email}
@@ -150,14 +150,14 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
         </ul>
 
         {selectedUser ? (
-          <p className="mt-2 text-xs text-[var(--text-secondary)]">
-            Selected: <span className="text-[var(--text-primary)]">{selectedUser.email}</span>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Selected: <span className="text-foreground">{selectedUser.email}</span>
           </p>
         ) : null}
       </div>
 
       <div className="mt-4">
-        <label htmlFor="member-role" className="block text-sm font-medium text-[var(--text-secondary)]">
+        <label htmlFor="member-role" className="block text-sm font-medium text-muted-foreground">
           Role
         </label>
         <Select
@@ -173,15 +173,15 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
             </option>
           ))}
         </Select>
-        <p className="mt-1 text-xs text-[var(--text-muted)]">
+        <p className="mt-1 text-xs text-muted-foreground">
           Need to grant Application Admin instead? That role is always global — use Admin → Role Assignments.
         </p>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor="member-start" className="block text-sm font-medium text-[var(--text-secondary)]">
-            Start date <span className="text-[var(--text-muted)]">(optional)</span>
+          <label htmlFor="member-start" className="block text-sm font-medium text-muted-foreground">
+            Start date <span className="text-muted-foreground">(optional)</span>
           </label>
           <Input
             id="member-start"
@@ -192,8 +192,8 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
           />
         </div>
         <div>
-          <label htmlFor="member-end" className="block text-sm font-medium text-[var(--text-secondary)]">
-            End date <span className="text-[var(--text-muted)]">(optional)</span>
+          <label htmlFor="member-end" className="block text-sm font-medium text-muted-foreground">
+            End date <span className="text-muted-foreground">(optional)</span>
           </label>
           <Input
             id="member-end"
@@ -205,7 +205,7 @@ export default function AddMemberModal({ group, onClose }: AddMemberModalProps) 
         </div>
       </div>
 
-      {error ? <p className="mt-4 text-sm text-[var(--red)]">{error}</p> : null}
+      {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
     </Modal>
   );
 }

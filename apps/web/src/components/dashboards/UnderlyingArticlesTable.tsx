@@ -28,11 +28,11 @@ export default function UnderlyingArticlesTable({ filters }: UnderlyingArticlesT
   });
 
   if (searchQuery.isLoading) {
-    return <div className="h-20 animate-pulse rounded-[var(--radius-input)] bg-[var(--bg-hover)]" />;
+    return <div className="h-20 animate-pulse rounded-md bg-accent" />;
   }
   if (searchQuery.isError) {
     return (
-      <p className="py-2 text-xs text-[var(--red)]">
+      <p className="py-2 text-xs text-destructive">
         {getApiErrorMessage(searchQuery.error, 'Unable to load matching articles.')}
       </p>
     );
@@ -42,15 +42,15 @@ export default function UnderlyingArticlesTable({ filters }: UnderlyingArticlesT
   const totalPages = searchQuery.data ? Math.max(1, Math.ceil(searchQuery.data.total / PAGE_SIZE)) : 0;
 
   if (hits.length === 0) {
-    return <p className="py-2 text-xs text-[var(--text-muted)]">No matching articles.</p>;
+    return <p className="py-2 text-xs text-muted-foreground">No matching articles.</p>;
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-input)] border border-[var(--border)]">
+    <div className="overflow-hidden rounded-md border border-border">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-[var(--border)] text-[var(--text-secondary)]">
+            <tr className="border-b border-border text-muted-foreground">
               <th className="px-2 py-1.5 font-medium">Title</th>
               <th className="px-2 py-1.5 font-medium">Domain</th>
               <th className="px-2 py-1.5 font-medium">Published</th>
@@ -58,14 +58,14 @@ export default function UnderlyingArticlesTable({ filters }: UnderlyingArticlesT
           </thead>
           <tbody>
             {hits.map((hit) => (
-              <tr key={hit.articleId} className="border-b border-[var(--border)] last:border-0">
-                <td className="max-w-[240px] truncate px-2 py-1.5 text-[var(--text-primary)]">
-                  <Link to={`/articles/${hit.articleId}`} className="hover:text-[var(--accent)]">
+              <tr key={hit.articleId} className="border-b border-border last:border-0">
+                <td className="max-w-[240px] truncate px-2 py-1.5 text-foreground">
+                  <Link to={`/articles/${hit.articleId}`} className="hover:text-primary">
                     {hit.title}
                   </Link>
                 </td>
-                <td className="px-2 py-1.5 text-[var(--text-secondary)]">{hit.domain || '—'}</td>
-                <td className="px-2 py-1.5 whitespace-nowrap text-[var(--text-secondary)]">
+                <td className="px-2 py-1.5 text-muted-foreground">{hit.domain || '—'}</td>
+                <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
                   {hit.publishedAt ? formatDate(hit.publishedAt) : '—'}
                 </td>
               </tr>
@@ -74,7 +74,7 @@ export default function UnderlyingArticlesTable({ filters }: UnderlyingArticlesT
         </table>
       </div>
       {totalPages > 1 ? (
-        <div className="flex justify-end border-t border-[var(--border)] p-1">
+        <div className="flex justify-end border-t border-border p-1">
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       ) : null}

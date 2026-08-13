@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import * as Dialog from '@radix-ui/react-dialog';
 
 import { useAuth } from '../auth/AuthContext';
 import { fetchChannels } from '../lib/channels-api';
 import { fetchSavedSearches } from '../lib/saved-searches-api';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from './ui/command';
 
-interface CommandItem {
+interface CommandItemModel {
   id: string;
   label: string;
   hint?: string;
@@ -50,8 +58,8 @@ export default function CommandPalette() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const items = useMemo<CommandItem[]>(() => {
-    const base: CommandItem[] = [
+  const items = useMemo<CommandItemModel[]>(() => {
+    const base: CommandItemModel[] = [
       { id: 'articles', label: 'Articles', to: '/articles' },
       { id: 'channels', label: 'Channels', to: '/channels' },
       { id: 'saved', label: 'Saved Searches', to: '/saved-searches' },
@@ -96,40 +104,31 @@ export default function CommandPalette() {
   }
 
   return (
-    <Dialog.Root
+    <CommandDialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) setQuery('');
       }}
+      title="Command palette"
+      description="Jump to a page, saved search, or channel"
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed left-1/2 top-[20%] z-50 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-surface)] outline-none">
-          <Dialog.Title className="sr-only">Command palette</Dialog.Title>
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Jump to a page, saved search, or channel…"
-            className="w-full border-b border-[var(--border)] bg-transparent px-4 py-3 text-sm text-[var(--text-primary)] outline-none"
-          />
-          <ul className="max-h-72 overflow-y-auto p-1">
-            {items.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  onClick={() => go(item.to)}
-                  className="flex w-full items-center justify-between rounded-[var(--radius-button)] px-3 py-2 text-left text-sm hover:bg-[var(--bg-hover)]"
-                >
-                  <span className="text-[var(--text-primary)]">{item.label}</span>
-                  {item.hint ? <span className="text-xs text-[var(--text-muted)]">{item.hint}</span> : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      <CommandInput
+        value={query}
+        onValueChange={setQuery}
+        placeholder="Jump to a page, saved search, or channel…"
+      />
+      <CommandList>
+        <CommandEmpty>No matching destinations.</CommandEmpty>
+        <CommandGroup>
+          {items.map((item) => (
+            <CommandItem key={item.id} value={`${item.label} ${item.hint ?? ''}`} onSelect={() => go(item.to)}>
+              <span>{item.label}</span>
+              {item.hint ? <CommandShortcut>{item.hint}</CommandShortcut> : null}
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
   );
 }

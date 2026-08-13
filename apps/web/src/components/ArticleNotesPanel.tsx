@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { StickyNote, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Pencil, StickyNote, Trash2 } from 'lucide-react';
 
 import type { ArticleNote, ArticleNoteVisibility } from '@content-insights/shared';
 import { ARTICLE_NOTE_BODY_MAX_LENGTH } from '@content-insights/shared';
@@ -15,11 +15,12 @@ import {
   updateArticleNote,
 } from '../lib/article-notes-api';
 import { formatDate } from '../lib/format';
-import Badge from './ui/Badge';
-import Button from './ui/Button';
-import { Card, CardBody, CardTitle } from './ui/Card';
+import Badge from './ui/badge';
+import { ActionIconButton } from './ui/action-icon-button';
+import Button from './ui/button';
+import { Card, CardBody, CardTitle } from './ui/card';
 import ConfirmDialog from './ui/ConfirmDialog';
-import { Select, Textarea } from './ui/Input';
+import { Select, Textarea } from './ui/input';
 
 interface ArticleNotesPanelProps {
   articleId: string;
@@ -97,15 +98,15 @@ export default function ArticleNotesPanel({ articleId }: ArticleNotesPanelProps)
     <Card>
       <CardBody className="p-4">
         <CardTitle className="flex items-center gap-2">
-          <StickyNote size={15} className="text-[var(--text-secondary)]" />
+          <StickyNote size={15} className="text-muted-foreground" />
           Notes
         </CardTitle>
 
         <div className="mt-3 space-y-3">
           {notesQuery.isError ? (
-            <p className="text-sm text-[var(--error)]">{getApiErrorMessage(notesQuery.error, 'Unable to load notes.')}</p>
+            <p className="text-sm text-destructive">{getApiErrorMessage(notesQuery.error, 'Unable to load notes.')}</p>
           ) : notes.length === 0 ? (
-            <p className="text-sm text-[var(--text-muted)]">No notes yet.</p>
+            <p className="text-sm text-muted-foreground">No notes yet.</p>
           ) : (
             <ul className="space-y-3">
               {notes.map((note) => (
@@ -146,7 +147,7 @@ export default function ArticleNotesPanel({ articleId }: ArticleNotesPanelProps)
             placeholder="Add a note…"
           />
           <div className="flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            <label className="flex flex-col gap-1 text-xs text-muted-foreground">
               Visibility
               <Select
                 aria-label="Note visibility"
@@ -161,7 +162,7 @@ export default function ArticleNotesPanel({ articleId }: ArticleNotesPanelProps)
               </Select>
             </label>
             {visibility === 'group' ? (
-              <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+              <label className="flex flex-col gap-1 text-xs text-muted-foreground">
                 Group
                 <Select
                   aria-label="Note group"
@@ -226,11 +227,11 @@ function NoteRow({
   onDelete: () => void;
 }) {
   return (
-    <li className="rounded-[var(--radius-input)] border border-[var(--border)] px-3 py-2">
+    <li className="rounded-md border border-border px-3 py-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-[var(--text-primary)]">{note.authorEmail}</p>
-          <p className="text-xs text-[var(--text-muted)]">{formatDate(note.createdAt)}</p>
+          <p className="truncate text-sm font-medium text-foreground">{note.authorEmail}</p>
+          <p className="text-xs text-muted-foreground">{formatDate(note.createdAt)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <Badge variant={note.visibility === 'private' ? 'default' : 'accent'}>
@@ -238,12 +239,8 @@ function NoteRow({
           </Badge>
           {isOwn ? (
             <>
-              <Button type="button" variant="ghost" size="sm" onClick={onStartEdit}>
-                Edit
-              </Button>
-              <Button type="button" variant="ghost" size="sm" aria-label="Delete note" onClick={onDelete}>
-                <Trash2 size={14} />
-              </Button>
+              <ActionIconButton label="Edit note" icon={Pencil} onClick={onStartEdit} />
+              <ActionIconButton label="Delete note" icon={Trash2} onClick={onDelete} destructive />
             </>
           ) : null}
         </div>
@@ -267,7 +264,7 @@ function NoteRow({
           </div>
         </div>
       ) : (
-        <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--text-primary)]">{note.body}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{note.body}</p>
       )}
     </li>
   );

@@ -20,7 +20,7 @@ const WORDCLOUD_OPTIONS: OptionsProp = {
   colors: [], // unused when getWordColor is set — keep empty so we never fall back to d3's scheme
   deterministic: true,
   enableTooltip: true,
-  fontFamily: 'Ubuntu, ui-sans-serif, system-ui, sans-serif',
+  fontFamily: 'Geist, ui-sans-serif, system-ui, sans-serif',
   fontSizes: [14, 48],
   fontWeight: '600',
   padding: 2,
@@ -117,11 +117,11 @@ export default function WordCloudChart({ buckets = [] }: WordCloudChartProps) {
       <div className="relative h-[340px] w-full min-h-[280px]">
         {words.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-            <p className="text-sm text-[var(--chart-ink-secondary)]">All words excluded for this session.</p>
+            <p className="text-sm text-muted-foreground">All words excluded for this session.</p>
             <button
               type="button"
               onClick={clearExclusions}
-              className="text-xs font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
+              className="text-xs font-medium text-primary hover:text-primary/90"
             >
               Restore all
             </button>
@@ -133,14 +133,14 @@ export default function WordCloudChart({ buckets = [] }: WordCloudChartProps) {
 
       {excluded.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--chart-ink-muted)]">Excluded</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Excluded</span>
           {excluded.map((word) => (
             <button
               key={word}
               type="button"
               onClick={() => restoreWord(word)}
               title={`Restore “${word}”`}
-              className="inline-flex items-center gap-1 rounded-[var(--radius-tag)] border border-[var(--chart-gridline)] bg-[var(--chart-surface)] px-2 py-0.5 text-[11px] text-[var(--chart-ink-primary)] hover:border-[var(--accent)]"
+              className="inline-flex items-center gap-1 rounded-sm border border-border bg-background px-2 py-0.5 text-[11px] text-foreground hover:border-primary"
             >
               {word}
               <X size={11} strokeWidth={2} aria-hidden="true" />
@@ -150,7 +150,7 @@ export default function WordCloudChart({ buckets = [] }: WordCloudChartProps) {
             <button
               type="button"
               onClick={clearExclusions}
-              className="ml-1 text-[11px] text-[var(--chart-ink-muted)] hover:text-[var(--accent)]"
+              className="ml-1 text-[11px] text-muted-foreground hover:text-primary"
             >
               Clear all
             </button>
@@ -159,14 +159,14 @@ export default function WordCloudChart({ buckets = [] }: WordCloudChartProps) {
       ) : null}
 
       {sorted.length > visibleBuckets.length && excluded.length === 0 ? (
-        <p className="mt-2 text-center text-[10px] text-[var(--chart-ink-muted)]">
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
           Showing the top {visibleBuckets.length} of {sorted.length} words by frequency — see the table view for the
           full list.
         </p>
       ) : null}
 
       {tiers.length > 1 ? (
-        <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] text-[var(--chart-ink-secondary)]">
+        <ul className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[10px] text-muted-foreground">
           {tiers.map((tier, index) => (
             <li key={index} className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ backgroundColor: tier.color }} aria-hidden="true" />

@@ -1,6 +1,6 @@
 import { SOURCE_TYPE_TABS, type SourceTypeTab } from '@content-insights/shared';
 
-import Tabs from './ui/Tabs';
+import Tabs from './ui/tabs';
 
 export type ArticleTabKey = SourceTypeTab;
 

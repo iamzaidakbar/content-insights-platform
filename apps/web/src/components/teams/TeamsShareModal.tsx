@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, ExternalLink, Link2, X } from 'lucide-react';
 
 import type { TeamsShareArticleRef, TeamsShareRecord } from '@content-insights/shared';
@@ -9,8 +9,8 @@ import { getApiErrorMessage } from '../../lib/api-client';
 import { fetchGlobalSettings } from '../../lib/global-settings-api';
 import { formatDate } from '../../lib/format';
 import { shareToTeams, TEAMS_MAX_ARTICLES_PER_SHARE, TEAMS_MESSAGE_MAX_LENGTH } from '../../lib/teams-api';
-import Button from '../ui/Button';
-import { Textarea } from '../ui/Input';
+import Button from '../ui/button';
+import { Textarea } from '../ui/input';
 import Modal from '../ui/Modal';
 import Toggle from '../Toggle';
 
@@ -42,19 +42,19 @@ function MentionsInput({ mentions, onChange }: { mentions: string[]; onChange: (
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-1.5 focus-within:border-[var(--accent)]">
+    <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-1.5 focus-within:border-ring">
       {mentions.map((mention) => (
         <span
           key={mention}
-          className="flex items-center gap-1 rounded-[var(--radius-tag)] px-2 py-0.5 text-xs font-medium"
-          style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+          className="flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
+          style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
         >
           @{mention}
           <button
             type="button"
             onClick={() => onChange(mentions.filter((m) => m !== mention))}
             aria-label={`Remove @${mention}`}
-            className="hover:text-[var(--red)]"
+            className="hover:text-destructive"
           >
             <X size={11} />
           </button>
@@ -67,7 +67,7 @@ function MentionsInput({ mentions, onChange }: { mentions: string[]; onChange: (
         onKeyDown={handleKeyDown}
         onBlur={commit}
         placeholder={mentions.length === 0 ? 'Type a name, press Enter or comma…' : 'Add another…'}
-        className="min-w-[160px] flex-1 bg-transparent py-0.5 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+        className="min-w-[160px] flex-1 bg-transparent py-0.5 text-sm text-foreground outline-none placeholder:text-muted-foreground"
       />
     </div>
   );
@@ -79,14 +79,14 @@ function ArticlePreviewList({ articles, useAppDeepLink }: { articles: TeamsShare
   const overflow = articles.length - visible.length;
 
   return (
-    <div className="rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] p-2.5">
+    <div className="rounded-md border border-border bg-card p-2.5">
       <ul className="space-y-1.5">
         {visible.map((article, index) => (
-          <li key={`${article.url}-${index}`} className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+          <li key={`${article.url}-${index}`} className="flex items-center gap-2 text-sm text-foreground">
             {useAppDeepLink ? (
-              <Link2 size={13} className="shrink-0 text-[var(--text-muted)]" />
+              <Link2 size={13} className="shrink-0 text-muted-foreground" />
             ) : (
-              <ExternalLink size={13} className="shrink-0 text-[var(--text-muted)]" />
+              <ExternalLink size={13} className="shrink-0 text-muted-foreground" />
             )}
             <span className="min-w-0 flex-1 truncate">{article.title}</span>
           </li>
@@ -96,7 +96,7 @@ function ArticlePreviewList({ articles, useAppDeepLink }: { articles: TeamsShare
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="mt-1.5 text-xs text-[var(--accent)] hover:underline"
+          className="mt-1.5 text-xs text-primary hover:underline"
         >
           +{overflow} more
         </button>
@@ -114,11 +114,11 @@ function ConfirmationView({
 }) {
   return (
     <div>
-      <div className="flex items-start gap-3 rounded-[var(--radius-input)] border border-[var(--green)] bg-[var(--accent-soft)] p-4">
-        <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-[var(--green)]" />
+      <div className="flex items-start gap-3 rounded-md border border-success bg-accent p-4">
+        <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-success" />
         <div>
-          <p className="text-sm font-semibold text-[var(--text-primary)]">Share recorded</p>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+          <p className="text-sm font-semibold text-foreground">Share recorded</p>
+          <p className="mt-1 text-sm text-muted-foreground">
             No live Microsoft Teams connection is configured in this environment, so nothing was actually posted to a
             Teams channel — this recorded what would have been shared.
           </p>
@@ -127,30 +127,30 @@ function ConfirmationView({
 
       <dl className="mt-4 space-y-2.5 text-sm">
         <div className="flex justify-between gap-4">
-          <dt className="text-[var(--text-secondary)]">Articles</dt>
-          <dd className="text-[var(--text-primary)]">{articleCount}</dd>
+          <dt className="text-muted-foreground">Articles</dt>
+          <dd className="text-foreground">{articleCount}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-[var(--text-secondary)]">Mentions</dt>
-          <dd className="text-right text-[var(--text-primary)]">
+          <dt className="text-muted-foreground">Mentions</dt>
+          <dd className="text-right text-foreground">
             {record.mentions.length > 0 ? record.mentions.map((m) => `@${m}`).join(', ') : 'None'}
           </dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-[var(--text-secondary)]">Recorded at</dt>
-          <dd className="text-[var(--text-primary)]">{formatDate(record.createdAt)}</dd>
+          <dt className="text-muted-foreground">Recorded at</dt>
+          <dd className="text-foreground">{formatDate(record.createdAt)}</dd>
         </div>
         {record.message ? (
           <div>
-            <dt className="text-[var(--text-secondary)]">Message</dt>
-            <dd className="mt-1 whitespace-pre-wrap rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] p-2.5 text-[var(--text-primary)]">
+            <dt className="text-muted-foreground">Message</dt>
+            <dd className="mt-1 whitespace-pre-wrap rounded-md border border-border bg-background p-2.5 text-foreground">
               {record.message}
             </dd>
           </div>
         ) : null}
         <div className="flex justify-between gap-4">
-          <dt className="text-[var(--text-secondary)]">Record ID</dt>
-          <dd className="font-mono text-xs text-[var(--text-muted)]">{record.id}</dd>
+          <dt className="text-muted-foreground">Record ID</dt>
+          <dd className="font-mono text-xs text-muted-foreground">{record.id}</dd>
         </div>
       </dl>
     </div>
@@ -249,8 +249,8 @@ export default function TeamsShareModal({ isOpen, onClose, articles, onShared }:
         <ConfirmationView record={shareRecord} articleCount={articles.length} />
       ) : (
         <div className="space-y-4">
-          <div className="flex items-start gap-2 rounded-[var(--radius-input)] border border-[var(--amber)] bg-[var(--accent-soft)] p-3 text-xs leading-relaxed text-[var(--text-secondary)]">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[var(--amber)]" />
+          <div className="flex items-start gap-2 rounded-md border border-warning bg-accent p-3 text-xs leading-relaxed text-muted-foreground">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-warning" />
             <p>
               This records the share for now — no live Microsoft Teams connection is configured in this
               environment. Nothing will actually be posted to a Teams channel.
@@ -258,22 +258,22 @@ export default function TeamsShareModal({ isOpen, onClose, articles, onShared }:
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs font-medium text-[var(--text-secondary)]">
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
               {isBulk ? `Articles (${articles.length})` : 'Article'}
             </p>
             <ArticlePreviewList articles={articles} useAppDeepLink={useAppDeepLink} />
           </div>
 
           {overCap ? (
-            <p className="rounded-[var(--radius-input)] border border-[var(--red)] bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--red)]">
+            <p className="rounded-md border border-destructive bg-card px-3 py-2 text-sm text-destructive">
               This share includes {articles.length} articles, which exceeds your organization&apos;s limit of{' '}
               {maxArticlesPerShare} articles per Teams share. Remove some articles before sharing.
             </p>
           ) : null}
 
           <div>
-            <label htmlFor="teams-share-message" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Message <span className="text-xs font-normal text-[var(--text-muted)]">(optional)</span>
+            <label htmlFor="teams-share-message" className="block text-sm font-medium text-muted-foreground">
+              Message <span className="text-xs font-normal text-muted-foreground">(optional)</span>
             </label>
             <Textarea
               id="teams-share-message"
@@ -286,7 +286,7 @@ export default function TeamsShareModal({ isOpen, onClose, articles, onShared }:
             />
             <p
               className={`mt-1 text-right text-xs ${
-                message.length >= TEAMS_MESSAGE_MAX_LENGTH ? 'text-[var(--red)]' : 'text-[var(--text-muted)]'
+                message.length >= TEAMS_MESSAGE_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground'
               }`}
             >
               {message.length} / {TEAMS_MESSAGE_MAX_LENGTH}
@@ -294,20 +294,20 @@ export default function TeamsShareModal({ isOpen, onClose, articles, onShared }:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)]">
-              Mentions <span className="text-xs font-normal text-[var(--text-muted)]">(optional — no directory lookup, just names)</span>
+            <label className="block text-sm font-medium text-muted-foreground">
+              Mentions <span className="text-xs font-normal text-muted-foreground">(optional — no directory lookup, just names)</span>
             </label>
             <div className="mt-1">
               <MentionsInput mentions={mentions} onChange={setMentions} />
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 rounded-[var(--radius-input)] border border-[var(--border)] p-3">
+          <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
             <div>
-              <p className="text-sm font-medium text-[var(--text-primary)]">
+              <p className="text-sm font-medium text-foreground">
                 {useAppDeepLink ? 'Sharing app deep links' : 'Sharing original source URLs'}
               </p>
-              <p className="mt-0.5 text-xs text-[var(--text-secondary)]">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {useAppDeepLink
                   ? 'Recipients open each article inside this app.'
                   : "Recipients open each article's original source page directly."}

@@ -4,6 +4,7 @@ import { DATE_FORMATS, type DateFormatPreference, type Theme } from '@content-in
 
 import { useDirtyDraft } from '../../hooks/useDirtyDraft';
 import { useSettings } from '../../settings/SettingsContext';
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import SettingsSaveBar from './SettingsSaveBar';
 import { SETTINGS_SELECT_CLASSNAME, SettingsRow, SettingsSection } from './SettingsSection';
 
@@ -75,29 +76,28 @@ export default function GeneralSection() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsSection title="Theme" description="Pick a look, or follow your system setting.">
-        <div className="flex flex-wrap gap-3">
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={draft.theme}
+          onValueChange={(value) => {
+            if (value === 'light' || value === 'dark' || value === 'system') {
+              setDraft((current) => ({ ...current, theme: value }));
+            }
+          }}
+        >
           {THEME_OPTIONS.map((option) => {
-            const isActive = draft.theme === option.value;
+            const Icon = option.icon;
             return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setDraft((current) => ({ ...current, theme: option.value }))}
-                className="flex items-center gap-2 rounded-[var(--radius-button)] px-4 py-2.5 text-sm font-medium transition-colors"
-                style={{
-                  backgroundColor: isActive ? 'var(--accent-soft)' : 'var(--bg-card)',
-                  color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
-                  border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
-                }}
-              >
-                <option.icon size={15} strokeWidth={1.75} />
+              <ToggleGroupItem key={option.value} value={option.value} aria-label={option.label}>
+                <Icon className="size-4" />
                 {option.label}
-              </button>
+              </ToggleGroupItem>
             );
           })}
-        </div>
+        </ToggleGroup>
       </SettingsSection>
 
       <SettingsSection title="Localization" description="Applied wherever dates and language-specific content are shown.">
@@ -124,7 +124,7 @@ export default function GeneralSection() {
             onChange={(event) => setDraft((current) => ({ ...current, languagePreference: event.target.value }))}
             maxLength={35}
             placeholder="en"
-            className="w-32 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-1.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]"
+            className="w-32 rounded-md border border-border bg-card px-3 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring"
           />
         </SettingsRow>
       </SettingsSection>

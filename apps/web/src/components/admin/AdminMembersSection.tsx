@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { Plus, UserCog, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { CalendarOff, UserCog, UserPlus, X } from 'lucide-react';
 
 import { asGroupId, asRoleId, type Group, type Role, type RoleAssignment, type User } from '@content-insights/shared';
 
@@ -20,13 +20,14 @@ import {
 import { assignUserRole, fetchOrgUsers, revokeUserRoleAssignment, updateRoleAssignmentEndDate } from '../../lib/users-api';
 import EmptyState from '../EmptyState';
 import Pagination from '../Pagination';
-import Alert from '../ui/Alert';
-import Button from '../ui/Button';
-import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
-import { Input, Select } from '../ui/Input';
+import Alert from '../ui/alert';
+import { ActionIconButton } from '../ui/action-icon-button';
+import Button from '../ui/button';
+import { Card, CardBody, CardHeader, CardTitle } from '../ui/card';
+import { Input, Select } from '../ui/input';
 import Modal from '../ui/Modal';
-import Skeleton from '../ui/Skeleton';
-import { ADMIN_TABLE_MAX_HEIGHT, Table, TBody, TD, TH, THead, TR } from '../ui/Table';
+import Skeleton from '../ui/skeleton';
+import { Table, TBody, TD, TH, THead, TR } from '../ui/data-table';
 
 const DEBOUNCE_MS = 300;
 const SKELETON_ROW_COUNT = 5;
@@ -84,14 +85,14 @@ function AssignmentChip({
 
   return (
     <div
-      className="flex items-center gap-1.5 rounded-[var(--radius-tag)] px-2 py-1 text-xs"
-      style={{ backgroundColor: 'var(--tag-bg)', color: 'var(--tag-text)' }}
+      className="flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs"
+      style={{ backgroundColor: 'var(--muted)', color: 'var(--foreground)' }}
       data-testid="role-assignment-chip"
     >
       <span className={active ? '' : 'opacity-50 line-through'}>
         <span className="font-medium">{assignment.roleName}</span> · {scopeLabel(assignment.groupId, groupNameById)}
         {assignment.startDate || assignment.endDate ? (
-          <span className="ml-1 text-[var(--text-muted)]">
+          <span className="ml-1 text-muted-foreground">
             ({assignment.startDate ? formatDate(assignment.startDate) : 'open'} –{' '}
             {assignment.endDate ? formatDate(assignment.endDate) : 'open'})
           </span>
@@ -99,25 +100,23 @@ function AssignmentChip({
       </span>
       {active ? (
         isAppAdmin ? (
-          <button
-            type="button"
+          <ActionIconButton
+            size="icon-xs"
+            label="Application Admin access is always global and can't be time-bound — remove it to revoke immediately"
+            icon={X}
             onClick={() => removeMutation.mutate()}
             disabled={removeMutation.isPending}
-            title="Application Admin access is always global and can't be time-bound — remove it to revoke immediately"
-            className="text-[var(--text-muted)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <X size={11} />
-          </button>
+            destructive
+          />
         ) : (
-          <button
-            type="button"
+          <ActionIconButton
+            size="icon-xs"
+            label="End this assignment now"
+            icon={CalendarOff}
             onClick={() => endMutation.mutate()}
             disabled={endMutation.isPending}
-            title="End this assignment now"
-            className="font-medium text-[var(--text-muted)] hover:text-[var(--error)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            End
-          </button>
+            destructive
+          />
         )
       ) : null}
     </div>
@@ -218,7 +217,7 @@ function AssignRoleModal({
     >
       <div className="space-y-3">
         <div>
-          <label htmlFor="assign-role" className="block text-sm font-medium text-[var(--text-secondary)]">
+          <label htmlFor="assign-role" className="block text-sm font-medium text-muted-foreground">
             Role
           </label>
           <Select
@@ -240,7 +239,7 @@ function AssignRoleModal({
         </div>
 
         <div>
-          <label htmlFor="assign-scope" className="block text-sm font-medium text-[var(--text-secondary)]">
+          <label htmlFor="assign-scope" className="block text-sm font-medium text-muted-foreground">
             Scope
           </label>
           <Select
@@ -258,14 +257,14 @@ function AssignRoleModal({
             ))}
           </Select>
           {isAppAdmin ? (
-            <p className="mt-1 text-xs text-[var(--text-muted)]">Application Admin is always granted at global scope.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Application Admin is always granted at global scope.</p>
           ) : null}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="assign-start" className="block text-sm font-medium text-[var(--text-secondary)]">
-              Start date <span className="text-[var(--text-muted)]">(optional)</span>
+            <label htmlFor="assign-start" className="block text-sm font-medium text-muted-foreground">
+              Start date <span className="text-muted-foreground">(optional)</span>
             </label>
             <Input
               id="assign-start"
@@ -277,8 +276,8 @@ function AssignRoleModal({
             />
           </div>
           <div>
-            <label htmlFor="assign-end" className="block text-sm font-medium text-[var(--text-secondary)]">
-              End date <span className="text-[var(--text-muted)]">(optional)</span>
+            <label htmlFor="assign-end" className="block text-sm font-medium text-muted-foreground">
+              End date <span className="text-muted-foreground">(optional)</span>
             </label>
             <Input
               id="assign-end"
@@ -291,7 +290,7 @@ function AssignRoleModal({
           </div>
         </div>
         {isAppAdmin ? (
-          <p className="-mt-1 text-xs text-[var(--text-muted)]">Application Admin access can never be time-bound.</p>
+          <p className="-mt-1 text-xs text-muted-foreground">Application Admin access can never be time-bound.</p>
         ) : null}
 
         {error ? <Alert variant="error">{error}</Alert> : null}
@@ -321,15 +320,15 @@ export default function AdminMembersSection() {
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <CardHeader className="shrink-0">
+    <Card className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden py-4">
+      <CardHeader className="shrink-0 px-4">
         <CardTitle className="text-base">Role Assignments</CardTitle>
-        <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
+        <p className="mt-0.5 text-sm text-muted-foreground">
           Grant a role scoped to a group, or globally (“All”) — dates are optional and, except for Application Admin,
           may bound when an assignment starts or automatically lapses.
         </p>
       </CardHeader>
-      <CardBody className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <CardBody className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4">
         <Input
           type="text"
           value={rawQuery}
@@ -353,7 +352,7 @@ export default function AdminMembersSection() {
           </Alert>
         ) : null}
 
-        <Table scrollable containerStyle={{ maxHeight: ADMIN_TABLE_MAX_HEIGHT }}>
+        <Table scrollable>
           <THead>
             <TR className="hover:bg-transparent">
               <TH>Email</TH>
@@ -381,7 +380,7 @@ export default function AdminMembersSection() {
                     <TD>{orgUser.email}</TD>
                     <TD>
                       {orgUser.roleAssignments.length === 0 ? (
-                        <span className="text-xs text-[var(--text-muted)]">No role assignments</span>
+                        <span className="text-xs text-muted-foreground">No role assignments</span>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {orgUser.roleAssignments.map((assignment) => (
@@ -396,14 +395,11 @@ export default function AdminMembersSection() {
                       )}
                     </TD>
                     <TD>
-                      <button
-                        type="button"
+                      <ActionIconButton
+                        label="Assign role"
+                        icon={UserPlus}
                         onClick={() => setAssigningTo(orgUser)}
-                        className="flex items-center gap-1 text-xs font-medium text-[var(--accent)] hover:text-[var(--accent-hover)]"
-                      >
-                        <Plus size={13} />
-                        Assign
-                      </button>
+                      />
                     </TD>
                   </TR>
                 ))}
