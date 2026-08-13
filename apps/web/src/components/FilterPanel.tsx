@@ -133,7 +133,7 @@ function CollapsibleSection({
           className={`text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
-      {isOpen ? <div className="mt-3">{children}</div> : null}
+      {isOpen ? <div className="mt-3 min-w-0">{children}</div> : null}
     </div>
   );
 }
@@ -354,50 +354,55 @@ function ConceptFilterSection({
         </p>
       ) : (
         <>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => onSelectAll(visibleOptions.map((option) => option.value))}
-                className="text-[var(--accent)] hover:underline"
-              >
-                Select All
-              </button>
-              <span className="text-[var(--text-muted)]" aria-hidden="true">
-                ·
-              </span>
-              <button type="button" onClick={onClearAll} className="text-[var(--accent)] hover:underline">
-                Clear All
-              </button>
-            </div>
-            <select
-              aria-label={`Sort ${concept.label}`}
-              value={sortOrder}
-              onChange={(event) => onSortOrderChange(event.target.value as FacetSortOrder)}
-              className="rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] py-1 pl-1.5 pr-6 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]"
-            >
-              {FACET_SORT_ORDERS.map((order) => (
-                <option key={order} value={order}>
-                  {FACET_SORT_LABELS[order]}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {visibleOptions.length === 0 ? (
             <p className="py-1 text-xs text-[var(--text-muted)]">No values.</p>
           ) : (
-            <div className="max-h-56 space-y-0.5 overflow-y-auto">
-              {visibleOptions.map((option) => (
-                <Checkbox
-                  key={option.value}
-                  checked={selected.includes(option.value)}
-                  onChange={() => onToggleValue(option.value)}
-                  label={option.value}
-                  trailing={<span className="shrink-0 text-xs text-[var(--text-muted)]">{option.count}</span>}
-                />
-              ))}
-            </div>
+            <>
+              <div className="mb-2 flex min-w-0 flex-col gap-1.5">
+                <div className="flex shrink-0 items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => onSelectAll(visibleOptions.map((option) => option.value))}
+                    className="whitespace-nowrap text-[var(--accent)] hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-[var(--text-muted)]" aria-hidden="true">
+                    ·
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onClearAll}
+                    className="whitespace-nowrap text-[var(--accent)] hover:underline"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <select
+                  aria-label={`Sort ${concept.label}`}
+                  value={sortOrder}
+                  onChange={(event) => onSortOrderChange(event.target.value as FacetSortOrder)}
+                  className="h-7 w-full min-w-0 max-w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] py-1 pl-2 pr-7 text-xs text-[var(--text-secondary)] outline-none focus:border-[var(--accent)]"
+                >
+                  {FACET_SORT_ORDERS.map((order) => (
+                    <option key={order} value={order}>
+                      {FACET_SORT_LABELS[order]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="cip-scroll max-h-56 min-w-0 space-y-0.5">
+                {visibleOptions.map((option) => (
+                  <Checkbox
+                    key={option.value}
+                    checked={selected.includes(option.value)}
+                    onChange={() => onToggleValue(option.value)}
+                    label={option.value}
+                    trailing={<span className="shrink-0 text-xs text-[var(--text-muted)]">{option.count}</span>}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </>
       )}
@@ -551,7 +556,7 @@ export default function FilterPanel({
         {visibleUserTags.length === 0 ? (
           <p className="py-1 text-xs text-[var(--text-muted)]">No matching tags.</p>
         ) : (
-          <div className="max-h-48 space-y-0.5 overflow-y-auto">
+          <div className="cip-scroll max-h-48 space-y-0.5">
             {visibleUserTags.map((tag) => (
               <Checkbox
                 key={tag.id}
@@ -628,7 +633,7 @@ export default function FilterPanel({
         className="flex h-full w-72 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-surface)]"
       >
         {header}
-        <div className="min-h-0 flex-1 overflow-y-auto px-4">{sections}</div>
+        <div className="cip-scroll min-h-0 flex-1 px-4">{sections}</div>
         {footer}
       </aside>
     );
@@ -649,7 +654,7 @@ export default function FilterPanel({
       >
         <div className="flex h-full flex-col">
           {header}
-          <div className="flex-1 overflow-y-auto px-4">{sections}</div>
+          <div className="cip-scroll flex-1 px-4">{sections}</div>
           {footer}
         </div>
       </div>

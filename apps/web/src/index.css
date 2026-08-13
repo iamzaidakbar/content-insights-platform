@@ -79,6 +79,8 @@
   /* Shadows — restrained enterprise elevation */
   --shadow-sm: 0 1px 2px rgba(21, 25, 34, 0.04);
   --shadow-md: 0 2px 8px rgba(21, 25, 34, 0.06);
+
+  color-scheme: light;
 }
 
 :root[data-theme='dark'] {
@@ -128,6 +130,8 @@
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.32);
+
+  color-scheme: dark;
 }
 
 :root[data-font-size='small'] {
@@ -158,6 +162,38 @@ body {
 
 #root {
   height: 100%;
+}
+
+/* Themed scrollbars — native Windows/macOS bars stay light on a dark UI and overlay
+   counts in tight lists (Filter Panel user tags). color-scheme above picks the OS
+   dark/light chrome; these rules paint the thumb/track from design tokens and keep
+   a stable gutter so the bar never sits on top of trailing counts. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) var(--bg-surface);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.cip-scroll {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 /* Focus ring for keyboard accessibility */
