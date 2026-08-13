@@ -368,6 +368,30 @@ export default function ArticlesPage() {
     setPage(1);
   }, [currentProjectId]);
 
+  // The top-bar group dropdown lives in AppShell, so ArticlesPage's own group mutation
+  // (used when loading a saved search) never runs for a navbar switch. Watch the session
+  // value itself: drop group-specific taxonomy chips and reset pagination so leftover
+  // filters from the previous group cannot intersect to zero results.
+  // applyLoadedSavedSearch sets skipNextGroupFilterResetRef so loading a query that also
+  // switches group does not wipe the filters it is about to apply.
+  const skipNextGroupFilterResetRef = useRef(false);
+  const previousGroupIdRef = useRef(currentGroupId);
+  useEffect(() => {
+    if (previousGroupIdRef.current === currentGroupId) {
+      return;
+    }
+    previousGroupIdRef.current = currentGroupId;
+    setPage(1);
+    if (skipNextGroupFilterResetRef.current) {
+      skipNextGroupFilterResetRef.current = false;
+      return;
+    }
+    setFilters((current) => ({
+      ...current,
+      taxonomyValues: {},
+    }));
+  }, [currentGroupId]);
+
   // ---------------------------------------------------------------------------------
   // Concepts (taxonomy labels) + user tags (chip names) for card rendering and filter chips
   // ---------------------------------------------------------------------------------
@@ -399,9 +423,37 @@ export default function ArticlesPage() {
     enabled: currentGroupId !== null,
     staleTime: 60_000,
   });
-  const currentGroupDataAccess = currentGroupDetailQuery.data?.dataAccess;
+  const groupDetailMatches = currentGroupDetailQuery.data?.id === currentGroupId;
+  const currentGroupDataAccess = groupDetailMatches ? currentGroupDetailQuery.data?.dataAccess : undefined;
+
+  // After a navbar group switch, if the selected project is not in the new group's
+  // grants, clear it so search uses the group's full project set instead of an empty
+  // intersection (zero results). Skip the first load so landing/default-query can set
+  // the project; skip when applyLoadedSavedSearch already asked us not to reset.
+  const lastPrunedGroupIdRef = useRef(currentGroupId);
+  useEffect(() => {
+    if (isAppAdmin || !currentGroupId || !currentGroupDataAccess) {
+      return;
+    }
+    if (lastPrunedGroupIdRef.current === currentGroupId) {
+      return;
+    }
+    lastPrunedGroupIdRef.current = currentGroupId;
+    const granted = new Set(currentGroupDataAccess.projectIds.map(String));
+    if (currentProjectId && !granted.has(currentProjectId)) {
+      setCurrentProjectMutation.mutate(null);
+      return;
+    }
+    setFilters((current) => ({
+      ...current,
+      projectIds: current.projectIds.filter((id) => granted.has(id)),
+    }));
+  }, [currentGroupId, currentGroupDataAccess, currentProjectId, isAppAdmin, setCurrentProjectMutation]);
 
   const filterPanelConcepts = useMemo<FilterPanelConcept[]>(() => {
+    if (currentGroupId !== null && !currentGroupDataAccess) {
+      return [];
+    }
     if (!currentGroupDataAccess) {
       // Reported as 'soft' regardless of the concept's real placement — FilterPanel treats
       // `placement: 'hard'` + `allowedValues: null` as "denied" (see its own isDenied
@@ -582,9 +634,13 @@ export default function ArticlesPage() {
   async function applyLoadedSavedSearch(loaded: LoadSavedSearchResult) {
     const targetGroupId = loaded.savedSearch.groupId;
     if (targetGroupId && targetGroupId !== currentGroupId) {
+      skipNextGroupFilterResetRef.current = true;
+      lastPrunedGroupIdRef.current = targetGroupId;
       try {
         await setCurrentGroupMutation.mutateAsync(targetGroupId);
       } catch {
+        skipNextGroupFilterResetRef.current = false;
+        lastPrunedGroupIdRef.current = currentGroupId;
         // Mutation already toasts; still apply filters so Load is not a no-op.
       }
     }
