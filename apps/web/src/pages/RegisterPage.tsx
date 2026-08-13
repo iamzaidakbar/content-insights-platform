@@ -45,7 +45,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-white"
+            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-[var(--on-accent)]"
             style={{ backgroundColor: 'var(--accent)' }}
           >
             C

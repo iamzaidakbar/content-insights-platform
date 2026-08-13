@@ -190,7 +190,7 @@ export default function ArticleAssetViewer({ article, onDownload }: ArticleAsset
             <button
               type="button"
               onClick={() => void handleDownload()}
-              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-1.5 text-sm text-white"
+              className="rounded-[var(--radius-button)] bg-[var(--accent)] px-3 py-1.5 text-sm text-[var(--on-accent)]"
             >
               Download instead
             </button>

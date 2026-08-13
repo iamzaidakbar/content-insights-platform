@@ -402,7 +402,7 @@ export default function UploadPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 to={`/articles/${createdArticle.id}`}
-                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
+                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)]"
               >
                 View article
               </Link>

@@ -265,7 +265,7 @@ export default function AppShell() {
       <div className={cn('flex items-center gap-2 px-3 pb-4 pt-1', !showExpandedLabels && 'justify-center')}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-sm font-bold text-white"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-button)] text-sm font-bold text-[var(--on-accent)]"
             style={{ backgroundColor: 'var(--accent)' }}
           >
             C
@@ -399,7 +399,7 @@ export default function AppShell() {
             <NotificationBell />
             <Link to="/profile" className="flex items-center gap-2.5 rounded-[var(--radius-button)] p-0.5 hover:bg-[var(--bg-hover)]" title="Profile">
               <div
-                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-[var(--on-accent)]"
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 {user ? initialsFromUser(user) : '?'}

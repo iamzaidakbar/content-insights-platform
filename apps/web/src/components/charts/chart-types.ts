@@ -43,8 +43,8 @@ export function categoricalColor(index: number): string {
   return CATEGORICAL_CHART_COLORS[clamped] ?? CATEGORICAL_CHART_COLORS[0];
 }
 
-// Sequential single-hue ramp (light -> dark) for magnitude — HeatMapChart's cell fill.
-// Theme-invariant (see index.css's own comment on --chart-seq-100..700).
+// Sequential ramp (light -> dark) for magnitude — HeatMapChart's cell fill.
+// Light theme is blue; dark theme is grayscale (see --chart-seq-100..700 in index.css).
 export const SEQUENTIAL_CHART_STEPS = [
   'var(--chart-seq-100)',
   'var(--chart-seq-200)',

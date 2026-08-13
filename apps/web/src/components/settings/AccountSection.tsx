@@ -86,7 +86,7 @@ function DisplayNameField() {
             type="button"
             onClick={() => mutation.mutate(value.trim())}
             disabled={mutation.isPending}
-            className="h-9 shrink-0 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="h-9 shrink-0 rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
           >
             {mutation.isPending ? 'Saving…' : 'Save'}
           </button>
@@ -178,7 +178,7 @@ function ChangePasswordForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting ? 'Updating…' : 'Change password'}
       </button>
