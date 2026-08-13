@@ -207,7 +207,7 @@ function OperatorToggle({ value, onChange }: { value: BooleanOperator; onChange:
             onClick={() => onChange(operator)}
             className={`px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-colors ${
               operator === value
-                ? 'bg-[var(--accent)] text-[var(--on-accent)]'
+                ? 'bg-[var(--accent)] text-white'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
             }`}
           >

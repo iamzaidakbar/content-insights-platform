@@ -43,7 +43,7 @@ export default function DashboardsPage() {
   const canCreate = groupOptions.length > 0;
 
   return (
-    <PageBody width="lg">
+    <PageBody>
       <PageHeader
         title="Dashboards"
         description="Up to three saved insights each, arranged and resized per dashboard."
@@ -88,7 +88,7 @@ export default function DashboardsPage() {
           description={canCreate ? 'Import up to three saved insights to build one.' : undefined}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dashboardsQuery.isLoading
             ? Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-32 rounded-[var(--radius-card)]" />)
             : dashboards.map((dashboard) => (

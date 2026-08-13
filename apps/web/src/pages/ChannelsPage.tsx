@@ -81,7 +81,7 @@ export default function ChannelsPage() {
   }
 
   return (
-    <PageBody width="md">
+    <PageBody>
       <PageHeader
         title="Channels"
         description="Saved searches exposed as channels across your groups. Promote one from Saved Searches."

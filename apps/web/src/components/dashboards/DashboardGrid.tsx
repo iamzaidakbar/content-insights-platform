@@ -116,7 +116,7 @@ export default function DashboardGrid({ dashboardId, insights, layout, canManage
   }
 
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${GRID_COLUMNS}, minmax(0, 1fr))`, gridAutoRows: '220px' }}>
+    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${GRID_COLUMNS}, minmax(0, 1fr))`, gridAutoRows: '220px' }}>
       {order.map((item) => (
         <div
           key={item.insightId}

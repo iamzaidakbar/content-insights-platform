@@ -121,7 +121,7 @@ export default function GroupsPage() {
   const showEmptyState = !groupsQuery.isLoading && !groupsQuery.isError && groups.length === 0;
 
   return (
-    <PageBody width="md">
+    <PageBody>
       <PageHeader
         title="Groups"
         description="Groups in your organization."

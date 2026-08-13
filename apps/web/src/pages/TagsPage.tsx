@@ -415,7 +415,7 @@ export default function TagsPage() {
   const showEmptyState = !tagsQuery.isLoading && !tagsQuery.isError && tags.length === 0;
 
   return (
-    <PageBody width="sm">
+    <PageBody>
       <PageHeader
         title="Tags"
         description="Organize articles with tags. Public tags are visible and usable org-wide; private tags are visible only to their owner group unless explicitly shared into others."

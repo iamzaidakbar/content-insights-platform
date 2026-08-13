@@ -62,7 +62,7 @@ export default function AlertsPage() {
   const totalPages = listQuery.data?.totalPages ?? 1;
 
   return (
-    <PageBody width="sm">
+    <PageBody>
       <PageHeader
         title="Notifications"
         description="New articles, channel updates, and permission changes."

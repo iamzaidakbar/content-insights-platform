@@ -61,7 +61,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div
-            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-[var(--on-accent)]"
+            className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-button)] text-lg font-bold text-white"
             style={{ backgroundColor: 'var(--accent)' }}
           >
             C
@@ -78,7 +78,7 @@ export default function LoginPage() {
               <>
                 <a
                   href={`${env.apiUrl}/auth/sso/login`}
-                  className="flex h-9 w-full items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)]"
+                  className="flex h-9 w-full items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
                 >
                   Sign in with SSO
                 </a>

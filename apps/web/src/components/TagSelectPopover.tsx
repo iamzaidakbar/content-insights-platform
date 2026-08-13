@@ -144,7 +144,7 @@ export default function TagSelectPopover({
             <button
               type="submit"
               disabled={!newTagName.trim() || isCreating}
-              className="h-8 flex-1 rounded-[var(--radius-button)] bg-[var(--accent)] text-sm font-medium text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="h-8 flex-1 rounded-[var(--radius-button)] bg-[var(--accent)] text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isCreating ? 'Creating…' : 'Create & apply'}
             </button>

@@ -24,7 +24,7 @@ export default function SettingsSaveBar({ isDirty, isSaving = false, onSave, onD
         type="button"
         onClick={onSave}
         disabled={isSaving}
-        className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-9 rounded-[var(--radius-button)] bg-[var(--accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSaving ? 'Saving…' : 'Save changes'}
       </button>

@@ -20,7 +20,7 @@ export default function SavedSearchesPage() {
   }
 
   return (
-    <PageBody width="lg">
+    <PageBody>
       <PageHeader
         title="Saved Searches"
         description="Queries saved from Articles — your own, your groups' defaults, and anything shared with you."

@@ -290,7 +290,7 @@ export default function ArticleDetailPage() {
 
   if (!id) {
     return (
-      <PageBody width="xl">
+      <PageBody>
         <Alert variant="error">Invalid article id.</Alert>
       </PageBody>
     );
@@ -302,7 +302,7 @@ export default function ArticleDetailPage() {
 
   if (articleQuery.isLoading) {
     return (
-      <PageBody width="xl">
+      <PageBody>
         <Skeleton className="h-4 w-40" />
         <Skeleton className="mt-3 h-8 w-1/2" />
         <Skeleton className="mt-5 h-64 w-full" />
@@ -312,7 +312,7 @@ export default function ArticleDetailPage() {
 
   if (articleQuery.isError || !article) {
     return (
-      <PageBody width="xl">
+      <PageBody>
         <PageHeader
           breadcrumbs={<Breadcrumbs items={[{ label: crumbLabel, to: crumbPath }, { label: 'Article' }]} />}
           title="Article unavailable"
@@ -354,7 +354,7 @@ export default function ArticleDetailPage() {
   const isHideBusy = hideMutation.isPending;
 
   return (
-    <PageBody width="xl">
+    <PageBody>
       <PageHeader
         breadcrumbs={
           <Breadcrumbs

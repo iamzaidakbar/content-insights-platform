@@ -29,7 +29,7 @@ export default function ProfilePage() {
   });
 
   return (
-    <PageBody width="sm">
+    <PageBody>
       <PageHeader title="User" description="Your account details." />
 
       <Card>

@@ -1006,7 +1006,7 @@ export default function ArticlesPage() {
         />
       )}
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 pt-3 sm:px-6">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2 sm:px-4">
         <div className="shrink-0 space-y-2">
           <ArticleTabs active={filters.sourceTypeTab} onChange={handleTabChange} />
 

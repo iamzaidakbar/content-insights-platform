@@ -225,7 +225,7 @@ export default function GroupDetailPage() {
 
   if (!groupId) {
     return (
-      <PageBody width="lg">
+      <PageBody>
         <Alert variant="error">Invalid group id.</Alert>
       </PageBody>
     );
@@ -234,7 +234,7 @@ export default function GroupDetailPage() {
   const groupTitle = group?.name ?? 'Group';
 
   return (
-    <PageBody width="lg">
+    <PageBody>
       <PageHeader
         breadcrumbs={<Breadcrumbs items={[{ label: 'Groups', to: '/groups' }, { label: groupTitle }]} />}
         title={groupTitle}

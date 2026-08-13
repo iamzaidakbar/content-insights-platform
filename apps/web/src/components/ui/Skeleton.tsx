@@ -22,7 +22,7 @@ export default function Skeleton({ className, shimmer = true, ...rest }: Skeleto
 
 export function PageSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6">
+    <div className="w-full space-y-4 px-3 py-3 sm:px-4">
       <Skeleton className="h-8 w-48" />
       <div className="grid gap-3 sm:grid-cols-2">
         <Skeleton className="h-24" />

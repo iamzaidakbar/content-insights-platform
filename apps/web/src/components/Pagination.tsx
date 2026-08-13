@@ -70,7 +70,7 @@ export default function Pagination({ page, totalPages, onPageChange }: Paginatio
             aria-current={token === page ? 'page' : undefined}
             className={`flex h-8 min-w-8 items-center justify-center rounded-[var(--radius-button)] px-2 text-sm transition-colors ${
               token === page
-                ? 'bg-[var(--accent)] font-medium text-[var(--on-accent)]'
+                ? 'bg-[var(--accent)] font-medium text-white'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
             }`}
           >

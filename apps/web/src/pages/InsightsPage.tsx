@@ -112,7 +112,7 @@ export default function InsightsPage() {
   const canCreate = groupOptions.length > 0;
 
   return (
-    <PageBody width="md">
+    <PageBody>
       <PageHeader
         title="Insights"
         description="Saved charts built from an Articles search — yours, and your groups'."

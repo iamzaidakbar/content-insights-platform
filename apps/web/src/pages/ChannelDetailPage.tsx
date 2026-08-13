@@ -451,7 +451,7 @@ export default function ChannelDetailPage() {
 
   if (!id) {
     return (
-      <PageBody width="full">
+      <PageBody>
         <Alert variant="error">Invalid channel id.</Alert>
       </PageBody>
     );
@@ -462,7 +462,7 @@ export default function ChannelDetailPage() {
   // two either, by design (see channel.routes.ts's own comment on GET /:id and /:id/open).
   if (isAccessDenied) {
     return (
-      <PageBody width="full" className="flex flex-1 flex-col">
+      <PageBody className="flex flex-1 flex-col">
         <AccessDeniedState
           title="This channel isn't available"
           description="It may not exist, or you may not have access to it."
@@ -483,7 +483,7 @@ export default function ChannelDetailPage() {
   const description = [groupName, resultSummary].filter(Boolean).join(' · ');
 
   return (
-    <PageBody width="full">
+    <PageBody>
       <PageHeader
         breadcrumbs={<Breadcrumbs items={[{ label: 'Channels', to: '/channels' }, { label: title ?? 'Channel' }]} />}
         title={title ?? 'Channel'}

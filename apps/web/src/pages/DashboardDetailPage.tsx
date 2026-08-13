@@ -82,7 +82,7 @@ export default function DashboardDetailPage() {
 
   if (!id) {
     return (
-      <PageBody width="xl">
+      <PageBody>
         <Alert variant="error">Invalid dashboard id.</Alert>
       </PageBody>
     );
@@ -91,7 +91,7 @@ export default function DashboardDetailPage() {
   const headerTitle = dashboard?.name ?? 'Dashboard';
 
   return (
-    <PageBody width="xl">
+    <PageBody>
       <PageHeader
         breadcrumbs={
           <Breadcrumbs items={[{ label: 'Dashboards', to: '/dashboards' }, { label: headerTitle }]} />

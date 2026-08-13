@@ -104,7 +104,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] gap-6 overflow-hidden px-4 py-5 sm:px-6">
+    <div className="grid h-full min-h-0 grid-cols-[180px_minmax(0,1fr)] gap-4 overflow-hidden px-3 py-3 sm:px-4">
       <nav className="min-h-0 overflow-y-auto overscroll-contain">
         <PageHeader title="Admin" className="mb-3 sm:mb-3" />
         <div className="space-y-0.5">

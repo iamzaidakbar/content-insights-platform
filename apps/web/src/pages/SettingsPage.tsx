@@ -44,10 +44,10 @@ export default function SettingsPage() {
     : (visibleSections[0]?.key ?? 'general');
 
   return (
-    <PageBody width="lg">
+    <PageBody>
       <PageHeader title="Settings" description="Manage your preferences and organization configuration." />
 
-      <div className="flex flex-col gap-6 sm:flex-row sm:gap-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:gap-4">
         <nav className="w-full shrink-0 sm:w-[200px]">
           <div className="space-y-1">
             {visibleSections.map((section) => (

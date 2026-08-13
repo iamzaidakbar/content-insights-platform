@@ -198,7 +198,7 @@ export default function UploadPage() {
   const wordCount = createdArticle?.body ? createdArticle.body.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
-    <PageBody width="sm">
+    <PageBody>
       <PageHeader
         title="Add an article"
         description={`Manually add a File System article from a local file. ${ACCEPTED_TYPES_LABEL} files up to ${MAX_FILE_SIZE_LABEL} are supported.`}
@@ -402,7 +402,7 @@ export default function UploadPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 to={`/articles/${createdArticle.id}`}
-                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-[var(--on-accent)] transition-colors hover:bg-[var(--accent-hover)]"
+                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-button)] bg-[var(--accent)] px-3 text-sm font-medium text-white transition-colors hover:bg-[var(--accent-hover)]"
               >
                 View article
               </Link>

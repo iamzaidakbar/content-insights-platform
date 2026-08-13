@@ -23,16 +23,16 @@ const VALUE_FONT = 10.5;
 // black-vs-white label decision the skill calls out as the one place a colored fill's
 // label is allowed to sit directly on top of it.
 const CATEGORICAL_HEX: readonly [string, string][] = [
-  ['#2a78d6', '#f5f5f5'],
-  ['#eb6834', '#e5e5e5'],
-  ['#1baf7a', '#d4d4d4'],
-  ['#eda100', '#a3a3a3'],
-  ['#e87ba4', '#737373'],
-  ['#008300', '#525252'],
-  ['#4a3aa7', '#404040'],
-  ['#e34948', '#262626'],
+  ['#2a78d6', '#3987e5'],
+  ['#eb6834', '#d95926'],
+  ['#1baf7a', '#199e70'],
+  ['#eda100', '#c98500'],
+  ['#e87ba4', '#d55181'],
+  ['#008300', '#008300'],
+  ['#4a3aa7', '#9085e9'],
+  ['#e34948', '#e66767'],
 ];
-const OTHER_HEX: [string, string] = ['#9295a0', '#525252'];
+const OTHER_HEX: [string, string] = ['#9295a0', '#4b5566'];
 const OTHER_COLOR = 'var(--chart-other)';
 
 function resolveIsDark(): boolean {
@@ -71,8 +71,9 @@ function relativeLuminance(hex: string): number {
 }
 
 // Picks whichever of white/near-black ink has the higher WCAG contrast ratio against the
-// tile's actual fill — not a fixed 50% luminance guess. Dark-theme tiles are a gray ramp
-// (#f5f5f5 → #262626): light tiles need black ink, dark tiles need white.
+// tile's actual fill — not a fixed 50% luminance guess. This matters concretely for slot 7
+// (violet): its light-theme fill (#4a3aa7) needs white text, but its dark-theme fill
+// (#9085e9, a pale lavender) needs dark text — the two variants cross the threshold.
 function inkForFill(hex: string): string {
   const l = relativeLuminance(hex);
   const contrastWithWhite = 1.05 / (l + 0.05);
