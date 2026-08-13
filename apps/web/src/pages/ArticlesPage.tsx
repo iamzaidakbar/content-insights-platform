@@ -526,7 +526,11 @@ export default function ArticlesPage() {
 
   function handleClearAllFilters() {
     setQueryInput('');
-    setFilters({ ...EMPTY_FILTER_PANEL_STATE, projectIds: currentProjectId ? [currentProjectId] : [] });
+    setFilters((current) => ({
+      ...EMPTY_FILTER_PANEL_STATE,
+      sourceTypeTab: current.sourceTypeTab,
+      sort: current.sort,
+    }));
     setPage(1);
   }
 
@@ -1119,9 +1123,9 @@ export default function ArticlesPage() {
                     <X size={11} />
                   </button>
                 ))}
-                <button type="button" onClick={handleClearAllFilters} className="text-xs text-primary hover:underline">
+                <Button type="button" variant="outline" size="xs" onClick={handleClearAllFilters}>
                   Clear all
-                </button>
+                </Button>
               </>
             ) : null}
 
