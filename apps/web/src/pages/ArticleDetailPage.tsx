@@ -20,7 +20,7 @@ import type { Article, ArticleAsset, UserTag } from '@content-insights/shared';
 
 import { useAuth } from '../auth/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
-import ArticleAssetViewer from '../components/ArticleAssetViewer';
+import ArticleAssetViewer, { pickPreviewAsset } from '../components/ArticleAssetViewer';
 import ArticleNotesPanel from '../components/ArticleNotesPanel';
 import Alert from '../components/ui/Alert';
 import Badge from '../components/ui/Badge';
@@ -333,7 +333,7 @@ export default function ArticleDetailPage() {
   // action from "Download PDF" per the brief, even though today at most one of the two
   // typically exists on a given article.
   const sourceAsset = assetsByKind.get('full_text') ?? assetsByKind.get('image');
-  const hasPreviewableAsset = pdfAsset !== undefined || assetsByKind.get('image') !== undefined;
+  const hasPreviewableAsset = pickPreviewAsset(article.assets) !== undefined;
 
   // Article.tagIds is deliberately plain string[] (see article.ts), not UserTagId[] — keyed
   // here as <string, UserTag> so a lookup by one of those raw ids type-checks.

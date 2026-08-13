@@ -11,6 +11,7 @@ import {
   FileText,
   Globe,
   Layers,
+  Maximize2,
   Tag as TagIcon,
 } from 'lucide-react';
 
@@ -19,6 +20,7 @@ import type { Concept, ResultViewMode, SearchHit, UserTag } from '@content-insig
 import { fetchArticle, downloadArticle } from '../lib/articles-api';
 import { formatDate } from '../lib/format';
 import { cn } from '../lib/cn';
+import ArticlePreviewModal from './ArticlePreviewModal';
 import HighlightedSnippet from './HighlightedSnippet';
 import IconButton from './ui/IconButton';
 import Tooltip from './ui/Tooltip';
@@ -169,6 +171,7 @@ export default function ArticleCard({
 }: ArticleCardProps) {
   const isList = viewMode === 'list';
   const snippetLines = isList ? Math.min(contentLines, 1) : Math.min(contentLines, 2);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const detailQuery = useQuery({
     queryKey: ['article-detail', hit.articleId],
@@ -194,6 +197,14 @@ export default function ArticleCard({
           />
         </ActionTip>
       ) : null}
+      <ActionTip label="Preview">
+        <IconButton
+          icon={Maximize2}
+          label="Preview"
+          size="sm"
+          onClick={() => setIsPreviewOpen(true)}
+        />
+      </ActionTip>
       <ActionTip label={isExpanded ? 'Collapse' : 'Expand'}>
         <IconButton
           icon={isExpanded ? ChevronUp : ChevronDown}
@@ -278,8 +289,14 @@ export default function ArticleCard({
       </div>
     ) : null;
 
+  const preview = isPreviewOpen ? (
+    <ArticlePreviewModal articleId={hit.articleId} onClose={() => setIsPreviewOpen(false)} />
+  ) : null;
+
   if (isList) {
     return (
+      <>
+        {preview}
       <div
         className={cn(
           'rounded-[var(--radius-card)] border transition-colors hover:border-[var(--border-strong)]',
@@ -329,11 +346,14 @@ export default function ArticleCard({
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   // Grid card — equal-height tiles with compact chrome
   return (
+    <>
+      {preview}
     <div
       className={cn(
         'group flex h-full flex-col rounded-[var(--radius-card)] border transition-colors hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-sm)]',
@@ -395,5 +415,6 @@ export default function ArticleCard({
         </button>
       </div>
     </div>
+    </>
   );
 }

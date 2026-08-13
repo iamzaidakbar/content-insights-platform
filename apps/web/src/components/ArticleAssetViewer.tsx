@@ -16,20 +16,28 @@ import {
 import type { Article, ArticleAsset, ArticleAssetKind } from '@content-insights/shared';
 
 import { getApiErrorMessage } from '../lib/api-client';
-import { downloadArticle, fetchArticlePreviewUrl } from '../lib/articles-api';
+import { downloadArticle, fetchArticlePreviewBlob } from '../lib/articles-api';
 import { formatBytes } from '../lib/format';
+import { cn } from '../lib/cn';
 
-// Only pdf/image assets get a native inline preview here. A `full_text` asset is just the
-// original uploaded file (docx/txt/csv/xlsx/md/html per article.routes.ts's
-// fileTypeBucket -> assetKind mapping) with nothing sensibly renderable as a blob — its
-// extracted content already lives in Article.body and is read directly on ArticleDetailPage
-// above this component, so a full_text-only article renders no viewer at all (see
-// ArticleDetailPage's `hasPreviewableAsset` gate around where this is mounted).
-const PREVIEW_PRIORITY: ArticleAssetKind[] = ['pdf', 'image'];
+const TEXT_PREVIEW_EXTS = new Set(['.txt', '.md', '.csv', '.html', '.htm']);
 
-function pickPreviewAsset(assets: ArticleAsset[]): ArticleAsset | undefined {
-  for (const kind of PREVIEW_PRIORITY) {
-    const match = assets.find((asset) => asset.kind === kind);
+function assetExtension(asset: ArticleAsset): string {
+  const slash = Math.max(asset.url.lastIndexOf('/'), asset.url.lastIndexOf('\\'));
+  const name = slash >= 0 ? asset.url.slice(slash + 1) : asset.url;
+  const dot = name.lastIndexOf('.');
+  return dot >= 0 ? name.slice(dot).toLowerCase() : '';
+}
+
+export function isBrowserPreviewable(asset: ArticleAsset): boolean {
+  if (asset.kind === 'pdf' || asset.kind === 'image') return true;
+  return asset.kind === 'full_text' && TEXT_PREVIEW_EXTS.has(assetExtension(asset));
+}
+
+export function pickPreviewAsset(assets: ArticleAsset[]): ArticleAsset | undefined {
+  const priority: ArticleAssetKind[] = ['pdf', 'image', 'full_text'];
+  for (const kind of priority) {
+    const match = assets.find((asset) => asset.kind === kind && isBrowserPreviewable(asset));
     if (match) return match;
   }
   return undefined;
@@ -44,24 +52,35 @@ const KIND_LABEL: Record<ArticleAssetKind, string> = {
 interface ArticleAssetViewerProps {
   article: Article;
   onDownload?: ((asset: ArticleAsset) => void) | undefined;
+  /** Fill a parent overlay instead of the inline detail-page card. */
+  fill?: boolean | undefined;
 }
 
-export default function ArticleAssetViewer({ article, onDownload }: ArticleAssetViewerProps) {
+export default function ArticleAssetViewer({ article, onDownload, fill = false }: ArticleAssetViewerProps) {
   const asset = pickPreviewAsset(article.assets);
   const isImage = asset?.kind === 'image';
+  const ext = asset ? assetExtension(asset) : '';
+  const isText = asset?.kind === 'full_text';
+  const isHtml = isText && (ext === '.html' || ext === '.htm');
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(100);
 
   const previewQuery = useQuery({
     queryKey: ['article-preview-blob', article.id, asset?.kind],
-    queryFn: () => fetchArticlePreviewUrl(article.id, asset?.kind),
+    queryFn: async () => {
+      if (!asset) throw new Error('No previewable asset.');
+      const blob = await fetchArticlePreviewBlob(article.id, asset.kind);
+      const blobUrl = URL.createObjectURL(blob);
+      const text = asset.kind === 'full_text' ? await blob.text() : undefined;
+      return { blobUrl, text };
+    },
     enabled: asset !== undefined,
     staleTime: Infinity,
     gcTime: 0,
   });
 
-  const blobUrl = previewQuery.data;
+  const blobUrl = previewQuery.data?.blobUrl;
   useEffect(() => {
     return () => {
       if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -76,37 +95,35 @@ export default function ArticleAssetViewer({ article, onDownload }: ArticleAsset
     return () => window.removeEventListener('keydown', onKey);
   }, [isFullscreen]);
 
-  // Hooks above must run unconditionally on every render — this early return only happens
-  // after all of them have already been declared.
   if (!asset) {
     return null;
   }
 
   async function handleDownload() {
-    // Redundant with the `if (!asset)` guard above (this closure can only ever be invoked
-    // after that point in the component's lifetime) — kept so TS narrows `asset` to
-    // non-undefined inside this nested function too.
     if (!asset) return;
     if (onDownload) {
       onDownload(asset);
       return;
     }
-    const extension = asset.kind === 'pdf' ? '.pdf' : asset.kind === 'image' ? '' : '';
+    const extension = assetExtension(asset) || (asset.kind === 'pdf' ? '.pdf' : '');
     await downloadArticle(article.id, `${article.title}${extension}`, asset.kind);
   }
 
+  const overlay = isFullscreen || fill;
+
   const shell = (
     <div
-      className={`flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)] ${
-        isFullscreen ? 'fixed inset-3 z-50 shadow-2xl' : 'min-h-[420px]'
-      }`}
+      className={cn(
+        'flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--bg-card)]',
+        isFullscreen ? 'fixed inset-3 z-50 shadow-2xl' : fill ? 'h-full min-h-0' : 'min-h-[420px]',
+      )}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2.5">
-          {asset.kind === 'pdf' ? (
-            <FileText size={18} className="shrink-0 text-[var(--text-secondary)]" />
-          ) : (
+          {asset.kind === 'image' ? (
             <ImageIcon size={18} className="shrink-0 text-[var(--text-secondary)]" />
+          ) : (
+            <FileText size={18} className="shrink-0 text-[var(--text-secondary)]" />
           )}
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-[var(--text-primary)]">{article.title}</p>
@@ -156,14 +173,16 @@ export default function ArticleAssetViewer({ article, onDownload }: ArticleAsset
           >
             <RefreshCw size={16} />
           </button>
-          <button
-            type="button"
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-            onClick={() => setIsFullscreen((v) => !v)}
-            className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
-          >
-            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-          </button>
+          {fill ? null : (
+            <button
+              type="button"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              onClick={() => setIsFullscreen((v) => !v)}
+              className="rounded-[var(--radius-button)] p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+          )}
           <button
             type="button"
             aria-label="Download"
@@ -176,7 +195,7 @@ export default function ArticleAssetViewer({ article, onDownload }: ArticleAsset
         </div>
       </div>
 
-      <div className={`relative flex-1 overflow-auto ${isFullscreen ? 'min-h-0' : 'max-h-[70vh]'}`}>
+      <div className={cn('relative flex-1 overflow-auto', overlay ? 'min-h-0' : 'max-h-[70vh]')}>
         {previewQuery.isLoading ? (
           <div className="flex min-h-[380px] flex-col items-center justify-center gap-2 text-[var(--text-secondary)]">
             <Loader2 size={22} className="animate-spin text-[var(--accent)]" />
@@ -210,6 +229,17 @@ export default function ArticleAssetViewer({ article, onDownload }: ArticleAsset
               className="rounded-[var(--radius-input)] shadow-lg transition-[width] duration-150"
             />
           </div>
+        ) : isHtml && previewQuery.data?.text !== undefined ? (
+          <iframe
+            sandbox=""
+            srcDoc={previewQuery.data.text}
+            title={`Preview of ${article.title}`}
+            className="h-full min-h-[560px] w-full border-0 bg-white"
+          />
+        ) : isText && previewQuery.data?.text !== undefined ? (
+          <pre className="min-h-[380px] whitespace-pre-wrap break-words p-4 text-sm leading-relaxed text-[var(--text-primary)]">
+            {previewQuery.data.text}
+          </pre>
         ) : null}
       </div>
     </div>

@@ -84,13 +84,19 @@ export async function downloadArticle(
   URL.revokeObjectURL(url);
 }
 
-/** Blob URL for inline preview (PDF iframe, <img>). Caller must revoke it when done. */
-export async function fetchArticlePreviewUrl(id: string, kind?: ArticleAssetKind): Promise<string> {
+/** Raw preview blob (PDF / image / text). Caller owns object-URL lifecycle if they create one. */
+export async function fetchArticlePreviewBlob(id: string, kind?: ArticleAssetKind): Promise<Blob> {
   const response = await apiClient.get<Blob>(`/articles/${id}/preview`, {
     params: { ...(kind ? { kind } : {}) },
     responseType: 'blob',
   });
-  return URL.createObjectURL(response.data);
+  return response.data;
+}
+
+/** Blob URL for inline preview (PDF iframe, <img>). Caller must revoke it when done. */
+export async function fetchArticlePreviewUrl(id: string, kind?: ArticleAssetKind): Promise<string> {
+  const blob = await fetchArticlePreviewBlob(id, kind);
+  return URL.createObjectURL(blob);
 }
 
 // PATCH /api/articles/:id — metadata edit. Same "endpoint-specific, not in article.schema.ts"
