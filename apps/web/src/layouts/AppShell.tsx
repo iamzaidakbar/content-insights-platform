@@ -257,7 +257,9 @@ export default function AppShell() {
                   <div className="flex size-8 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
                     C
                   </div>
-                  <span className="truncate font-semibold">Content Insights</span>
+                  <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
+                    Content Insights
+                  </span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
