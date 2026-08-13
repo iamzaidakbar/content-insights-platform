@@ -80,7 +80,21 @@ describe('buildArticleSearchQuery — hard filter concept enforcement', () => {
     const query = buildArticleSearchQuery(filters, grants);
     const severityFilter = findFilterContaining(query, 'taxonomyValues.severity');
 
-    expect(severityFilter).toEqual({ terms: { 'taxonomyValues.severity': ['critical'] } });
+    expect(severityFilter).toEqual({
+      bool: {
+        minimum_should_match: 1,
+        should: [
+          {
+            bool: {
+              must: [
+                { term: { projectId: 'proj-1' } },
+                { terms: { 'taxonomyValues.severity': ['critical'] } },
+              ],
+            },
+          },
+        ],
+      },
+    });
   });
 
   it('never widens a hard concept beyond its grant when the user selects nothing for it', () => {
@@ -94,7 +108,21 @@ describe('buildArticleSearchQuery — hard filter concept enforcement', () => {
     const query = buildArticleSearchQuery(filters, grants);
     const severityFilter = findFilterContaining(query, 'taxonomyValues.severity');
 
-    expect(severityFilter).toEqual({ terms: { 'taxonomyValues.severity': ['critical', 'high'] } });
+    expect(severityFilter).toEqual({
+      bool: {
+        minimum_should_match: 1,
+        should: [
+          {
+            bool: {
+              must: [
+                { term: { projectId: 'proj-1' } },
+                { terms: { 'taxonomyValues.severity': ['critical', 'high'] } },
+              ],
+            },
+          },
+        ],
+      },
+    });
   });
 
   it('blocks every article for a hard concept the group has no grant row for at all', () => {
@@ -109,8 +137,23 @@ describe('buildArticleSearchQuery — hard filter concept enforcement', () => {
     const severityFilter = findFilterContaining(query, 'taxonomyValues.severity');
 
     // An empty `terms` filter matches zero documents in Elasticsearch — this IS how
-    // "no grant row" becomes "everything filtered out."
-    expect(severityFilter).toEqual({ terms: { 'taxonomyValues.severity': [] } });
+    // "no grant row" becomes "everything filtered out." Nested under the per-project
+    // hard-filter branch so an empty grant in one project cannot leak into another.
+    expect(severityFilter).toEqual({
+      bool: {
+        minimum_should_match: 1,
+        should: [
+          {
+            bool: {
+              must: [
+                { term: { projectId: 'proj-1' } },
+                { terms: { 'taxonomyValues.severity': [] } },
+              ],
+            },
+          },
+        ],
+      },
+    });
   });
 
   it('applies the same selected-∩-granted rule to project scoping, never trusting filters.projectIds alone', () => {
@@ -590,5 +633,23 @@ describe('buildArticleFacetsRequestBody', () => {
     const body = buildArticleFacetsRequestBody({ filters: mkFilters(), grants: mkGrants(), conceptKeys: [], sort: 'az' });
     const aggs = body.aggs as Record<string, unknown>;
     expect(aggs.total).toBeDefined();
+  });
+
+  it('aggregates userTags independently of the currently selected userTagIds filter', () => {
+    const filters = mkFilters({ userTagIds: ['tag-1'], taxonomyValues: { region: ['east'] } });
+    const body = buildArticleFacetsRequestBody({
+      filters,
+      grants: mkGrants({ softFilterConceptKeys: ['region'] }),
+      conceptKeys: ['region'],
+      sort: 'az',
+    });
+    const aggs = body.aggs as Record<string, { filter: Record<string, unknown> }>;
+
+    const userTagsFilterJson = JSON.stringify(aggs.userTags.filter);
+    const regionFilterJson = JSON.stringify(aggs.region.filter);
+
+    expect(userTagsFilterJson).not.toContain('"tagIds"');
+    expect(userTagsFilterJson).toContain('taxonomyValues.region');
+    expect(regionFilterJson).toContain('"tagIds"');
   });
 });

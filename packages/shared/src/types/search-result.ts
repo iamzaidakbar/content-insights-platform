@@ -41,8 +41,10 @@ export interface FacetBucket {
   count: number;
 }
 
+export const USER_TAGS_FACET_KEY = 'userTags';
+
 export interface FacetsResponse {
-  // Keyed by concept key, or a system key like 'sourceType'/'project'/'userTags'.
+  // Keyed by concept key, or a system key like 'sourceType'/'project'/USER_TAGS_FACET_KEY.
   facets: Record<string, FacetBucket[]>;
   total: number;
 }

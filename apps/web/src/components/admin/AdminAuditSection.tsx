@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ExternalLink } from 'lucide-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { Download, ExternalLink } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import {
   AUDIT_ACTIONS,
@@ -11,7 +12,7 @@ import {
 
 import Pagination from '../Pagination';
 import { getApiErrorMessage } from '../../lib/api-client';
-import { fetchAuditLog } from '../../lib/audit-api';
+import { fetchAuditLog, exportAuditLog } from '../../lib/audit-api';
 import { fetchProjects } from '../../lib/projects-api';
 import { formatDate } from '../../lib/format';
 import Alert from '../ui/Alert';
@@ -37,6 +38,7 @@ const ENTITY_TYPES: AuditEntityType[] = [
   'dashboard',
   'entity-mapping',
   'search',
+  'article-note',
 ];
 
 const PAGE_SIZE = 25;
@@ -177,6 +179,8 @@ export default function AdminAuditSection() {
   const [projectId, setProjectId] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [actorId, setActorId] = useState('');
+  const [entityId, setEntityId] = useState('');
 
   const projectsQuery = useQuery({ queryKey: ['projects-options'], queryFn: () => fetchProjects(1), staleTime: 5 * 60_000 });
   const projects = projectsQuery.data?.items ?? [];
@@ -186,7 +190,7 @@ export default function AdminAuditSection() {
   const to = toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined;
 
   const auditQuery = useQuery({
-    queryKey: ['audit-log', page, action, entityType, projectId, from, to],
+    queryKey: ['audit-log', page, action, entityType, projectId, from, to, actorId, entityId],
     queryFn: () =>
       fetchAuditLog({
         page,
@@ -194,6 +198,8 @@ export default function AdminAuditSection() {
         ...(action ? { action } : {}),
         ...(entityType ? { entityType } : {}),
         ...(projectId ? { projectId } : {}),
+        ...(actorId ? { actorId } : {}),
+        ...(entityId ? { entityId } : {}),
         ...(from ? { from } : {}),
         ...(to ? { to } : {}),
       }),
@@ -201,6 +207,21 @@ export default function AdminAuditSection() {
 
   const items = auditQuery.data?.items ?? [];
   const totalPages = auditQuery.data?.totalPages ?? 1;
+
+  const exportMutation = useMutation({
+    mutationFn: () =>
+      exportAuditLog({
+        ...(action ? { action } : {}),
+        ...(entityType ? { entityType } : {}),
+        ...(projectId ? { projectId } : {}),
+        ...(actorId ? { actorId } : {}),
+        ...(entityId ? { entityId } : {}),
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      }),
+    onSuccess: () => toast.success('Audit export started — check your downloads.'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Audit export failed.')),
+  });
 
   function resetToFirstPage<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -273,6 +294,28 @@ export default function AdminAuditSection() {
           </label>
 
           <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            Actor id
+            <Input
+              value={actorId}
+              onChange={(e) => resetToFirstPage(setActorId)(e.target.value)}
+              aria-label="Filter by actor id"
+              placeholder="User id"
+              className="w-40 py-1.5"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
+            Entity id
+            <Input
+              value={entityId}
+              onChange={(e) => resetToFirstPage(setEntityId)(e.target.value)}
+              aria-label="Filter by entity id"
+              placeholder="Entity id"
+              className="w-40 py-1.5"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs text-[var(--text-secondary)]">
             From
             <Input
               type="date"
@@ -294,7 +337,7 @@ export default function AdminAuditSection() {
             />
           </label>
 
-          {action || entityType || projectId || fromDate || toDate ? (
+          {action || entityType || projectId || fromDate || toDate || actorId || entityId ? (
             <Button
               type="button"
               variant="outline"
@@ -305,12 +348,24 @@ export default function AdminAuditSection() {
                 setProjectId('');
                 setFromDate('');
                 setToDate('');
+                setActorId('');
+                setEntityId('');
                 setPage(1);
               }}
             >
               Clear filters
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            leftIcon={<Download size={14} />}
+            disabled={exportMutation.isPending}
+            onClick={() => exportMutation.mutate()}
+          >
+            {exportMutation.isPending ? 'Exporting…' : 'Export CSV'}
+          </Button>
         </div>
 
         {auditQuery.isLoading ? (

@@ -17,6 +17,7 @@ import {
   type UserTag,
 } from '@content-insights/shared';
 
+import { countsByUserTagId } from '../lib/search-api';
 import Button from './ui/Button';
 
 // FilterPanel is a pure controlled component: it owns no filter state of its own (only
@@ -70,7 +71,7 @@ export interface FilterPanelProps {
    *  in exactly the array order given. */
   concepts: FilterPanelConcept[];
   /** Live bucket counts from POST /search/facets (FacetsResponse.facets), keyed by
-   *  Concept.key. Undefined while the facets request hasn't resolved yet. */
+   *  Concept.key or USER_TAGS_FACET_KEY. Undefined while the facets request hasn't resolved yet. */
   facets?: Record<string, FacetBucket[]> | undefined;
   /** The caller's accessible projects, for the Project system filter. */
   projects: Project[];
@@ -475,9 +476,17 @@ export default function FilterPanel({
     });
   }
 
-  const visibleUserTags = userTagQuery.trim()
-    ? userTags.filter((tag) => tag.name.toLowerCase().includes(userTagQuery.trim().toLowerCase()))
-    : userTags;
+  const userTagCountById = countsByUserTagId(facets);
+  const visibleUserTags = (
+    userTagQuery.trim()
+      ? userTags.filter((tag) => tag.name.toLowerCase().includes(userTagQuery.trim().toLowerCase()))
+      : userTags
+  ).filter(
+    (tag) =>
+      !hideZeroCountFacets ||
+      (userTagCountById[tag.id] ?? 0) > 0 ||
+      value.userTagIds.includes(tag.id),
+  );
 
   const sections = (
     <>
@@ -549,6 +558,11 @@ export default function FilterPanel({
                 checked={value.userTagIds.includes(tag.id)}
                 onChange={() => toggleUserTag(tag.id)}
                 label={tag.name}
+                trailing={
+                  <span className="shrink-0 text-xs text-[var(--text-muted)]">
+                    {userTagCountById[tag.id] ?? 0}
+                  </span>
+                }
               />
             ))}
           </div>

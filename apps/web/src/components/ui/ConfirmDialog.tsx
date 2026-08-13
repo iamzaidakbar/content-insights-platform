@@ -19,6 +19,7 @@ export interface ConfirmDialogProps {
   icon?: ReactNode;
   testId?: string;
   confirmTestId?: string;
+  children?: ReactNode;
 }
 
 export default function ConfirmDialog({
@@ -35,6 +36,7 @@ export default function ConfirmDialog({
   icon,
   testId,
   confirmTestId,
+  children,
 }: ConfirmDialogProps) {
   function handleConfirm(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
@@ -78,6 +80,7 @@ export default function ConfirmDialog({
                 ) : (
                   <AlertDialog.Description className="sr-only">{title}</AlertDialog.Description>
                 )}
+                {children ? <div className="mt-3">{children}</div> : null}
               </div>
             </div>
           </div>

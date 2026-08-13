@@ -10,19 +10,26 @@ import { z } from 'zod';
 import {
   articleBulkRequestSchema,
   asArticleId,
+  asArticleNoteId,
+  asGroupId,
   asOrgId,
   asProjectId,
   asUserId,
+  createArticleNoteSchema,
   filterPanelStateSchema,
+  updateArticleNoteSchema,
   type Article,
   type ArticleAssetKind,
   type ArticleBulkAction,
   type ArticleBulkRequestInput,
+  type ArticleNote,
   type AuditAction,
   type BulkOperationItemResult,
   type BulkOperationResult,
+  type CreateArticleNoteInput,
   type FilterPanelState,
   type Permission,
+  type UpdateArticleNoteInput,
 } from '@content-insights/shared';
 
 import {
@@ -35,8 +42,10 @@ import {
 } from '../lib/article-access.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { audit } from '../lib/audit.js';
-import { indexArticle } from '../lib/elasticsearch.js';
+import { notifyDynamicChannelsForProject } from '../lib/channel-alerts.js';
+import { indexArticle, toIndexArticleParams } from '../lib/elasticsearch.js';
 import { AppError, ForbiddenError, NotFoundError } from '../lib/errors.js';
+import { resolveDocumentScope } from '../lib/group-scope.js';
 import { logger } from '../lib/logger.js';
 import { parseObjectIdParam } from '../lib/objectId.js';
 import type { EffectivePermissions } from '../lib/permissions.js';
@@ -54,6 +63,7 @@ import { orgContext } from '../middleware/orgContext.js';
 import { searchRateLimiter, uploadRateLimiter } from '../middleware/rateLimiters.js';
 import { validate } from '../middleware/validate.js';
 import { ArticleModel, type ArticleDocument, type IArticleAsset } from '../models/article.model.js';
+import { ArticleNoteModel, type ArticleNoteDocument } from '../models/articleNote.model.js';
 import { ProjectModel } from '../models/project.model.js';
 import { UserTagModel, type UserTagDocument } from '../models/userTag.model.js';
 import type { AuthenticatedUser } from '../types/express.js';
@@ -168,7 +178,12 @@ const updateArticleMetadataSchema = z
   .refine((body) => Object.keys(body).length > 0, { message: 'At least one field must be provided' });
 type UpdateArticleMetadataBody = z.infer<typeof updateArticleMetadataSchema>;
 
-const exportArticlesRequestSchema = z.object({ filters: filterPanelStateSchema }).strict();
+const exportArticlesRequestSchema = z
+  .object({
+    filters: filterPanelStateSchema,
+    format: z.enum(['xlsx', 'csv']).optional(),
+  })
+  .strict();
 
 function toArticleDTO(article: ArticleDocument): Article {
   return {
@@ -205,23 +220,7 @@ function toArticleDTO(article: ArticleDocument): Article {
 // already committed successfully. The next successful write naturally re-syncs it.
 async function reindexArticleDoc(article: ArticleDocument): Promise<void> {
   try {
-    await indexArticle({
-      id: article._id.toString(),
-      orgId: article.orgId.toString(),
-      projectId: article.projectId.toString(),
-      title: article.title,
-      summary: article.summary,
-      body: article.body,
-      domain: article.domain,
-      sourceType: article.sourceType,
-      publishedAt: article.publishedAt.toISOString(),
-      authors: article.authors,
-      taxonomyValues: article.taxonomyValues,
-      tagIds: article.tagIds.map((id) => id.toString()),
-      locationHash: article.locationHash,
-      hidden: article.hidden,
-      createdAt: article.createdAt.toISOString(),
-    });
+    await indexArticle(toIndexArticleParams(article));
   } catch (err) {
     logger.error({ err, articleId: article._id.toString() }, 'Failed to sync article to Elasticsearch');
   }
@@ -434,6 +433,12 @@ articleRouter.post(
     await article.save();
     await reindexArticleDoc(article);
 
+    if (isNewArticle) {
+      void notifyDynamicChannelsForProject(req.user.orgId, body.projectId).catch((err: unknown) => {
+        logger.error({ err, projectId: body.projectId }, 'Failed to notify channels after article upload');
+      });
+    }
+
     res.status(isNewArticle ? 201 : 200).json(success(toArticleDTO(article)));
   }),
 );
@@ -479,6 +484,216 @@ articleRouter.get(
       throw new NotFoundError('Article has no stored asset', 'ASSET_NOT_FOUND');
     }
     streamAsset(res, asset, 'inline');
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Notes — private (author only) or group-visible to members who can articles:read
+// ---------------------------------------------------------------------------
+
+interface PopulatedNoteAuthor {
+  _id: mongoose.Types.ObjectId;
+  email: string;
+}
+
+type PopulatedArticleNote = Omit<ArticleNoteDocument, 'authorId'> & { authorId: PopulatedNoteAuthor };
+
+const NOTE_AUTHOR_POPULATE = { path: 'authorId', select: 'email' };
+
+function toArticleNoteDTO(note: PopulatedArticleNote): ArticleNote {
+  return {
+    id: asArticleNoteId(note._id.toString()),
+    orgId: asOrgId(note.orgId.toString()),
+    articleId: asArticleId(note.articleId.toString()),
+    authorId: asUserId(note.authorId._id.toString()),
+    authorEmail: note.authorId.email,
+    body: note.body,
+    visibility: note.visibility,
+    ...(note.groupId ? { groupId: asGroupId(note.groupId.toString()) } : {}),
+    createdAt: note.createdAt.toISOString(),
+    updatedAt: note.updatedAt.toISOString(),
+  };
+}
+
+function canSeeGroupNote(scope: { orgWide: boolean; allowedGroupIds: string[] | null }, groupId: string | null | undefined): boolean {
+  if (!groupId) return false;
+  if (scope.orgWide) return true;
+  return Boolean(scope.allowedGroupIds?.includes(groupId));
+}
+
+async function loadVisibleNote(
+  req: Request,
+  article: ArticleDocument,
+  noteId: string,
+): Promise<PopulatedArticleNote> {
+  if (!req.user) {
+    throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+  }
+  const note = await ArticleNoteModel.findOne({
+    _id: noteId,
+    orgId: req.user.orgId,
+    articleId: article._id,
+  }).populate<{ authorId: PopulatedNoteAuthor }>(NOTE_AUTHOR_POPULATE);
+  if (!note) {
+    throw new NotFoundError('Note not found', 'NOTE_NOT_FOUND');
+  }
+  const authorId = note.authorId._id.toString();
+  if (note.visibility === 'private') {
+    if (authorId !== req.user.id) {
+      throw new NotFoundError('Note not found', 'NOTE_NOT_FOUND');
+    }
+    return note;
+  }
+  const scope = await resolveDocumentScope(req.user, 'articles:read' satisfies Permission);
+  if (!canSeeGroupNote(scope, note.groupId?.toString())) {
+    throw new NotFoundError('Note not found', 'NOTE_NOT_FOUND');
+  }
+  return note;
+}
+
+articleRouter.get(
+  '/:id/notes',
+  authenticate,
+  orgContext,
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const article = await loadAccessibleArticle(req, 'articles:read' satisfies Permission);
+    const scope = await resolveDocumentScope(req.user, 'articles:read' satisfies Permission);
+    const notes = await ArticleNoteModel.find({ orgId: req.user.orgId, articleId: article._id })
+      .sort({ createdAt: 1 })
+      .populate<{ authorId: PopulatedNoteAuthor }>(NOTE_AUTHOR_POPULATE);
+
+    const visible = notes.filter((note) => {
+      const authorId = note.authorId._id.toString();
+      if (note.visibility === 'private') return authorId === req.user!.id;
+      return canSeeGroupNote(scope, note.groupId?.toString());
+    });
+    res.status(200).json(success(visible.map(toArticleNoteDTO)));
+  }),
+);
+
+articleRouter.post(
+  '/:id/notes',
+  authenticate,
+  orgContext,
+  validate({ body: createArticleNoteSchema }),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const article = await loadAccessibleArticle(req, 'articles:read' satisfies Permission);
+    const body = req.body as CreateArticleNoteInput;
+
+    let groupId: string | null = null;
+    if (body.visibility === 'group') {
+      groupId = body.groupId ?? null;
+      if (!groupId || !mongoose.isValidObjectId(groupId)) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'groupId must be a valid id');
+      }
+      const scope = await resolveDocumentScope(req.user, 'articles:read' satisfies Permission);
+      if (!canSeeGroupNote(scope, groupId)) {
+        throw new ForbiddenError('Missing required permission: articles:read');
+      }
+    }
+
+    const created = await ArticleNoteModel.create({
+      orgId: req.user.orgId,
+      articleId: article._id,
+      authorId: req.user.id,
+      body: body.body,
+      visibility: body.visibility,
+      groupId,
+    });
+    const populated = await created.populate<{ authorId: PopulatedNoteAuthor }>(NOTE_AUTHOR_POPULATE);
+
+    audit(req, {
+      action: 'article.note.create',
+      entityType: 'article-note',
+      entityId: populated._id.toString(),
+      groupId,
+      details: { articleId: article._id.toString(), visibility: body.visibility },
+    });
+
+    res.status(201).json(success(toArticleNoteDTO(populated)));
+  }),
+);
+
+articleRouter.patch(
+  '/:id/notes/:noteId',
+  authenticate,
+  orgContext,
+  validate({ body: updateArticleNoteSchema }),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const article = await loadAccessibleArticle(req, 'articles:read' satisfies Permission);
+    const noteId = parseObjectIdParam(req.params.noteId, 'Note not found', 'NOTE_NOT_FOUND');
+    const note = await loadVisibleNote(req, article, noteId);
+    if (note.authorId._id.toString() !== req.user.id) {
+      throw new ForbiddenError('Only the author can update this note');
+    }
+
+    const body = req.body as UpdateArticleNoteInput;
+    const nextVisibility = body.visibility ?? note.visibility;
+    let nextGroupId = note.groupId?.toString() ?? null;
+    if (body.visibility === 'private') {
+      nextGroupId = null;
+    } else if (body.visibility === 'group' || (nextVisibility === 'group' && body.groupId)) {
+      nextGroupId = body.groupId ?? nextGroupId;
+      if (!nextGroupId || !mongoose.isValidObjectId(nextGroupId)) {
+        throw new AppError(400, 'VALIDATION_ERROR', 'groupId must be a valid id');
+      }
+      const scope = await resolveDocumentScope(req.user, 'articles:read' satisfies Permission);
+      if (!canSeeGroupNote(scope, nextGroupId)) {
+        throw new ForbiddenError('Missing required permission: articles:read');
+      }
+    }
+
+    if (body.body !== undefined) note.body = body.body;
+    note.visibility = nextVisibility;
+    note.groupId = nextGroupId ? new mongoose.Types.ObjectId(nextGroupId) : null;
+    await note.save();
+    const populated = await note.populate<{ authorId: PopulatedNoteAuthor }>(NOTE_AUTHOR_POPULATE);
+
+    audit(req, {
+      action: 'article.note.update',
+      entityType: 'article-note',
+      entityId: note._id.toString(),
+      groupId: nextGroupId,
+      details: { articleId: article._id.toString(), visibility: nextVisibility },
+    });
+
+    res.status(200).json(success(toArticleNoteDTO(populated)));
+  }),
+);
+
+articleRouter.delete(
+  '/:id/notes/:noteId',
+  authenticate,
+  orgContext,
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const article = await loadAccessibleArticle(req, 'articles:read' satisfies Permission);
+    const noteId = parseObjectIdParam(req.params.noteId, 'Note not found', 'NOTE_NOT_FOUND');
+    const note = await loadVisibleNote(req, article, noteId);
+    if (note.authorId._id.toString() !== req.user.id) {
+      throw new ForbiddenError('Only the author can delete this note');
+    }
+
+    await ArticleNoteModel.deleteOne({ _id: note._id });
+    audit(req, {
+      action: 'article.note.delete',
+      entityType: 'article-note',
+      entityId: note._id.toString(),
+      groupId: note.groupId?.toString() ?? null,
+      details: { articleId: article._id.toString() },
+    });
+    res.status(200).json(success({ deleted: true }));
   }),
 );
 
@@ -789,7 +1004,7 @@ articleRouter.post(
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
-    const { filters } = req.body as { filters: FilterPanelState };
+    const { filters, format } = req.body as { filters: FilterPanelState; format?: 'xlsx' | 'csv' };
     const grants = await resolveArticleSearchGrants(req.user, 'export:run' satisfies Permission);
 
     const result = await executeArticleSearch({
@@ -799,6 +1014,30 @@ articleRouter.post(
       size: EXPORT_MAX_ROWS,
       orgId: req.user.orgId,
     });
+
+    const rows = result.hits.map((hit) => ({
+      title: hit.title,
+      domain: hit.domain,
+      sourceType: hit.sourceType,
+      publishedAt: hit.publishedAt,
+      hidden: hit.hidden ? 'Yes' : 'No',
+      tags: hit.tagIds.join(', '),
+      summary: hit.summary,
+    }));
+
+    if (format === 'csv') {
+      const header = ['Title', 'Domain', 'Source Type', 'Published At', 'Hidden', 'Tags', 'Summary'];
+      const csvRows = rows.map((row) =>
+        [row.title, row.domain, row.sourceType, row.publishedAt, row.hidden, row.tags, row.summary]
+          .map((value) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value))
+          .join(','),
+      );
+      const csv = [header.join(','), ...csvRows].join('\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="articles-export.csv"');
+      res.status(200).send(csv);
+      return;
+    }
 
     // exceljs is CJS; default-import + destructure per the same ESM-interop convention as
     // lib/text-extraction.ts's identical xlsx handling.

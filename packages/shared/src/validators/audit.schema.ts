@@ -18,6 +18,7 @@ export const auditEntityTypeSchema = z.enum([
   'dashboard',
   'entity-mapping',
   'search',
+  'article-note',
 ]);
 
 // GET /api/audit

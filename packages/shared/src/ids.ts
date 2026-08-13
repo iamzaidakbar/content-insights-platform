@@ -20,6 +20,7 @@ export type GlobalSettingsId = Branded<string, 'GlobalSettingsId'>;
 export type EntityMappingId = Branded<string, 'EntityMappingId'>;
 export type RoleAssignmentId = Branded<string, 'RoleAssignmentId'>;
 export type TeamsShareId = Branded<string, 'TeamsShareId'>;
+export type ArticleNoteId = Branded<string, 'ArticleNoteId'>;
 
 // Narrowing helpers only — they do not validate. See src/validators for
 // parsing untrusted input (e.g. request params) into these branded types.
@@ -44,3 +45,4 @@ export const asGlobalSettingsId = (value: string): GlobalSettingsId => value as 
 export const asEntityMappingId = (value: string): EntityMappingId => value as EntityMappingId;
 export const asRoleAssignmentId = (value: string): RoleAssignmentId => value as RoleAssignmentId;
 export const asTeamsShareId = (value: string): TeamsShareId => value as TeamsShareId;
+export const asArticleNoteId = (value: string): ArticleNoteId => value as ArticleNoteId;

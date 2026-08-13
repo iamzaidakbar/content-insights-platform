@@ -145,16 +145,19 @@ export async function bulkArticleOperation(input: ArticleBulkRequestInput): Prom
 
 // POST /api/articles/export — current filtered result set (up to 1000 rows) as an .xlsx
 // workbook. Raw binary response, not an ApiResponse envelope.
-export async function exportArticles(filters: FilterPanelState): Promise<void> {
+export async function exportArticles(
+  filters: FilterPanelState,
+  format: 'xlsx' | 'csv' = 'xlsx',
+): Promise<void> {
   const response = await apiClient.post<Blob>(
     '/articles/export',
-    { filters },
+    { filters, format },
     { responseType: 'blob' },
   );
   const url = URL.createObjectURL(response.data);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'articles-export.xlsx';
+  link.download = format === 'csv' ? 'articles-export.csv' : 'articles-export.xlsx';
   document.body.appendChild(link);
   link.click();
   link.remove();

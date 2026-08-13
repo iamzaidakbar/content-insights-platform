@@ -1,4 +1,11 @@
-import type { ApiResponse, FacetsResponse, FilterPanelState, SearchResponse } from '@content-insights/shared';
+import {
+  USER_TAGS_FACET_KEY,
+  type ApiResponse,
+  type FacetBucket,
+  type FacetsResponse,
+  type FilterPanelState,
+  type SearchResponse,
+} from '@content-insights/shared';
 
 import { apiClient } from './api-client';
 
@@ -33,4 +40,13 @@ export async function fetchSearchFacets(filters: FilterPanelState): Promise<Face
     throw new Error(body.message);
   }
   return body.data;
+}
+
+/** Live per-tag article counts from POST /search/facets (USER_TAGS_FACET_KEY), not UserTag.articleCount. */
+export function countsByUserTagId(facets: Record<string, FacetBucket[]> | undefined): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const bucket of facets?.[USER_TAGS_FACET_KEY] ?? []) {
+    counts[bucket.key] = bucket.count;
+  }
+  return counts;
 }

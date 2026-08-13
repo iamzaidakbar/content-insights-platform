@@ -23,3 +23,4 @@ export * from './entity-mapping.js';
 export * from './teams.js';
 export * from './audit.js';
 export * from './notification.js';
+export * from './article-note.js';

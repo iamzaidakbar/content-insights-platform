@@ -122,6 +122,8 @@ export function toUserDTO(user: UserDocument, lookup: RoleAssignmentLookup): Use
     // exactOptionalPropertyTypes: omit the key entirely when absent, never assign undefined.
     ...(user.displayName !== undefined ? { displayName: user.displayName } : {}),
     isActive: user.isActive,
+    provisioning: user.provisioning ?? 'local',
+    ...(user.lastLoginAt ? { lastLoginAt: user.lastLoginAt.toISOString() } : {}),
     roleAssignments,
     currentGroupId: user.currentGroupId ? asGroupId(user.currentGroupId.toString()) : null,
     currentProjectId: user.currentProjectId ? asProjectId(user.currentProjectId.toString()) : null,

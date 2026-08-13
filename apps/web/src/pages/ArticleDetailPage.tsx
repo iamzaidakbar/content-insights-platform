@@ -21,6 +21,7 @@ import type { Article, ArticleAsset, UserTag } from '@content-insights/shared';
 import { useAuth } from '../auth/AuthContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 import ArticleAssetViewer from '../components/ArticleAssetViewer';
+import ArticleNotesPanel from '../components/ArticleNotesPanel';
 import Alert from '../components/ui/Alert';
 import Badge from '../components/ui/Badge';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
@@ -535,6 +536,10 @@ export default function ArticleDetailPage() {
             ) : null}
           </SectionCard>
         </div>
+      </div>
+
+      <div className="mt-4">
+        <ArticleNotesPanel articleId={article.id} />
       </div>
 
       <ConfirmDialog

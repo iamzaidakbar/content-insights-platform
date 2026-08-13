@@ -105,3 +105,34 @@ teamsRouter.post(
     res.status(201).json(success(toTeamsShareDTO(share)));
   }),
 );
+
+teamsRouter.get(
+  '/shares',
+  authenticate,
+  orgContext,
+  requirePermission('ms-teams:share' satisfies Permission),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = 20;
+    const filter = { orgId: req.user.orgId, sharedBy: req.user.id };
+    const [items, total] = await Promise.all([
+      TeamsShareModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize),
+      TeamsShareModel.countDocuments(filter),
+    ]);
+    res.status(200).json(
+      success({
+        items: items.map(toTeamsShareDTO),
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      }),
+    );
+  }),
+);

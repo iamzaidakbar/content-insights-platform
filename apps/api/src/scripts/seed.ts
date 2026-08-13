@@ -30,7 +30,7 @@ import {
 } from '@content-insights/shared';
 
 import { connectDB } from '../db/connect.js';
-import { esClient, getOrgIndexName, bulkIndexArticles, type IndexArticleParams } from '../lib/elasticsearch.js';
+import { bulkIndexArticles, esClient, getOrgIndexName, toIndexArticleParams, type IndexArticleParams } from '../lib/elasticsearch.js';
 import { hashPassword } from '../lib/password.js';
 import { slugify } from '../lib/slug.js';
 import { ArticleModel } from '../models/article.model.js';
@@ -1200,15 +1200,15 @@ async function main(): Promise<void> {
   console.log('\n[6/12] Creating additional users and assigning roles ...');
   const usersByEmail = new Map<string, SeededUser>();
   for (const udef of USER_DEFS) {
-    const created = await api<{ user: { id: string }; temporaryPassword: string }>('POST', '/users', {
+    const created = await api<{ user: { id: string }; inviteUrl: string }>('POST', '/users', {
       token: adminToken,
       body: { email: udef.email, displayName: udef.displayName },
     });
-    // Replace the one-time temporary password with the shared demo password so every
+    // Replace the one-time invite with the shared demo password so every
     // seeded account is documented the same way in .env / seed output.
     await UserModel.updateOne(
       { _id: created.user.id },
-      { $set: { passwordHash: await hashPassword(PASSWORD) } },
+      { $set: { passwordHash: await hashPassword(PASSWORD), provisioning: 'local' } },
     );
     const seeded: SeededUser = {
       email: udef.email,
@@ -1560,6 +1560,15 @@ async function main(): Promise<void> {
   await bulkApplyTag('Needs Review', 'reputation', 60, 'groupadmin.comms@meridian.dev');
   await bulkApplyTag('Archived', 'policy', 50, 'groupadmin.risk@meridian.dev');
   await bulkApplyTag('Internal - Do Not Cite', 'financial', 40, 'analyst.compliance@meridian.dev');
+
+  // bulk-apply also reindexes via the API, but seed indexed ES *before* tags. Re-upsert
+  // tagged articles here so a seed against an older API (or a failed best-effort ES sync)
+  // still leaves search/facets matching Mongo.
+  const taggedArticles = await ArticleModel.find({ orgId, 'tagIds.0': { $exists: true } });
+  if (taggedArticles.length > 0) {
+    console.log(`  Re-indexing ${taggedArticles.length.toLocaleString()} tagged articles into Elasticsearch ...`);
+    await bulkIndexArticles(orgId, taggedArticles.map(toIndexArticleParams), { refresh: true });
+  }
 
   // ---------------------------------------------------------------------------------
   // 10. Saved searches / channels

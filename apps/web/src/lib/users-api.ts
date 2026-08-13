@@ -32,9 +32,29 @@ export async function searchUsers(email: string): Promise<UserSummary[]> {
 // org-wide roster mode (gated on 'users:read', full User DTO incl. role assignments) rather
 // than the bounded id/email typeahead — see user.routes.ts's GET / for the full branch
 // rationale. `email` here narrows the roster by the same case-insensitive substring match.
-export async function fetchOrgUsers(page: number, email?: string): Promise<PaginatedResult<User>> {
+export interface FetchOrgUsersOptions {
+  email?: string | undefined;
+  roleId?: string | undefined;
+  isActive?: boolean | undefined;
+  sort?: 'email' | 'createdAt' | 'lastLoginAt' | undefined;
+  order?: 'asc' | 'desc' | undefined;
+}
+
+export async function fetchOrgUsers(
+  page: number,
+  emailOrOptions?: string | FetchOrgUsersOptions,
+): Promise<PaginatedResult<User>> {
+  const options: FetchOrgUsersOptions =
+    typeof emailOrOptions === 'string' ? { email: emailOrOptions } : (emailOrOptions ?? {});
   const response = await apiClient.get<ApiResponse<PaginatedResult<User>>>('/users', {
-    params: { page, ...(email ? { email } : {}) },
+    params: {
+      page,
+      ...(options.email ? { email: options.email } : {}),
+      ...(options.roleId ? { roleId: options.roleId } : {}),
+      ...(options.isActive === undefined ? {} : { isActive: String(options.isActive) }),
+      ...(options.sort ? { sort: options.sort } : {}),
+      ...(options.order ? { order: options.order } : {}),
+    },
   });
   const body = response.data;
   if (!body.success) {
@@ -44,10 +64,8 @@ export async function fetchOrgUsers(page: number, email?: string): Promise<Pagin
 }
 
 // POST /api/users (users:manage) — the only way to add a member to an existing org besides
-// registering a brand-new org or SSO auto-provisioning. There is no outbound email/SMTP
-// integration in this app, so the server generates a temporary password and returns it once,
-// here, in the response body — it is never retrievable again afterward. The created user
-// starts with no role assignments; grant access separately via assignUserRole below.
+// registering a brand-new org or SSO auto-provisioning. There is no outbound email/SMTP,
+// so the server returns a one-time invite URL for the admin to copy.
 export interface CreateUserInput {
   email: string;
   displayName?: string;
@@ -75,9 +93,9 @@ export async function deleteUser(id: UserId): Promise<void> {
 // Soft delete / restore (users:delete) — PATCH /api/users/:id/deactivate|activate.
 // Deactivating revokes that user's refresh tokens; activating lets them sign in
 // again. Same no-self-status-change restriction as deleteUser.
-export async function setUserActive(id: UserId, isActive: boolean): Promise<User> {
+export async function setUserActive(id: UserId, isActive: boolean, reason?: string): Promise<User> {
   const path = isActive ? `/users/${id}/activate` : `/users/${id}/deactivate`;
-  const response = await apiClient.patch<ApiResponse<User>>(path);
+  const response = await apiClient.patch<ApiResponse<User>>(path, reason ? { reason } : {});
   const body = response.data;
   if (!body.success) {
     throw new Error(body.message);
@@ -91,6 +109,24 @@ export async function deactivateUser(id: UserId): Promise<User> {
 
 export async function activateUser(id: UserId): Promise<User> {
   return setUserActive(id, true);
+}
+
+export async function inviteUser(id: UserId): Promise<{ inviteUrl: string }> {
+  const response = await apiClient.post<ApiResponse<{ inviteUrl: string }>>(`/users/${id}/invite`);
+  const body = response.data;
+  if (!body.success) {
+    throw new Error(body.message);
+  }
+  return body.data;
+}
+
+export async function resetUserPassword(id: UserId): Promise<{ resetUrl: string }> {
+  const response = await apiClient.post<ApiResponse<{ resetUrl: string }>>(`/users/${id}/reset-password`);
+  const body = response.data;
+  if (!body.success) {
+    throw new Error(body.message);
+  }
+  return body.data;
 }
 
 // ---------------------------------------------------------------------------------------

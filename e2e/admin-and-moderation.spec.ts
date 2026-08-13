@@ -83,7 +83,7 @@ test.describe('admin secure data + moderation (UI)', () => {
   // -------------------------------------------------------------------------------------
   test('Entity Mapping: seeded entries are visible; manual mapping updates status', async ({ page }) => {
     await loginUI(page, USERS.admin.email, USERS.admin.password);
-    await page.goto('/admin?section=entity-mapping');
+    await page.goto('/admin/entity-mapping');
     await expect(page.getByRole('heading', { name: 'Entity mapping' })).toBeVisible();
 
     // Idempotent (never overwrites an existing mapping decision, only adds newly-discovered
@@ -203,7 +203,7 @@ test.describe('admin secure data + moderation (UI)', () => {
     request,
   }) => {
     await loginUI(page, USERS.admin.email, USERS.admin.password);
-    await page.goto('/admin?section=members');
+    await page.goto('/admin/members');
     await expect(page.getByRole('heading', { name: 'Role Assignments' })).toBeVisible();
 
     // AdminPage keeps every section mounted at once (CSS-hidden, not unmounted) — the Users
@@ -281,7 +281,7 @@ test.describe('admin secure data + moderation (UI)', () => {
   // -------------------------------------------------------------------------------------
   test('Users: the logged-in admin cannot deactivate their own account', async ({ page }) => {
     await loginUI(page, USERS.admin.email, USERS.admin.password);
-    await page.goto('/admin?section=users');
+    await page.goto('/admin/users');
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
 
     // Scope to the Users section's own <section> — AdminPage keeps every section mounted at
@@ -365,7 +365,7 @@ test.describe('admin secure data + moderation (UI)', () => {
     await expect(page.locator(`[data-article-id="${articleId}"]`)).toBeVisible({ timeout: 15_000 });
 
     // User Logs / Audit: both actions show up with the article's own title, not a raw blob.
-    await page.goto('/admin?section=audit');
+    await page.goto('/admin/audit');
     await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible();
 
     await page.getByLabel('Filter by action').selectOption('article.hide');

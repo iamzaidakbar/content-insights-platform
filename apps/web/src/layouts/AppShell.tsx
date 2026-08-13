@@ -23,6 +23,8 @@ import {
 import type { User } from '@content-insights/shared';
 
 import { useAuth } from '../auth/AuthContext';
+import WorkspaceContextSwitcher from '../components/WorkspaceContextSwitcher';
+import CommandPalette from '../components/CommandPalette';
 import ErrorBoundary from '../components/ErrorBoundary';
 import NotificationBell from '../components/NotificationBell';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
@@ -50,7 +52,7 @@ const WORKSPACE_NAV_ITEMS: NavItem[] = [
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
   {
-    to: '/admin?section=users',
+    to: '/admin/users',
     label: 'Users',
     icon: UserCog,
     permissions: ['org:admin', 'users:read', 'users:manage', 'users:delete'],
@@ -58,13 +60,13 @@ const ADMIN_NAV_ITEMS: NavItem[] = [
   { to: '/groups', label: 'User Groups', icon: Users, permissions: null },
   { to: '/tags', label: 'User Tags', icon: Tag, permissions: null },
   {
-    to: '/admin?section=entity-mapping',
+    to: '/admin/entity-mapping',
     label: 'Mapping',
     icon: Shuffle,
     permissions: ['org:admin', 'entity-mapping:read', 'entity-mapping:manage'],
   },
   {
-    to: '/admin?section=audit',
+    to: '/admin/audit',
     label: 'User Logs',
     icon: ScrollText,
     permissions: ['org:admin', 'audit:read'],
@@ -105,6 +107,9 @@ function pageTitleFor(pathname: string): string {
   }
   if (pathname.startsWith('/groups/')) {
     return 'User Group';
+  }
+  if (pathname.startsWith('/admin')) {
+    return 'Admin';
   }
   const topSegment = `/${pathname.split('/')[1] ?? ''}`;
   return PAGE_TITLES[topSegment] ?? 'Content Insights';
@@ -390,6 +395,7 @@ export default function AppShell() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <WorkspaceContextSwitcher />
             <NotificationBell />
             <Link to="/profile" className="flex items-center gap-2.5 rounded-[var(--radius-button)] p-0.5 hover:bg-[var(--bg-hover)]" title="Profile">
               <div
@@ -412,7 +418,7 @@ export default function AppShell() {
           id="main-content"
           className={cn(
             'flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden',
-            location.pathname === '/admin' ? 'overflow-hidden' : 'overflow-y-auto',
+            location.pathname.startsWith('/admin') ? 'overflow-hidden' : 'overflow-y-auto',
           )}
         >
           <ErrorBoundary>
@@ -420,6 +426,8 @@ export default function AppShell() {
           </ErrorBoundary>
         </main>
       </div>
+
+      <CommandPalette />
 
       <ConfirmDialog
         open={insightsSyncWarning.isVisible}

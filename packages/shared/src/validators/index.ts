@@ -21,3 +21,4 @@ export * from './entity-mapping.schema.js';
 export * from './teams.schema.js';
 export * from './audit.schema.js';
 export * from './notification.schema.js';
+export * from './article-note.schema.js';

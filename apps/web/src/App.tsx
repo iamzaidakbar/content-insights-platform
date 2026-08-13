@@ -6,6 +6,9 @@ import AppShell from './layouts/AppShell';
 import PageSkeleton from './components/PageSkeleton';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import UploadPage from './pages/UploadPage';
 import GroupsPage from './pages/GroupsPage';
 import GroupDetailPage from './pages/GroupDetailPage';
@@ -48,6 +51,9 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
@@ -145,14 +151,14 @@ export default function App() {
           <Route path="/trends" element={<Navigate to="/dashboards" replace />} />
 
           <Route element={<RequireAuth anyOf={ADMIN_CLUSTER_PERMISSIONS} />}>
-            <Route
-              path="/admin"
-              element={
-                <Suspense fallback={<PageSkeleton />}>
-                  <AdminPage />
-                </Suspense>
-              }
-            />
+          <Route
+            path="/admin/:section?"
+            element={
+              <Suspense fallback={<PageSkeleton />}>
+                <AdminPage />
+              </Suspense>
+            }
+          />
           </Route>
         </Route>
       </Route>

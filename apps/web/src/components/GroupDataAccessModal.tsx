@@ -10,6 +10,7 @@ import { INPUT_CLASSNAME } from '../lib/form-styles';
 import { fetchConcepts, fetchConceptValues } from '../lib/concepts-api';
 import {
   clearGroupDefaultQuery,
+  fetchGroupDefaultQueries,
   setGroupDefaultQuery,
   updateGroupHardFilters,
   updateGroupProjects,
@@ -633,26 +634,33 @@ function SoftFiltersTab({
 // Default Query
 // ---------------------------------------------------------------------------------------
 
-type SessionDefaultState = { name: string } | 'cleared';
-
 function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProjects: Project[] }) {
+  const queryClient = useQueryClient();
   const savedSearchesQuery = useQuery({
     queryKey: ['saved-searches-for-group', group.id],
     queryFn: () => fetchSavedSearches('mine', group.id, 1),
   });
   const searches = savedSearchesQuery.data?.items ?? [];
 
+  const defaultsQuery = useQuery({
+    queryKey: ['group-default-queries', group.id],
+    queryFn: () => fetchGroupDefaultQueries(group.id),
+  });
+  const defaultsByProject = new Map(
+    (defaultsQuery.data ?? []).map((entry) => [entry.projectId, entry]),
+  );
+
   const [selectedByProject, setSelectedByProject] = useState<Record<string, string>>({});
-  const [sessionState, setSessionState] = useState<Record<string, SessionDefaultState>>({});
 
   const setMutation = useMutation({
     mutationFn: (variables: { projectId: string; savedSearchId: string }) =>
       setGroupDefaultQuery(group.id, variables),
     onSuccess: (result, variables) => {
-      setSessionState((current) => ({
+      setSelectedByProject((current) => ({
         ...current,
-        [variables.projectId]: result ? { name: result.savedSearchName } : 'cleared',
+        [variables.projectId]: result?.savedSearchId ?? '',
       }));
+      void queryClient.invalidateQueries({ queryKey: ['group-default-queries', group.id] });
       toast.success('Default query set.');
     },
   });
@@ -660,7 +668,8 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
   const clearMutation = useMutation({
     mutationFn: (projectId: string) => clearGroupDefaultQuery(group.id, projectId),
     onSuccess: (_result, projectId) => {
-      setSessionState((current) => ({ ...current, [projectId]: 'cleared' }));
+      setSelectedByProject((current) => ({ ...current, [projectId]: '' }));
+      void queryClient.invalidateQueries({ queryKey: ['group-default-queries', group.id] });
       toast.success('Default query cleared.');
     },
   });
@@ -670,12 +679,14 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
       <p className="text-sm text-[var(--text-secondary)]">
         Pick the saved search each project should land on for this group's members. This screen only shows saved
         searches already visible to this group (owned within it, shared into it, or admin-tier) — share a search
-        into this group first (Saved Searches) to use it as a default here. There is currently no way to look up an
-        existing default from here; the note under each project reflects only changes made in this session.
+        into this group first (Saved Searches) to use it as a default here.
       </p>
-      {savedSearchesQuery.isError ? (
+      {savedSearchesQuery.isError || defaultsQuery.isError ? (
         <p className="text-xs text-[var(--red)]">
-          {getApiErrorMessage(savedSearchesQuery.error, 'Unable to load saved searches.')}
+          {getApiErrorMessage(
+            savedSearchesQuery.error ?? defaultsQuery.error,
+            'Unable to load default queries.',
+          )}
         </p>
       ) : null}
       {grantedProjects.length === 0 ? (
@@ -684,17 +695,15 @@ function DefaultQueryTab({ group, grantedProjects }: { group: Group; grantedProj
 
       <div className="space-y-3">
         {grantedProjects.map((project) => {
-          const session = sessionState[project.id];
-          const selected = selectedByProject[project.id] ?? '';
+          const existing = defaultsByProject.get(project.id);
+          const selected = selectedByProject[project.id] ?? existing?.savedSearchId ?? '';
           return (
             <div key={project.id} className="rounded-[var(--radius-input)] border border-[var(--border)] p-3">
               <p className="text-sm font-medium text-[var(--text-primary)]">{project.name}</p>
               <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                {session === undefined
-                  ? 'Not changed this session'
-                  : session === 'cleared'
-                    ? 'Cleared this session'
-                    : `Default (this session): ${session.name}`}
+                {existing
+                  ? `Current default: ${existing.savedSearchName}`
+                  : 'No default query configured'}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <select

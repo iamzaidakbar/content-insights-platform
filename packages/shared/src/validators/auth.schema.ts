@@ -21,3 +21,20 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8).max(72),
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+export const acceptInviteSchema = z
+  .object({
+    token: z.string().min(1),
+    password: z.string().min(8).max(72),
+    displayName: z.string().trim().min(1).max(100).optional(),
+  })
+  .strict();
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1),
+    password: z.string().min(8).max(72),
+  })
+  .strict();
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

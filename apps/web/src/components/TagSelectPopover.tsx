@@ -22,6 +22,9 @@ interface TagSelectPopoverProps {
   onSelectTag: (tag: UserTag) => void;
   onCreateTag: (name: string) => void;
   onClose: () => void;
+  /** Live search-scoped counts (same source as the Filter Panel). When set, these replace
+   *  UserTag.articleCount so the picker matches the sidebar. */
+  countsByTagId?: Record<string, number>;
 }
 
 export default function TagSelectPopover({
@@ -33,6 +36,7 @@ export default function TagSelectPopover({
   onSelectTag,
   onCreateTag,
   onClose,
+  countsByTagId,
 }: TagSelectPopoverProps) {
   const [query, setQuery] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -96,7 +100,9 @@ export default function TagSelectPopover({
                     <Lock size={11} className="shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
                   ) : null}
                   <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                  <span className="shrink-0 text-xs text-[var(--text-muted)]">{tag.articleCount}</span>
+                  <span className="shrink-0 text-xs text-[var(--text-muted)]">
+                    {countsByTagId ? (countsByTagId[tag.id] ?? 0) : tag.articleCount}
+                  </span>
                 </button>
               ))
             )}

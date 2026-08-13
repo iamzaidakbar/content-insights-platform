@@ -36,3 +36,18 @@ export async function fetchAuditLog(
   }
   return body.data;
 }
+
+export async function exportAuditLog(params: FetchAuditLogParams = {}): Promise<void> {
+  const response = await apiClient.get<Blob>('/audit/export', {
+    params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== '')),
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'audit-export.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}

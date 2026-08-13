@@ -42,6 +42,7 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, orgName: string) => Promise<void>;
+  acceptInvite: (token: string, password: string, displayName?: string) => Promise<void>;
   logout: () => Promise<void>;
   // Merges a partial User update (e.g. a new displayName) into the cached session so
   // every consumer of useAuth() — AppShell's header, this page, anywhere else — reflects
@@ -108,6 +109,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     meta: { skipToast: true },
   });
 
+  const acceptInviteMutation = useMutation({
+    mutationFn: (input: { token: string; password: string; displayName?: string }) =>
+      callAuthEndpoint('/auth/accept-invite', input),
+    onSuccess: async (session) => {
+      await queryClient.cancelQueries({ queryKey: SESSION_QUERY_KEY });
+      setAccessToken(session.accessToken);
+      queryClient.setQueryData<SessionData>(SESSION_QUERY_KEY, toSessionData(session));
+    },
+    meta: { skipToast: true },
+  });
+
   const logoutMutation = useMutation({
     mutationFn: () => apiClient.post('/auth/logout', undefined, { skipAuthRefresh: true }),
     // onSettled (not onSuccess): logout must clear client-side state even if
@@ -133,6 +145,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     register: async (email, password, orgName) => {
       await registerMutation.mutateAsync({ email, password, orgName });
+    },
+    acceptInvite: async (token, password, displayName) => {
+      await acceptInviteMutation.mutateAsync({
+        token,
+        password,
+        ...(displayName ? { displayName } : {}),
+      });
     },
     logout: async () => {
       await logoutMutation.mutateAsync();

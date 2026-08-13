@@ -176,6 +176,43 @@ export interface IndexArticleParams {
   createdAt: string;
 }
 
+/** Mongo Article (hydrated or lean) → IndexArticleParams. Used by ingest, tag sync, and reindex. */
+export function toIndexArticleParams(article: {
+  _id: { toString(): string };
+  orgId: { toString(): string };
+  projectId: { toString(): string };
+  title: string;
+  summary: string;
+  body: string;
+  domain: string;
+  sourceType: string;
+  publishedAt: Date | string;
+  authors: string[];
+  taxonomyValues?: Record<string, string[]> | null;
+  tagIds?: Array<{ toString(): string }> | null;
+  locationHash: string;
+  hidden: boolean;
+  createdAt: Date | string;
+}): IndexArticleParams {
+  return {
+    id: article._id.toString(),
+    orgId: article.orgId.toString(),
+    projectId: article.projectId.toString(),
+    title: article.title,
+    summary: article.summary,
+    body: article.body,
+    domain: article.domain,
+    sourceType: article.sourceType,
+    publishedAt: new Date(article.publishedAt).toISOString(),
+    authors: article.authors,
+    taxonomyValues: article.taxonomyValues ?? {},
+    tagIds: (article.tagIds ?? []).map((id) => id.toString()),
+    locationHash: article.locationHash,
+    hidden: article.hidden,
+    createdAt: new Date(article.createdAt).toISOString(),
+  };
+}
+
 function toEsArticleDocument(article: IndexArticleParams): EsArticleDocument {
   return {
     articleId: article.id,
@@ -236,6 +273,7 @@ export async function deleteAllArticlesForOrg(orgId: string): Promise<void> {
 export async function bulkIndexArticles(
   orgId: string,
   articles: IndexArticleParams[],
+  options?: { refresh?: boolean },
 ): Promise<void> {
   if (articles.length === 0) return;
   const index = getOrgIndexName(orgId);
@@ -243,6 +281,7 @@ export async function bulkIndexArticles(
   const failures: Array<{ status: number; error: unknown }> = [];
   const stats = await esClient.helpers.bulk<IndexArticleParams>({
     datasource: articles,
+    ...(options?.refresh ? { refresh: true as const } : {}),
     onDocument(article) {
       return [{ index: { _index: index, _id: article.id } }, toEsArticleDocument(article)];
     },

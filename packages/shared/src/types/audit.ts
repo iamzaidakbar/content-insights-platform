@@ -55,7 +55,13 @@ export const AUDIT_ACTIONS = [
   'user.delete',
   'user.deactivate',
   'user.activate',
+  'user.invite',
+  'auth.password_reset',
+  'auth.invite_accept',
   'admin.reindex',
+  'article.note.create',
+  'article.note.update',
+  'article.note.delete',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -72,7 +78,8 @@ export type AuditEntityType =
   | 'insight'
   | 'dashboard'
   | 'entity-mapping'
-  | 'search';
+  | 'search'
+  | 'article-note';
 
 export interface AuditLogEntry {
   id: AuditLogId;

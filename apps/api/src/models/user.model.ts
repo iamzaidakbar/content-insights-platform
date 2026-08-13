@@ -9,15 +9,23 @@ export interface IRoleAssignment {
   endDate: Date | null; // time-bound except Application Admin, which is never time-bound
 }
 
+export const USER_PROVISIONING = ['invite_pending', 'local', 'sso'] as const;
+export type UserProvisioning = (typeof USER_PROVISIONING)[number];
+
 export interface IUser {
   email: string;
   passwordHash: string;
   displayName?: string;
   orgId: mongoose.Types.ObjectId;
   isActive: boolean;
+  provisioning: UserProvisioning;
+  lastLoginAt?: Date | undefined;
+  inviteTokenHash?: string | undefined;
+  inviteExpiresAt?: Date | undefined;
+  passwordResetTokenHash?: string | undefined;
+  passwordResetExpiresAt?: Date | undefined;
   roleAssignments: IRoleAssignment[];
-  currentGroupId: mongoose.Types.ObjectId | null; // last-selected navbar group; Application
-  // Admins may have neither this nor currentProjectId set.
+  currentGroupId: mongoose.Types.ObjectId | null;
   currentProjectId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -42,6 +50,16 @@ const userSchema = new mongoose.Schema<IUser>(
     displayName: { type: String, required: false, trim: true },
     orgId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true },
     isActive: { type: Boolean, default: true },
+    provisioning: {
+      type: String,
+      enum: ['invite_pending', 'local', 'sso'],
+      default: 'local',
+    },
+    lastLoginAt: { type: Date, required: false },
+    inviteTokenHash: { type: String, required: false },
+    inviteExpiresAt: { type: Date, required: false },
+    passwordResetTokenHash: { type: String, required: false },
+    passwordResetExpiresAt: { type: Date, required: false },
     roleAssignments: { type: [roleAssignmentSchema], default: [] },
     currentGroupId: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null },
     currentProjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', default: null },

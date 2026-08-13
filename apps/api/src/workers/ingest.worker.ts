@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 
 import type { Job, Worker as BullWorker } from 'bullmq';
 
-import { indexArticle } from '../lib/elasticsearch.js';
+import { indexArticle, toIndexArticleParams } from '../lib/elasticsearch.js';
+import { notifyDynamicChannelsForProject } from '../lib/channel-alerts.js';
 import { logger } from '../lib/logger.js';
 import { ARTICLE_INGEST_QUEUE, articleIndexQueue, isFinalAttempt, redisConnection, Worker } from '../lib/queue.js';
 import { extractText, inferFileTypeFromKey } from '../lib/text-extraction.js';
@@ -207,26 +208,14 @@ export async function runNewsIngestionFixture(
     created += 1;
 
     try {
-      await indexArticle({
-        id: article._id.toString(),
-        orgId,
-        projectId,
-        title: article.title,
-        summary: article.summary,
-        body: article.body,
-        domain: article.domain,
-        sourceType: article.sourceType,
-        publishedAt: article.publishedAt.toISOString(),
-        authors: article.authors,
-        taxonomyValues: article.taxonomyValues,
-        tagIds: [],
-        locationHash: article.locationHash,
-        hidden: false,
-        createdAt: article.createdAt.toISOString(),
-      });
+      await indexArticle(toIndexArticleParams(article));
     } catch (err) {
       logger.error({ err, articleId: article._id.toString() }, 'Failed to index simulated news article');
     }
+  }
+
+  if (created > 0) {
+    await notifyDynamicChannelsForProject(orgId, projectId);
   }
 
   return created;

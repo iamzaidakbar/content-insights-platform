@@ -22,8 +22,8 @@ import {
 
 import { audit } from '../lib/audit.js';
 import { asyncHandler } from '../lib/async-handler.js';
-import { AppError, ValidationError } from '../lib/errors.js';
-import { groupIdFromParam } from '../lib/group-scope.js';
+import { AppError, ForbiddenError, ValidationError } from '../lib/errors.js';
+import { groupIdFromParam, hasGroupPermission } from '../lib/group-scope.js';
 import { isRoleAssignmentActive } from '../lib/permissions.js';
 import { parseObjectIdParam } from '../lib/objectId.js';
 import { pageQuerySchema, type PageQuery } from '../lib/pagination.js';
@@ -502,12 +502,49 @@ groupRouter.put(
 );
 
 // ---------------------------------------------------------------------------------------
-// Default query (landing saved search per group + project). Gated on
-// groups:manageDataAccess for consistency with the data-access endpoints above, rather than
-// the also-plausible saved-searches:publish — pick one, be consistent (this file picks the
-// former since a default query is fundamentally about what a GROUP lands on, same axis as
-// its other data-access settings).
+// Default query (landing saved search per group + project). Writes stay gated on
+// groups:manageDataAccess. Reads are allowed for group members as well — Articles landing
+// needs the configured default and those users are not data-access admins.
 // ---------------------------------------------------------------------------------------
+
+groupRouter.get(
+  '/:id/default-queries',
+  authenticate,
+  orgContext,
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const id = parseObjectIdParam(req.params.id, 'Group not found', 'GROUP_NOT_FOUND');
+
+    const group = await GroupModel.findOne({ _id: id, orgId: req.user.orgId });
+    if (!group) {
+      throw new AppError(404, 'GROUP_NOT_FOUND', 'Group not found');
+    }
+
+    const canManage = await hasGroupPermission(req.user, 'groups:manageDataAccess', id);
+    const isMember = req.user.roleAssignments.some(
+      (assignment) => assignment.groupId === id && isRoleAssignmentActive(assignment),
+    );
+    if (!canManage && !isMember) {
+      throw new ForbiddenError('Missing required permission: groups:manageDataAccess');
+    }
+
+    const docs = await GroupDefaultQueryModel.find({ orgId: req.user.orgId, groupId: id });
+    const savedSearchIds = docs.map((doc) => doc.savedSearchId.toString());
+    const savedSearches =
+      savedSearchIds.length > 0
+        ? await SavedSearchModel.find({ _id: { $in: savedSearchIds }, orgId: req.user.orgId }, { name: 1 })
+        : [];
+    const nameById = new Map(savedSearches.map((search) => [search._id.toString(), search.name]));
+
+    res.status(200).json(
+      success(
+        docs.map((doc) => toGroupDefaultQueryDTO(doc, nameById.get(doc.savedSearchId.toString()) ?? '')),
+      ),
+    );
+  }),
+);
 
 groupRouter.put(
   '/:id/default-query',

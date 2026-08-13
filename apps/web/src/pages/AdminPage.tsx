@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useAuth } from '../auth/AuthContext';
 import AdminAuditSection from '../components/admin/AdminAuditSection';
@@ -70,27 +70,37 @@ function paneClass(active: boolean, mode: 'fill' | 'scroll'): string {
 // since even holding the section's own permission doesn't imply every action within it.
 export default function AdminPage() {
   const { permissions } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { section } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const visibleSections = useMemo(
-    () => SECTIONS.filter((section) => isSectionVisible(section, permissions)),
+    () => SECTIONS.filter((sectionDef) => isSectionVisible(sectionDef, permissions)),
     [permissions],
   );
 
-  const requestedSection = searchParams.get('section');
-  const initialSection =
-    requestedSection && isSectionKey(requestedSection) && visibleSections.some((s) => s.key === requestedSection)
-      ? requestedSection
-      : (visibleSections[0]?.key ?? 'organization');
-  const [activeSection, setActiveSection] = useState<SectionKey>(initialSection);
+  const fallbackSection = visibleSections[0]?.key ?? 'organization';
+  const activeSection: SectionKey =
+    section && isSectionKey(section) && visibleSections.some((candidate) => candidate.key === section)
+      ? section
+      : fallbackSection;
+
+  useEffect(() => {
+    const legacy = searchParams.get('section');
+    if (legacy && isSectionKey(legacy)) {
+      navigate(`/admin/${legacy}`, { replace: true });
+    }
+  }, [searchParams, navigate]);
+
+  useEffect(() => {
+    if (section && isSectionKey(section) && visibleSections.some((candidate) => candidate.key === section)) {
+      return;
+    }
+    navigate(`/admin/${fallbackSection}`, { replace: true });
+  }, [section, fallbackSection, visibleSections, navigate]);
 
   function selectSection(key: SectionKey) {
-    setActiveSection(key);
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set('section', key);
-      return next;
-    });
+    navigate(`/admin/${key}`);
   }
 
   return (

@@ -8,9 +8,13 @@ import {
   createRoleSchema,
   createUserTagSchema,
   dateFilterValueSchema,
+  EMPTY_FILTER_PANEL_STATE,
+  parseArticlesUrlState,
   searchRequestSchema,
+  serializeArticlesUrlState,
   setChannelSchema,
   setUserActiveSchema,
+  createArticleNoteSchema,
 } from '../index.js';
 import type { FilterPanelState } from '../index.js';
 
@@ -153,15 +157,24 @@ describe('setUserActiveSchema', () => {
     expect(setUserActiveSchema.parse({ isActive: false }).isActive).toBe(false);
   });
 
+  it('accepts an optional reason', () => {
+    expect(setUserActiveSchema.parse({ isActive: false, reason: 'left the company' }).reason).toBe(
+      'left the company',
+    );
+  });
+
   it('rejects a missing isActive flag', () => {
     expect(() => setUserActiveSchema.parse({})).toThrow();
   });
 });
 
 describe('audit actions', () => {
-  it('includes user.activate and user.deactivate', () => {
+  it('includes user.activate, user.deactivate, and article note actions', () => {
     expect(AUDIT_ACTIONS).toContain('user.activate');
     expect(AUDIT_ACTIONS).toContain('user.deactivate');
+    expect(AUDIT_ACTIONS).toContain('article.note.create');
+    expect(AUDIT_ACTIONS).toContain('article.note.update');
+    expect(AUDIT_ACTIONS).toContain('article.note.delete');
   });
 });
 
@@ -173,5 +186,42 @@ describe('setChannelSchema', () => {
   it('accepts demoting a channel back to a plain saved search', () => {
     const parsed = setChannelSchema.parse({ isChannel: false });
     expect(parsed.isChannel).toBe(false);
+  });
+});
+
+describe('articles URL filter state', () => {
+  it('round-trips a compact filter panel and page', () => {
+    const filters = {
+      ...validFilters,
+      sourceTypeTab: 'news' as const,
+      projectIds: ['proj-1'],
+    };
+    const raw = serializeArticlesUrlState(filters, 3);
+    const parsed = parseArticlesUrlState(raw);
+    expect(parsed?.page).toBe(3);
+    expect(parsed?.filters.sourceTypeTab).toBe('news');
+    expect(parsed?.filters.projectIds).toEqual(['proj-1']);
+    expect(parsed?.filters.query).toBe('inflation');
+    expect(JSON.parse(raw).page).toBe(3);
+    expect(JSON.parse(raw).sort).toBeUndefined();
+  });
+
+  it('returns null for missing or invalid payloads and fills defaults for empty JSON', () => {
+    expect(parseArticlesUrlState(null)).toBeNull();
+    expect(parseArticlesUrlState('not-json')).toBeNull();
+    const empty = parseArticlesUrlState(serializeArticlesUrlState(EMPTY_FILTER_PANEL_STATE, 1));
+    expect(empty?.filters).toEqual(EMPTY_FILTER_PANEL_STATE);
+    expect(empty?.page).toBe(1);
+  });
+});
+
+describe('createArticleNoteSchema', () => {
+  it('accepts a private note without groupId', () => {
+    const parsed = createArticleNoteSchema.parse({ body: 'Follow up tomorrow', visibility: 'private' });
+    expect(parsed.visibility).toBe('private');
+  });
+
+  it('requires groupId when visibility is group', () => {
+    expect(() => createArticleNoteSchema.parse({ body: 'Share with the team', visibility: 'group' })).toThrow();
   });
 });

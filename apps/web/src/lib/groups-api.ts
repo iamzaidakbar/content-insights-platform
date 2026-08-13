@@ -153,6 +153,15 @@ export async function updateGroupSoftFilters(
 // groups:manageDataAccess, same axis as the data-access endpoints above.
 // ---------------------------------------------------------------------------------------
 
+export async function fetchGroupDefaultQueries(id: GroupId): Promise<GroupDefaultQuery[]> {
+  const response = await apiClient.get<ApiResponse<GroupDefaultQuery[]>>(`/groups/${id}/default-queries`);
+  const body = response.data;
+  if (!body.success) {
+    throw new Error(body.message);
+  }
+  return body.data;
+}
+
 export interface SetGroupDefaultQueryInput {
   projectId: string;
   savedSearchId: string | null;

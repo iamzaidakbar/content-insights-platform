@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Grid2x2, Grid3x3, List, Share2 } from 'lucide-react';
+import { Download, Grid2x2, Grid3x3, List, Share2 } from 'lucide-react';
 
 import {
   DEFAULT_USER_SETTINGS,
@@ -22,8 +22,14 @@ import Button from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import Modal from '../components/ui/Modal';
 import PageHeader, { PageBody } from '../components/ui/PageHeader';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/DropdownMenu';
 import { getApiErrorMessage } from '../lib/api-client';
-import { hideArticle, unhideArticle } from '../lib/articles-api';
+import { exportArticles, hideArticle, unhideArticle } from '../lib/articles-api';
 import { ChannelAccessError, fetchChannel, openChannel } from '../lib/channels-api';
 import { fetchConcepts } from '../lib/concepts-api';
 import { fetchGroups } from '../lib/groups-api';
@@ -148,6 +154,7 @@ export default function ChannelDetailPage() {
 
   const isAppAdmin = permissions.includes('*');
   const canHide = isAppAdmin || permissions.includes('articles:hide');
+  const canExport = isAppAdmin || permissions.includes('export:run');
 
   // ---------------------------------------------------------------------------------
   // Deep-link context (see ChannelsPage's Share button / buildChannelShareUrl above): a
@@ -430,6 +437,18 @@ export default function ChannelDetailPage() {
     }
   }
 
+  const exportMutation = useMutation({
+    mutationFn: (format: 'xlsx' | 'csv') => {
+      const filters = channelQuery.data?.filters;
+      if (!filters) {
+        throw new Error('Channel filters are not loaded yet.');
+      }
+      return exportArticles(filters, format);
+    },
+    onSuccess: () => toast.success('Export started — check your downloads.'),
+    onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Export failed.')),
+  });
+
   if (!id) {
     return (
       <PageBody width="full">
@@ -490,6 +509,19 @@ export default function ChannelDetailPage() {
                 );
               })}
             </div>
+            {canExport && channelQuery.data?.filters ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button variant="outline" size="sm" leftIcon={<Download size={14} />} disabled={exportMutation.isPending}>
+                    {exportMutation.isPending ? 'Exporting…' : 'Export'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onSelect={() => exportMutation.mutate('xlsx')}>Export Excel</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => exportMutation.mutate('csv')}>Export CSV</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
             <Button variant="outline" size="sm" leftIcon={<Share2 size={14} />} onClick={() => void handleShare()}>
               Share
             </Button>

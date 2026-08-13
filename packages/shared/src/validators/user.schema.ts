@@ -17,6 +17,8 @@ export const userSchema = z.object({
   email: z.string().email(),
   displayName: z.string().optional(),
   isActive: z.boolean(),
+  provisioning: z.enum(['invite_pending', 'local', 'sso']).optional(),
+  lastLoginAt: z.string().optional(),
   roleAssignments: z.array(roleAssignmentSchema),
   currentGroupId: z.string().min(1).nullable().optional(),
   currentProjectId: z.string().min(1).nullable().optional(),
@@ -79,9 +81,19 @@ export type SetCurrentProjectInput = z.infer<typeof setCurrentProjectSchema>;
 export const setUserActiveSchema = z
   .object({
     isActive: z.boolean(),
+    reason: z.string().trim().max(500).optional(),
   })
   .strict();
 export type SetUserActiveInput = z.infer<typeof setUserActiveSchema>;
+
+// PATCH /api/users/:id/activate | /:id/deactivate — optional operator note stored on the
+// audit row. Empty body is valid (express.json() may yield {}).
+export const setUserStatusReasonSchema = z
+  .object({
+    reason: z.string().trim().max(500).optional(),
+  })
+  .strict();
+export type SetUserStatusReasonInput = z.infer<typeof setUserStatusReasonSchema>;
 
 // PATCH /api/users/:id/role-assignments/:assignmentId — "end" (or reschedule the end of)
 // an existing assignment. Only endDate is mutable this way; changing roleId/groupId means

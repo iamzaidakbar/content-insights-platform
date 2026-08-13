@@ -9,7 +9,7 @@ import { resolveUserDTO } from '../lib/role-assignment-lookup.js';
 import { toOrganizationDTO } from '../lib/serializers.js';
 import type { OrganizationDocument } from '../models/organization.model.js';
 import type { RoleDocument } from '../models/role.model.js';
-import type { UserDocument } from '../models/user.model.js';
+import { UserModel, type UserDocument } from '../models/user.model.js';
 
 export interface IssuedSession {
   authSession: AuthSession;
@@ -41,6 +41,9 @@ export async function issueSession(
     startDate: assignment.startDate ? assignment.startDate.toISOString() : null,
     endDate: assignment.endDate ? assignment.endDate.toISOString() : null,
   }));
+
+  await UserModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
+  user.lastLoginAt = new Date();
 
   const accessToken = signAccessToken({
     sub: userId,

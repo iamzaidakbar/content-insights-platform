@@ -91,3 +91,66 @@ export function normalizeFilterPanelState(
     advancedSearch: input.advancedSearch ?? EMPTY_ADVANCED_SEARCH,
   };
 }
+
+/** Query param that holds compact JSON for the live Articles filter/page state. */
+export const ARTICLES_FILTERS_PARAM = 'f';
+
+export interface ArticlesUrlState {
+  filters: FilterPanelState;
+  page: number;
+}
+
+function isEmptyObject(value: Record<string, unknown>): boolean {
+  return Object.keys(value).length === 0;
+}
+
+/**
+ * Compact JSON of non-default FilterPanelState fields plus page (>1). Used as the `f`
+ * query param so an Articles view is shareable and Back/refresh round-trip.
+ */
+export function serializeArticlesUrlState(filters: FilterPanelState, page: number): string {
+  const compact: Record<string, unknown> = {};
+  if (filters.query) compact.query = filters.query;
+  if (filters.sourceTypeTab !== EMPTY_FILTER_PANEL_STATE.sourceTypeTab) {
+    compact.sourceTypeTab = filters.sourceTypeTab;
+  }
+  if (filters.hiddenArticles !== EMPTY_FILTER_PANEL_STATE.hiddenArticles) {
+    compact.hiddenArticles = filters.hiddenArticles;
+  }
+  if (filters.dateFilter) compact.dateFilter = filters.dateFilter;
+  if (filters.projectIds.length > 0) compact.projectIds = filters.projectIds;
+  if (Object.keys(filters.taxonomyValues).length > 0) compact.taxonomyValues = filters.taxonomyValues;
+  if (filters.userTagIds.length > 0) compact.userTagIds = filters.userTagIds;
+  if (filters.advancedSearch.enabled) compact.advancedSearch = filters.advancedSearch;
+  if (filters.sort !== EMPTY_FILTER_PANEL_STATE.sort) compact.sort = filters.sort;
+  if (page > 1) compact.page = page;
+  return JSON.stringify(compact);
+}
+
+export function parseArticlesUrlState(raw: string | null | undefined): ArticlesUrlState | null {
+  if (raw === null || raw === undefined || raw === '') {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return null;
+    }
+    const record = parsed as Record<string, unknown>;
+    const rawPage = record.page;
+    const page = typeof rawPage === 'number' && Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
+    const { page: _ignored, ...rest } = record;
+    return { filters: normalizeFilterPanelState(rest as Partial<FilterPanelState>), page };
+  } catch {
+    return null;
+  }
+}
+
+export function isEmptyArticlesUrlState(serialized: string): boolean {
+  try {
+    const parsed = JSON.parse(serialized) as unknown;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && isEmptyObject(parsed as Record<string, unknown>);
+  } catch {
+    return false;
+  }
+}

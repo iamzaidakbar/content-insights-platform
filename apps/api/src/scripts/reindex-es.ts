@@ -12,7 +12,7 @@ import {
   bulkIndexArticles,
   deleteAllArticlesForOrg,
   ensureOrgIndexExists,
-  type IndexArticleParams,
+  toIndexArticleParams,
 } from '../lib/elasticsearch.js';
 import { ArticleModel } from '../models/article.model.js';
 import { OrganizationModel } from '../models/organization.model.js';
@@ -33,23 +33,7 @@ async function reindexOrg(orgId: string): Promise<number> {
       .limit(BATCH_SIZE)
       .lean();
 
-    const docs: IndexArticleParams[] = articles.map((article) => ({
-      id: article._id.toString(),
-      orgId: article.orgId.toString(),
-      projectId: article.projectId.toString(),
-      title: article.title,
-      summary: article.summary,
-      body: article.body,
-      domain: article.domain,
-      sourceType: article.sourceType,
-      publishedAt: new Date(article.publishedAt).toISOString(),
-      authors: article.authors,
-      taxonomyValues: (article.taxonomyValues ?? {}) as Record<string, string[]>,
-      tagIds: (article.tagIds ?? []).map((id) => id.toString()),
-      locationHash: article.locationHash,
-      hidden: article.hidden,
-      createdAt: new Date(article.createdAt).toISOString(),
-    }));
+    const docs = articles.map((article) => toIndexArticleParams(article));
 
     await bulkIndexArticles(orgId, docs);
     indexed += docs.length;

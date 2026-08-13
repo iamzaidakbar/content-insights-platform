@@ -1,6 +1,6 @@
 import type { Job, Worker as BullWorker } from 'bullmq';
 
-import { indexArticle } from '../lib/elasticsearch.js';
+import { indexArticle, toIndexArticleParams } from '../lib/elasticsearch.js';
 import { logger } from '../lib/logger.js';
 import { ARTICLE_INDEX_QUEUE, redisConnection, Worker } from '../lib/queue.js';
 import { ArticleModel } from '../models/article.model.js';
@@ -23,23 +23,7 @@ async function processIndexJob(job: Job<IndexJobData>): Promise<void> {
     return; // deleted or bogus id — nothing to do, don't retry
   }
 
-  await indexArticle({
-    id: article._id.toString(),
-    orgId: article.orgId.toString(),
-    projectId: article.projectId.toString(),
-    title: article.title,
-    summary: article.summary,
-    body: article.body,
-    domain: article.domain,
-    sourceType: article.sourceType,
-    publishedAt: article.publishedAt.toISOString(),
-    authors: article.authors,
-    taxonomyValues: article.taxonomyValues,
-    tagIds: article.tagIds.map((id) => id.toString()),
-    locationHash: article.locationHash,
-    hidden: article.hidden,
-    createdAt: article.createdAt.toISOString(),
-  });
+  await indexArticle(toIndexArticleParams(article));
 }
 
 // In-process, same as startIngestWorker — fine at this scope.

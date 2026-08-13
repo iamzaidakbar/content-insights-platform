@@ -15,7 +15,7 @@ import type {
   SearchSortOption,
   SourceTypeTab,
 } from '@content-insights/shared';
-import { normalizeFilterPanelState } from '@content-insights/shared';
+import { normalizeFilterPanelState, USER_TAGS_FACET_KEY } from '@content-insights/shared';
 
 import { esClient, getOrgIndexName, type EsArticleDocument } from './elasticsearch.js';
 
@@ -314,18 +314,25 @@ interface ArticleFilterClauses {
   must: Record<string, unknown>[];
 }
 
+interface ArticleFilterExclude {
+  // When set, that concept's own taxonomyValues selection is treated as absent — the
+  // standard "a facet never filters by its own currently-applied value" pattern, so
+  // counts reflect what selecting OTHER values for that concept would yield.
+  excludeConceptKey?: string;
+  // Same pattern for the userTags system facet: omit filters.userTagIds so each tag's
+  // count is "how many hits would I get if I selected this tag", given every other filter.
+  excludeUserTags?: boolean;
+}
+
 // Shared by buildArticleSearchQuery and the facets builder below: identical filtering
-// semantics, except that when `excludeConceptKey` is set, that one concept's own
-// taxonomyValues selection is treated as absent — the standard "a facet never filters by
-// its own currently-applied value" pattern, so counts reflect what selecting OTHER values
-// for that concept would yield. Every other filter (including hard-filter grant
-// enforcement for the excluded concept itself, which is a security floor, not a
-// user-toggleable filter) still applies.
+// semantics, except for the per-facet exclusions above. Every other filter (including
+// hard-filter grant enforcement for an excluded concept itself, which is a security
+// floor, not a user-toggleable filter) still applies.
 function buildArticleFilterClauses(
   filters: FilterPanelState,
   grants: ArticleSearchGrants,
   now: Date,
-  excludeConceptKey?: string,
+  exclude: ArticleFilterExclude = {},
 ): ArticleFilterClauses {
   // Mongoose minimize can strip empty taxonomyValues/userTagIds/etc. from persisted
   // FilterPanelState (insights sourceFilters, saved searches). Normalize once here so every
@@ -375,7 +382,7 @@ function buildArticleFilterClauses(
       const branchMust: Record<string, unknown>[] = [{ term: { projectId } }];
       for (const grant of projectGrants) {
         const selected =
-          grant.conceptKey === excludeConceptKey ? undefined : filters.taxonomyValues[grant.conceptKey];
+          grant.conceptKey === exclude.excludeConceptKey ? undefined : filters.taxonomyValues[grant.conceptKey];
         const effective = intersectSelectionWithGrant(selected, grant.allowedValues);
         branchMust.push({ terms: { [`taxonomyValues.${grant.conceptKey}`]: effective } });
       }
@@ -390,7 +397,7 @@ function buildArticleFilterClauses(
   // soft filters only affect which concept panels the UI shows, never what's searchable.
   for (const [conceptKey, values] of Object.entries(filters.taxonomyValues)) {
     if (hardConceptKeys.has(conceptKey)) continue; // already handled above
-    if (conceptKey === excludeConceptKey) continue; // facet excludes its own filter
+    if (conceptKey === exclude.excludeConceptKey) continue; // facet excludes its own filter
     if (values.length > 0) filter.push({ terms: { [`taxonomyValues.${conceptKey}`]: values } });
   }
 
@@ -402,7 +409,9 @@ function buildArticleFilterClauses(
   const dateRangeFilter = buildDateRangeFilter(filters.dateFilter, now);
   if (dateRangeFilter) filter.push(dateRangeFilter);
 
-  if (filters.userTagIds.length > 0) filter.push({ terms: { tagIds: filters.userTagIds } });
+  if (!exclude.excludeUserTags && filters.userTagIds.length > 0) {
+    filter.push({ terms: { tagIds: filters.userTagIds } });
+  }
 
   const trimmedQuery = filters.query.trim();
   if (trimmedQuery) must.push(buildTextMustClause(trimmedQuery));
@@ -597,8 +606,9 @@ export interface ArticleFacetsParams {
 // buildArticleFilterClauses with THAT concept excluded — under a `match_all` top query, so
 // excluding concept K's own filter never accidentally gets re-applied by an outer query
 // context (a `filter` agg only narrows further than its parent query; it can't widen past
-// filters already applied above it). `total` is a sibling agg using the FULL,
-// nothing-excluded query, matching what the hit-search endpoint would return.
+// filters already applied above it). `userTags` is a sibling system facet with the same
+// exclude-own-filter treatment. `total` is a sibling agg using the FULL, nothing-excluded
+// query, matching what the hit-search endpoint would return.
 export function buildArticleFacetsRequestBody(params: ArticleFacetsParams): Record<string, unknown> {
   const { filters, grants, conceptKeys, size = DEFAULT_FACET_SIZE, now: nowParam } = params;
   const now = nowParam ?? new Date();
@@ -607,13 +617,27 @@ export function buildArticleFacetsRequestBody(params: ArticleFacetsParams): Reco
     total: { filter: buildArticleSearchQuery(filters, grants, now) },
   };
   for (const conceptKey of conceptKeys) {
-    const { filter, must } = buildArticleFilterClauses(filters, grants, now, conceptKey);
+    const { filter, must } = buildArticleFilterClauses(filters, grants, now, { excludeConceptKey: conceptKey });
     const grant = grants.hardFilterGrants.find((g) => g.conceptKey === conceptKey);
     aggs[conceptKey] = {
       filter: { bool: { ...(must.length > 0 ? { must } : {}), filter } },
       aggs: { values: { terms: buildFacetTermsAgg(conceptKey, grant, size) } },
     };
   }
+
+  // Live user-tag counts under the current project/hidden/date/query scope — not the
+  // org-wide UserTag.articleCount counter, which is why the sidebar previously disagreed
+  // with search results.
+  const userTagClauses = buildArticleFilterClauses(filters, grants, now, { excludeUserTags: true });
+  aggs[USER_TAGS_FACET_KEY] = {
+    filter: {
+      bool: {
+        ...(userTagClauses.must.length > 0 ? { must: userTagClauses.must } : {}),
+        filter: userTagClauses.filter,
+      },
+    },
+    aggs: { values: { terms: { field: 'tagIds', size } } },
+  };
 
   return { query: { match_all: {} }, size: 0, aggs };
 }
@@ -645,6 +669,13 @@ export async function executeArticleFacets(
     });
     facets[conceptKey] = sortFacetBuckets(filtered, params.sort);
   }
+
+  const rawUserTagBuckets = raw[USER_TAGS_FACET_KEY]?.values?.buckets ?? [];
+  const userTagBuckets: FacetBucket[] = rawUserTagBuckets.map((b) => ({ key: b.key, count: b.doc_count }));
+  facets[USER_TAGS_FACET_KEY] = sortFacetBuckets(
+    filterFacetBuckets(userTagBuckets, { excludeZeroCounts: params.excludeZeroCounts }),
+    params.sort,
+  );
 
   return { facets, total };
 }

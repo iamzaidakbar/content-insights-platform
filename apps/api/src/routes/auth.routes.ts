@@ -3,12 +3,16 @@ import { randomUUID } from 'node:crypto';
 import express from 'express';
 
 import {
+  acceptInviteSchema,
   changePasswordSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
+  type AcceptInviteInput,
   type ChangePasswordInput,
   type LoginInput,
   type RegisterInput,
+  type ResetPasswordInput,
 } from '@content-insights/shared';
 
 import { getAuthProvider } from '../lib/auth-providers/index.js';
@@ -25,12 +29,15 @@ import { AppError } from '../lib/errors.js';
 import { verifyRefreshToken, type RefreshTokenClaims } from '../lib/jwt.js';
 import { logger } from '../lib/logger.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
+import { hashOneTimeToken } from '../lib/one-time-token.js';
 import {
   clearFailedLogins,
   consumeOidcState,
   consumeRefreshToken,
   isLockedOut,
   recordFailedLogin,
+  listRefreshSessions,
+  revokeRefreshToken,
   revokeAllRefreshTokensForUser,
   storeOidcState,
 } from '../lib/refresh-store.js';
@@ -124,6 +131,9 @@ authRouter.post(
     if (!user.isActive) {
       throw new AppError(403, 'ACCOUNT_INACTIVE', 'This account has been deactivated');
     }
+    if (user.provisioning === 'invite_pending') {
+      throw new AppError(403, 'INVITE_PENDING', 'This account has not accepted its invite yet');
+    }
 
     const { org, roles } = await loadOrgAndRoles(user);
     if (!org) {
@@ -142,6 +152,75 @@ authRouter.post(
     );
 
     res.status(200).json(success(authSession));
+  }),
+);
+
+authRouter.post(
+  '/accept-invite',
+  validate({ body: acceptInviteSchema }),
+  asyncHandler(async (req, res) => {
+    const { token, password, displayName } = req.body as AcceptInviteInput;
+    const user = await UserModel.findOne({
+      inviteTokenHash: hashOneTimeToken(token),
+      inviteExpiresAt: { $gt: new Date() },
+    });
+    if (!user) {
+      throw new AppError(400, 'INVITE_INVALID', 'This invite link is invalid or has expired');
+    }
+
+    user.passwordHash = await hashPassword(password);
+    user.provisioning = 'local';
+    user.inviteTokenHash = undefined;
+    user.inviteExpiresAt = undefined;
+    if (displayName) {
+      user.displayName = displayName;
+    }
+    await user.save();
+
+    const { org, roles } = await loadOrgAndRoles(user);
+    if (!org) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'Associated organization no longer exists');
+    }
+
+    const { authSession, refreshToken } = await issueSession(user, org, roles);
+    setRefreshCookie(res, refreshToken);
+    auditAs(
+      req,
+      { orgId: org._id.toString(), userId: user._id.toString(), email: user.email },
+      { action: 'auth.invite_accept', entityType: 'user', entityId: user._id.toString() },
+    );
+    res.status(200).json(success(authSession));
+  }),
+);
+
+authRouter.post(
+  '/reset-password',
+  validate({ body: resetPasswordSchema }),
+  asyncHandler(async (req, res) => {
+    const { token, password } = req.body as ResetPasswordInput;
+    const user = await UserModel.findOne({
+      passwordResetTokenHash: hashOneTimeToken(token),
+      passwordResetExpiresAt: { $gt: new Date() },
+    });
+    if (!user) {
+      throw new AppError(400, 'RESET_INVALID', 'This reset link is invalid or has expired');
+    }
+
+    user.passwordHash = await hashPassword(password);
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetExpiresAt = undefined;
+    if (user.provisioning === 'invite_pending') {
+      user.provisioning = 'local';
+    }
+    await user.save();
+    await revokeAllRefreshTokensForUser(user._id.toString());
+
+    auditAs(
+      req,
+      { orgId: user.orgId.toString(), userId: user._id.toString(), email: user.email },
+      { action: 'auth.password_reset', entityType: 'user', entityId: user._id.toString() },
+    );
+    res.status(200).json(success(null));
   }),
 );
 
@@ -275,6 +354,37 @@ authRouter.get(
   }),
 );
 
+authRouter.get(
+  '/sessions',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const sessions = await listRefreshSessions(req.user.id);
+    res.status(200).json(success(sessions));
+  }),
+);
+
+authRouter.delete(
+  '/sessions/:jti',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const jti = req.params.jti;
+    if (!jti) {
+      throw new AppError(404, 'SESSION_NOT_FOUND', 'Session not found');
+    }
+    const revoked = await revokeRefreshToken(jti, req.user.id);
+    if (!revoked) {
+      throw new AppError(404, 'SESSION_NOT_FOUND', 'Session not found');
+    }
+    res.status(200).json(success(null));
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // OIDC SSO
 // ---------------------------------------------------------------------------
@@ -328,6 +438,7 @@ authRouter.get(
         // SSO-provisioned users have no usable local password — a random unguessable
         // hash input keeps the schema satisfied without enabling password login.
         passwordHash: await hashPassword(randomUUID() + randomUUID()),
+        provisioning: 'sso',
         ...(identity.displayName !== undefined ? { displayName: identity.displayName } : {}),
         orgId: org._id,
         // Least-privileged seeded role, global scope, no time bound — same starting point

@@ -189,6 +189,13 @@ export async function exportSavedSearchQuery(id: string): Promise<ExportSavedSea
 // fundamentally about which SAVED SEARCH is the default, not general group management.
 // ---------------------------------------------------------------------------------------
 
+export async function fetchGroupDefaultQueries(groupId: string): Promise<GroupDefaultQuery[]> {
+  const response = await apiClient.get<ApiResponse<GroupDefaultQuery[]>>(
+    `/groups/${groupId}/default-queries`,
+  );
+  return unwrap(response.data);
+}
+
 export interface SetGroupDefaultQueryInput {
   projectId: string;
   // Passing null clears the default for that project via this same PUT endpoint (the server

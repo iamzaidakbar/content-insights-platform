@@ -78,6 +78,7 @@ articleSchema.index({ orgId: 1, projectId: 1, publishedAt: -1 });
 articleSchema.index({ orgId: 1, projectId: 1, hidden: 1 });
 articleSchema.index({ orgId: 1, sourceType: 1 });
 articleSchema.index({ orgId: 1, hidden: 1 });
+articleSchema.index({ orgId: 1, tagIds: 1 });
 
 export const ArticleModel =
   (mongoose.models.Article as Model<IArticle> | undefined) ??

@@ -7,16 +7,20 @@ import {
   setCurrentGroupSchema,
   setCurrentProjectSchema,
   setUserActiveSchema,
+  setUserStatusReasonSchema,
   updateRoleAssignmentEndDateSchema,
   updateUserSchema,
   type AssignUserRoleInput,
   type CreateUserInput,
   type CreateUserResult,
+  type InviteLinkResult,
+  type PasswordResetLinkResult,
   type PaginatedResult,
   type Permission,
   type SetCurrentGroupInput,
   type SetCurrentProjectInput,
   type SetUserActiveInput,
+  type SetUserStatusReasonInput,
   type UpdateRoleAssignmentEndDateInput,
   type UpdateUserInput,
   type User,
@@ -27,11 +31,13 @@ import { asUserId } from '@content-insights/shared';
 import { audit } from '../lib/audit.js';
 import { asyncHandler } from '../lib/async-handler.js';
 import { clearRefreshCookie } from '../lib/cookies.js';
-import { AppError, ForbiddenError, ValidationError, isDuplicateKeyError } from '../lib/errors.js';
+import { AppError, ConflictError, ForbiddenError, ValidationError, isDuplicateKeyError } from '../lib/errors.js';
 import { groupIdFromBody, groupIdFromUserRoleAssignment } from '../lib/group-scope.js';
 import { parseObjectIdParam } from '../lib/objectId.js';
 import { pageQuerySchema } from '../lib/pagination.js';
 import { generateTemporaryPassword, hashPassword } from '../lib/password.js';
+import { generateOneTimeToken, hashOneTimeToken, INVITE_TTL_MS, PASSWORD_RESET_TTL_MS } from '../lib/one-time-token.js';
+import { config } from '../lib/config.js';
 import {
   assertPermission,
   canAssignRole,
@@ -62,6 +68,10 @@ const PAGE_SIZE = 20;
 // `email` (not `search`) per the brief — this is specifically "search users by email".
 const userListQuerySchema = pageQuerySchema.extend({
   email: z.string().trim().max(200).optional(),
+  roleId: z.string().min(1).optional(),
+  isActive: z.enum(['true', 'false']).optional(),
+  sort: z.enum(['email', 'createdAt', 'lastLoginAt']).optional(),
+  order: z.enum(['asc', 'desc']).optional(),
 });
 type UserListQuery = z.infer<typeof userListQuerySchema>;
 
@@ -69,7 +79,63 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function publicAppUrl(path: string): string {
+  return `${config.corsOrigin}${path}`;
+}
+
+function issueInviteForUser(): { token: string; hash: string; expiresAt: Date } {
+  const token = generateOneTimeToken();
+  return {
+    token,
+    hash: hashOneTimeToken(token),
+    expiresAt: new Date(Date.now() + INVITE_TTL_MS),
+  };
+}
+
 const APPLICATION_ADMIN_ROLE_NAME = 'Application Admin';
+
+async function assertNotLastApplicationAdmin(orgId: string, targetId: string): Promise<void> {
+  const adminRole = await RoleModel.findOne({ orgId, name: APPLICATION_ADMIN_ROLE_NAME });
+  if (!adminRole) {
+    return;
+  }
+  const target = await UserModel.findOne({ _id: targetId, orgId });
+  if (!target) {
+    throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+  }
+  const isTargetAdmin = target.roleAssignments.some(
+    (assignment) =>
+      assignment.roleId.toString() === adminRole._id.toString() &&
+      assignment.groupId === null &&
+      isRoleAssignmentActive(assignment),
+  );
+  if (!isTargetAdmin) {
+    return;
+  }
+  const now = new Date();
+  const remaining = await UserModel.countDocuments({
+    orgId,
+    isActive: true,
+    _id: { $ne: target._id },
+    roleAssignments: {
+      $elemMatch: {
+        roleId: adminRole._id,
+        groupId: null,
+        $and: [
+          { $or: [{ startDate: null }, { startDate: { $exists: false } }, { startDate: { $lte: now } }] },
+          { $or: [{ endDate: null }, { endDate: { $exists: false } }, { endDate: { $gte: now } }] },
+        ],
+      },
+    },
+  });
+  if (remaining === 0) {
+    throw new ConflictError('Cannot deactivate or delete the last Application Admin', 'LAST_ADMIN');
+  }
+}
+
+function statusReasonDetails(email: string, reason: string | undefined): Record<string, unknown> {
+  return reason ? { email, reason } : { email };
+}
 
 // Resolves the acting user's currently-active GLOBAL-scope role names — not derivable from
 // the JWT alone (only roleIds are embedded there, see AccessTokenRoleAssignment's own
@@ -112,7 +178,7 @@ userRouter.get(
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
 
-    const { email, page } = req.query as unknown as UserListQuery;
+    const { email, page, roleId, isActive, sort, order } = req.query as unknown as UserListQuery;
 
     if (!page) {
       if (!email) {
@@ -140,10 +206,21 @@ userRouter.get(
     if (email) {
       filter.email = { $regex: escapeRegex(email), $options: 'i' };
     }
+    if (roleId) {
+      filter['roleAssignments.roleId'] = roleId;
+    }
+    if (isActive === 'true') {
+      filter.isActive = true;
+    } else if (isActive === 'false') {
+      filter.isActive = false;
+    }
+
+    const sortField = sort ?? 'email';
+    const sortDir = order === 'desc' ? -1 : 1;
 
     const [users, total] = await Promise.all([
       UserModel.find(filter)
-        .sort({ email: 1 })
+        .sort({ [sortField]: sortDir })
         .skip((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE),
       UserModel.countDocuments(filter),
@@ -181,8 +258,8 @@ userRouter.post(
 
     const { email, displayName } = req.body as CreateUserInput;
     const normalizedEmail = email.toLowerCase().trim();
-    const temporaryPassword = generateTemporaryPassword();
-    const passwordHash = await hashPassword(temporaryPassword);
+    const passwordHash = await hashPassword(generateTemporaryPassword());
+    const invite = issueInviteForUser();
 
     let user;
     try {
@@ -190,6 +267,9 @@ userRouter.post(
         email: normalizedEmail,
         passwordHash,
         orgId: req.user.orgId,
+        provisioning: 'invite_pending',
+        inviteTokenHash: invite.hash,
+        inviteExpiresAt: invite.expiresAt,
         ...(displayName !== undefined ? { displayName } : {}),
       });
     } catch (err) {
@@ -208,7 +288,7 @@ userRouter.post(
 
     const result: CreateUserResult = {
       user: await resolveUserDTO(req.user.orgId, user),
-      temporaryPassword,
+      inviteUrl: publicAppUrl(`/accept-invite?token=${invite.token}`),
     };
 
     res.status(201).json(success(result));
@@ -351,6 +431,8 @@ userRouter.delete(
       throw new ValidationError('You cannot delete your own account via this endpoint');
     }
 
+    await assertNotLastApplicationAdmin(req.user.orgId, id);
+
     const user = await UserModel.findOneAndDelete({ _id: id, orgId: req.user.orgId });
     if (!user) {
       throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
@@ -380,6 +462,10 @@ async function setOrgUserActive(
     );
   }
 
+  if (!isActive) {
+    await assertNotLastApplicationAdmin(orgId, targetId);
+  }
+
   const user = await UserModel.findOneAndUpdate(
     { _id: targetId, orgId },
     { $set: { isActive } },
@@ -406,14 +492,14 @@ userRouter.patch(
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
     const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
-    const { isActive } = req.body as SetUserActiveInput;
+    const { isActive, reason } = req.body as SetUserActiveInput;
     const user = await setOrgUserActive(req.user.id, req.user.orgId, id, isActive);
 
     audit(req, {
       action: isActive ? 'user.activate' : 'user.deactivate',
       entityType: 'user',
       entityId: id,
-      details: { email: user.email },
+      details: statusReasonDetails(user.email, reason),
     });
 
     res.status(200).json(success(await resolveUserDTO(req.user.orgId, user)));
@@ -425,18 +511,20 @@ userRouter.patch(
   authenticate,
   orgContext,
   requirePermission('users:delete' satisfies Permission),
+  validate({ body: setUserStatusReasonSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
     const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
+    const { reason } = req.body as SetUserStatusReasonInput;
     const user = await setOrgUserActive(req.user.id, req.user.orgId, id, false);
 
     audit(req, {
       action: 'user.deactivate',
       entityType: 'user',
       entityId: id,
-      details: { email: user.email },
+      details: statusReasonDetails(user.email, reason),
     });
 
     res.status(200).json(success(await resolveUserDTO(req.user.orgId, user)));
@@ -448,21 +536,96 @@ userRouter.patch(
   authenticate,
   orgContext,
   requirePermission('users:delete' satisfies Permission),
+  validate({ body: setUserStatusReasonSchema }),
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
     }
     const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
+    const { reason } = req.body as SetUserStatusReasonInput;
     const user = await setOrgUserActive(req.user.id, req.user.orgId, id, true);
 
     audit(req, {
       action: 'user.activate',
       entityType: 'user',
       entityId: id,
-      details: { email: user.email },
+      details: statusReasonDetails(user.email, reason),
     });
 
     res.status(200).json(success(await resolveUserDTO(req.user.orgId, user)));
+  }),
+);
+
+userRouter.post(
+  '/:id/invite',
+  authenticate,
+  orgContext,
+  requirePermission('users:manage' satisfies Permission),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
+    const invite = issueInviteForUser();
+    const user = await UserModel.findOneAndUpdate(
+      { _id: id, orgId: req.user.orgId },
+      {
+        $set: {
+          provisioning: 'invite_pending',
+          inviteTokenHash: invite.hash,
+          inviteExpiresAt: invite.expiresAt,
+        },
+      },
+      { new: true },
+    );
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    audit(req, {
+      action: 'user.invite',
+      entityType: 'user',
+      entityId: id,
+      details: { email: user.email },
+    });
+    const result: InviteLinkResult = { inviteUrl: publicAppUrl(`/accept-invite?token=${invite.token}`) };
+    res.status(200).json(success(result));
+  }),
+);
+
+userRouter.post(
+  '/:id/reset-password',
+  authenticate,
+  orgContext,
+  requirePermission('users:manage' satisfies Permission),
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Missing authenticated request context');
+    }
+    const id = parseObjectIdParam(req.params.id, 'User not found', 'USER_NOT_FOUND');
+    const token = generateOneTimeToken();
+    const user = await UserModel.findOneAndUpdate(
+      { _id: id, orgId: req.user.orgId },
+      {
+        $set: {
+          passwordResetTokenHash: hashOneTimeToken(token),
+          passwordResetExpiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
+        },
+      },
+      { new: true },
+    );
+    if (!user) {
+      throw new AppError(404, 'USER_NOT_FOUND', 'User not found');
+    }
+    audit(req, {
+      action: 'auth.password_reset',
+      entityType: 'user',
+      entityId: id,
+      details: { email: user.email, via: 'admin' },
+    });
+    const result: PasswordResetLinkResult = {
+      resetUrl: publicAppUrl(`/reset-password?token=${token}`),
+    };
+    res.status(200).json(success(result));
   }),
 );
 

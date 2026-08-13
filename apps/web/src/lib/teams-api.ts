@@ -1,6 +1,7 @@
 import {
   DEFAULT_TEAMS_MAX_ARTICLES_PER_SHARE,
   type ApiResponse,
+  type PaginatedResult,
   type TeamsShareRecord,
   type TeamsShareRequestInput,
 } from '@content-insights/shared';
@@ -24,6 +25,17 @@ export const TEAMS_MAX_ARTICLES_PER_SHARE = DEFAULT_TEAMS_MAX_ARTICLES_PER_SHARE
 // rather than posting to a real Teams channel — see teams.routes.ts's module comment.
 export async function shareToTeams(input: TeamsShareRequestInput): Promise<TeamsShareRecord> {
   const response = await apiClient.post<ApiResponse<TeamsShareRecord>>('/teams/share', input);
+  const body = response.data;
+  if (!body.success) {
+    throw new Error(body.message);
+  }
+  return body.data;
+}
+
+export async function fetchTeamsShares(page = 1): Promise<PaginatedResult<TeamsShareRecord>> {
+  const response = await apiClient.get<ApiResponse<PaginatedResult<TeamsShareRecord>>>('/teams/shares', {
+    params: { page },
+  });
   const body = response.data;
   if (!body.success) {
     throw new Error(body.message);

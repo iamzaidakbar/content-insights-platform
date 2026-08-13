@@ -91,6 +91,7 @@ export default function LoginPage() {
             ) : null}
 
             <form className="space-y-4" onSubmit={handleSubmit}>
+              {error ? <Alert variant="error">{error}</Alert> : null}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)]">
                   Email
@@ -119,9 +120,12 @@ export default function LoginPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   className="mt-1"
                 />
+                <p className="mt-1 text-right text-xs">
+                  <Link to="/forgot-password" className="text-[var(--accent)] hover:underline">
+                    Forgot password?
+                  </Link>
+                </p>
               </div>
-
-              {error ? <Alert variant="error">{error}</Alert> : null}
 
               <Button
                 type="submit"

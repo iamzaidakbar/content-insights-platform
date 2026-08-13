@@ -16,10 +16,13 @@ import {
 } from '@content-insights/shared';
 import { asGroupId, asOrgId, asUserId, asUserTagId } from '@content-insights/shared';
 
+import { resolveArticleSearchGrants } from '../lib/article-access.js';
 import { audit } from '../lib/audit.js';
 import { asyncHandler } from '../lib/async-handler.js';
+import { bulkIndexArticles, toIndexArticleParams } from '../lib/elasticsearch.js';
 import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError, isDuplicateKeyError } from '../lib/errors.js';
 import { hasGroupPermission, resolveDocumentScope } from '../lib/group-scope.js';
+import { logger } from '../lib/logger.js';
 import { parseObjectIdParam } from '../lib/objectId.js';
 import { isRoleAssignmentActive } from '../lib/permissions.js';
 import { success } from '../lib/response.js';
@@ -148,6 +151,10 @@ async function serializeUserTags(tags: UserTagDocument[]): Promise<UserTag[]> {
     groupIds.size > 0 ? await GroupModel.find({ _id: { $in: Array.from(groupIds) } }, { name: 1 }) : [];
   const groupNameById = new Map(groups.map((group) => [group._id.toString(), group.name]));
 
+  // Live counts from Article.tagIds — UserTag.articleCount is a maintained counter that
+  // can drift. The Tags page should show how many articles actually carry the tag.
+  const liveCountByTagId = await liveArticleCountsByTagId(tags);
+
   return tags.map((tag) => ({
     id: asUserTagId(tag._id.toString()),
     orgId: asOrgId(tag.orgId.toString()),
@@ -163,15 +170,51 @@ async function serializeUserTags(tags: UserTagDocument[]): Promise<UserTag[]> {
       canUse: grant.canUse,
       canDelete: grant.canDelete,
     })),
-    articleCount: tag.articleCount,
+    articleCount: liveCountByTagId.get(tag._id.toString()) ?? 0,
     createdAt: tag.createdAt.toISOString(),
     updatedAt: tag.updatedAt.toISOString(),
   }));
 }
 
+async function liveArticleCountsByTagId(tags: UserTagDocument[]): Promise<Map<string, number>> {
+  const orgId = tags[0]?.orgId;
+  if (!orgId) return new Map();
+  const tagIds = tags.map((tag) => tag._id);
+  const rows = await ArticleModel.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
+    { $match: { orgId, tagIds: { $in: tagIds } } },
+    { $unwind: '$tagIds' },
+    { $match: { tagIds: { $in: tagIds } } },
+    { $group: { _id: '$tagIds', count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [row._id.toString(), row.count]));
+}
+
 async function serializeUserTag(tag: UserTagDocument): Promise<UserTag> {
   const [dto] = await serializeUserTags([tag]);
   return dto as UserTag;
+}
+
+/** Counts visible in Articles with every accessible project selected (exclude hidden, any time). */
+async function searchScopedTagCounts(user: AuthenticatedUser, tags: UserTagDocument[]): Promise<Map<string, number>> {
+  const orgId = tags[0]?.orgId;
+  if (!orgId) return new Map();
+  const tagIds = tags.map((tag) => tag._id);
+
+  const match: Record<string, unknown> = { orgId, tagIds: { $in: tagIds }, hidden: false };
+  try {
+    const grants = await resolveArticleSearchGrants(user, 'articles:read' satisfies Permission);
+    match.projectId = { $in: grants.projectIds.map((id) => new mongoose.Types.ObjectId(id)) };
+  } catch {
+    // No articles:read — still return org-wide non-hidden counts below.
+  }
+
+  const rows = await ArticleModel.aggregate<{ _id: mongoose.Types.ObjectId; count: number }>([
+    { $match: match },
+    { $unwind: '$tagIds' },
+    { $match: { tagIds: { $in: tagIds } } },
+    { $group: { _id: '$tagIds', count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [row._id.toString(), row.count]));
 }
 
 // Exported for future Article-serialization routes (no article.routes.ts exists yet in this
@@ -226,7 +269,10 @@ userTagRouter.get(
     ]);
 
     const combined = [...publicTags, ...privateTags].sort((a, b) => a.name.localeCompare(b.name));
-    res.status(200).json(success((await serializeUserTags(combined)) satisfies UserTag[]));
+    const dtos = await serializeUserTags(combined);
+    const scopedCounts = await searchScopedTagCounts(user, combined);
+    const payload = dtos.map((tag) => ({ ...tag, articleCount: scopedCounts.get(tag.id) ?? 0 }));
+    res.status(200).json(success(payload satisfies UserTag[]));
   }),
 );
 
@@ -349,12 +395,9 @@ userTagRouter.put(
 //
 // Cleanup choice: actively strips this tagId from every Article that carries it (rather than
 // leaving a dangling reference filtered at read time) so Article.tagIds stays a canonical,
-// always-resolvable set with no defensive dangling-ref handling needed anywhere else. NOT
-// mirrored into Elasticsearch here — the ES Article documents only carry tagIds for faceting
-// (never a name, so no privacy exposure), and there's no cheap partial-field ES update
-// primitive for it yet (indexArticle() re-indexes a full Article doc). A stale id left in ES
-// is a transient facet-count overcount until the next full reindex, the same eventual-
-// consistency tradeoff document.routes.ts's own bulk delete already accepts for its ES chunks.
+// always-resolvable set with no defensive dangling-ref handling needed anywhere else. ES is
+// then best-effort reindexed for the affected articles so search/facets do not keep a stale
+// tag id (Mongo remains the system of record if that sync fails).
 // ---------------------------------------------------------------------------------------
 userTagRouter.delete(
   '/:id',
@@ -372,11 +415,24 @@ userTagRouter.delete(
 
     await assertGroupScopedPermission(req.user, 'user-tags:manage' satisfies Permission, tag.ownerGroupId.toString());
 
+    const affectedIds = (
+      await ArticleModel.find({ orgId: req.user.orgId, tagIds: tag._id }, { _id: 1 })
+    ).map((article) => article._id);
+
     await UserTagModel.deleteOne({ _id: id, orgId: req.user.orgId });
     await ArticleModel.updateMany(
       { orgId: req.user.orgId, tagIds: tag._id },
       { $pull: { tagIds: tag._id } },
     );
+
+    if (affectedIds.length > 0) {
+      const changed = await ArticleModel.find({ _id: { $in: affectedIds }, orgId: req.user.orgId });
+      try {
+        await bulkIndexArticles(req.user.orgId, changed.map(toIndexArticleParams), { refresh: true });
+      } catch (err) {
+        logger.error({ err, tagId: id }, 'Failed to sync untagged articles to Elasticsearch after tag delete');
+      }
+    }
 
     audit(req, {
       action: 'user-tag.delete',
@@ -620,6 +676,15 @@ async function bulkTagOperation(
       { _id: tag._id },
       { $inc: { articleCount: mode === 'apply' ? changedIds.length : -changedIds.length } },
     );
+    // Search/facets read tagIds from Elasticsearch, not Mongo. Without this, the filter
+    // panel's org-wide articleCount and the Articles result list disagree (seed's
+    // bulk-apply previously wrote Mongo only).
+    const changed = await ArticleModel.find({ _id: { $in: changedIds }, orgId: req.user.orgId });
+    try {
+      await bulkIndexArticles(req.user.orgId, changed.map(toIndexArticleParams), { refresh: true });
+    } catch (err) {
+      logger.error({ err, articleIds: changedIds }, 'Failed to sync tagged articles to Elasticsearch');
+    }
   }
 
   const succeeded = results.filter((r) => r.success).length;

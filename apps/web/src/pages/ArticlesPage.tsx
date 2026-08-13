@@ -25,11 +25,14 @@ import {
 
 import {
   asGroupId,
+  ARTICLES_FILTERS_PARAM,
   DEFAULT_USER_SETTINGS,
   EMPTY_ADVANCED_SEARCH,
   EMPTY_FILTER_PANEL_STATE,
   normalizeFilterPanelState,
+  parseArticlesUrlState,
   SEARCH_SORT_OPTIONS,
+  serializeArticlesUrlState,
   type FilterPanelState,
   type ResultViewMode,
   type SearchHit,
@@ -45,14 +48,14 @@ import { getApiErrorMessage } from '../lib/api-client';
 import { VIEW_MODE_PAGE_SIZE } from '../lib/article-layout';
 import { bulkArticleOperation, exportArticles, hideArticle, unhideArticle } from '../lib/articles-api';
 import { fetchConcepts } from '../lib/concepts-api';
-import { fetchGroup, fetchGroups } from '../lib/groups-api';
+import { fetchGroup, fetchGroupDefaultQueries, fetchGroups } from '../lib/groups-api';
 import { fetchProjects } from '../lib/projects-api';
 import {
   ARTICLES_LOAD_SAVED_SEARCH_PARAM,
   fetchSavedSearch,
   type LoadSavedSearchResult,
 } from '../lib/saved-searches-api';
-import { fetchSearchFacets, searchArticles } from '../lib/search-api';
+import { countsByUserTagId, fetchSearchFacets, searchArticles } from '../lib/search-api';
 import { fetchMySettings, updateMySettings } from '../lib/settings-api';
 import { createUserTag, fetchUserTags } from '../lib/user-tags-api';
 import { setCurrentGroup, setCurrentProject } from '../lib/users-api';
@@ -162,8 +165,6 @@ function SortDropdown({ value, onChange }: { value: SearchSortOption; onChange: 
 
 const TOOLBAR_BTN =
   'flex h-8 items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] px-2.5 text-xs text-[var(--text-primary)] transition-colors hover:border-[var(--accent)]';
-const TOOLBAR_SELECT =
-  'h-8 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent)]';
 
 const FILTER_COLUMN_STORAGE_KEY = 'ci:articles-filter-column-open';
 
@@ -202,18 +203,29 @@ export default function ArticlesPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const savedSearchIdToLoad = searchParams.get(ARTICLES_LOAD_SAVED_SEARCH_PARAM);
+  const initialUrlState = parseArticlesUrlState(searchParams.get(ARTICLES_FILTERS_PARAM));
 
-  const [page, setPage] = useState(1);
-  const [queryInput, setQueryInput] = useState('');
+  const [page, setPage] = useState(initialUrlState?.page ?? 1);
+  const [queryInput, setQueryInput] = useState(initialUrlState?.filters.query ?? '');
   const debouncedQuery = useDebouncedValue(queryInput, 300);
   // When a saved search is applied, ignore stale debounce ticks until the box catches up —
   // otherwise a pending keystroke debounce can overwrite the loaded `filters.query`.
   const pendingLoadQueryRef = useRef<string | null>(null);
+  const defaultQueryAppliedRef = useRef(false);
+  const skipUrlWriteRef = useRef(false);
+  const [urlSyncEnabled, setUrlSyncEnabled] = useState(
+    () => Boolean(savedSearchIdToLoad || initialUrlState),
+  );
 
-  const [filters, setFilters] = useState<FilterPanelState>(() => ({
-    ...EMPTY_FILTER_PANEL_STATE,
-    projectIds: user?.currentProjectId ? [user.currentProjectId] : [],
-  }));
+  const [filters, setFilters] = useState<FilterPanelState>(() => {
+    if (initialUrlState) {
+      return initialUrlState.filters;
+    }
+    return {
+      ...EMPTY_FILTER_PANEL_STATE,
+      projectIds: user?.currentProjectId ? [user.currentProjectId] : [],
+    };
+  });
 
   // Keeps filters.query in sync with the debounced search box without gating every other
   // filter edit behind the same 300ms delay.
@@ -331,15 +343,25 @@ export default function ArticlesPage() {
 
   const setCurrentGroupMutation = useMutation({
     mutationFn: setCurrentGroup,
-    // No manual query invalidation needed: the search/facets/saved-searches/channels query
-    // keys below all include currentGroupId, so updating the cached session user (which
-    // changes what that id resolves to) makes react-query refetch them on its own.
     onSuccess: (updatedUser) => {
       updateUser(updatedUser);
       setPage(1);
     },
     onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Unable to switch group.')),
   });
+
+  const previousProjectIdRef = useRef(currentProjectId);
+  useEffect(() => {
+    if (previousProjectIdRef.current === currentProjectId) {
+      return;
+    }
+    previousProjectIdRef.current = currentProjectId;
+    setFilters((current) => ({
+      ...current,
+      projectIds: currentProjectId ? [currentProjectId] : [],
+    }));
+    setPage(1);
+  }, [currentProjectId]);
 
   // ---------------------------------------------------------------------------------
   // Concepts (taxonomy labels) + user tags (chip names) for card rendering and filter chips
@@ -605,6 +627,106 @@ export default function ArticlesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the deep-link id changes
   }, [savedSearchIdToLoad]);
 
+  // Group default query: apply once on landing when the URL is not already loading a saved
+  // search or a serialized filter state. If the user already has a currentProjectId, only
+  // apply that project's default; otherwise pick the group's first configured default and
+  // persist the project.
+  useEffect(() => {
+    if (savedSearchIdToLoad || searchParams.has(ARTICLES_FILTERS_PARAM) || defaultQueryAppliedRef.current) {
+      defaultQueryAppliedRef.current = true;
+      setUrlSyncEnabled(true);
+      return;
+    }
+    if (!currentGroupId) {
+      defaultQueryAppliedRef.current = true;
+      setUrlSyncEnabled(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const defaults = await fetchGroupDefaultQueries(asGroupId(currentGroupId));
+        if (cancelled) return;
+        if (defaults.length === 0) {
+          defaultQueryAppliedRef.current = true;
+          setUrlSyncEnabled(true);
+          return;
+        }
+        const matched = currentProjectId
+          ? defaults.find((entry) => entry.projectId === currentProjectId)
+          : defaults[0];
+        if (!matched) {
+          defaultQueryAppliedRef.current = true;
+          setUrlSyncEnabled(true);
+          return;
+        }
+        if (matched.projectId !== currentProjectId) {
+          await setCurrentProjectMutation.mutateAsync(matched.projectId);
+        }
+        if (cancelled) return;
+        const loaded = await fetchSavedSearch(matched.savedSearchId);
+        if (cancelled) return;
+        await applyLoadedSavedSearch(loaded);
+        defaultQueryAppliedRef.current = true;
+        setUrlSyncEnabled(true);
+      } catch (err) {
+        defaultQueryAppliedRef.current = true;
+        setUrlSyncEnabled(true);
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(err, 'Unable to apply the group default query.'));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per landing, not on every project switch
+  }, [currentGroupId, savedSearchIdToLoad]);
+
+  useEffect(() => {
+    if (!urlSyncEnabled || savedSearchIdToLoad) {
+      return;
+    }
+    if (skipUrlWriteRef.current) {
+      skipUrlWriteRef.current = false;
+      return;
+    }
+    const serialized = serializeArticlesUrlState(filters, page);
+    if (searchParams.get(ARTICLES_FILTERS_PARAM) === serialized) {
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set(ARTICLES_FILTERS_PARAM, serialized);
+        next.delete(ARTICLES_LOAD_SAVED_SEARCH_PARAM);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [filters, page, urlSyncEnabled, savedSearchIdToLoad, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!urlSyncEnabled || savedSearchIdToLoad) {
+      return;
+    }
+    const raw = searchParams.get(ARTICLES_FILTERS_PARAM);
+    const serialized = serializeArticlesUrlState(filters, page);
+    if (raw === serialized || raw === null) {
+      return;
+    }
+    const parsed = parseArticlesUrlState(raw);
+    if (!parsed) {
+      return;
+    }
+    skipUrlWriteRef.current = true;
+    pendingLoadQueryRef.current = parsed.filters.query;
+    setFilters(parsed.filters);
+    setQueryInput(parsed.filters.query);
+    setPage(parsed.page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate from browser Back/Forward, not from local filter edits
+  }, [searchParams]);
+
   function handleApplyAdvancedSearch(result: AdvancedSearchApplyResult) {
     setFilters((current) => ({ ...current, advancedSearch: result.advancedSearch, dateFilter: result.dateFilter }));
     setPage(1);
@@ -833,7 +955,7 @@ export default function ArticlesPage() {
   }
 
   const exportMutation = useMutation({
-    mutationFn: () => exportArticles(filters),
+    mutationFn: (format: 'xlsx' | 'csv') => exportArticles(filters, format),
     onSuccess: () => toast.success('Export started — check your downloads.'),
     onError: (err: unknown) => toast.error(getApiErrorMessage(err, 'Export failed.')),
   });
@@ -857,6 +979,11 @@ export default function ArticlesPage() {
     hideZeroCountFacets: settingsQuery.data?.hideZeroCountFacets ?? DEFAULT_USER_SETTINGS.hideZeroCountFacets,
     ...(facetsQuery.data?.facets ? { facets: facetsQuery.data.facets } : {}),
   };
+
+  const userTagCounts = useMemo(
+    () => countsByUserTagId(facetsQuery.data?.facets),
+    [facetsQuery.data?.facets],
+  );
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] min-h-0">
@@ -948,10 +1075,16 @@ export default function ArticlesPage() {
                   </DropdownMenuItem>
                 ) : null}
                 {canExport ? (
-                  <DropdownMenuItem disabled={exportMutation.isPending} onSelect={() => exportMutation.mutate()}>
-                    <Download size={13} />
-                    {exportMutation.isPending ? 'Exporting…' : 'Export'}
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem disabled={exportMutation.isPending} onSelect={() => exportMutation.mutate('xlsx')}>
+                      <Download size={13} />
+                      {exportMutation.isPending ? 'Exporting…' : 'Export Excel'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={exportMutation.isPending} onSelect={() => exportMutation.mutate('csv')}>
+                      <Download size={13} />
+                      Export CSV
+                    </DropdownMenuItem>
+                  </>
                 ) : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem selected={filters.hiddenArticles === 'onlyHidden'} onSelect={toggleHiddenMode}>
@@ -963,34 +1096,6 @@ export default function ArticlesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            <select
-              value={currentProjectId ?? ''}
-              onChange={(event) => setCurrentProjectMutation.mutate(event.target.value || null)}
-              aria-label="Current project"
-              className={TOOLBAR_SELECT}
-            >
-              <option value="">All projects</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={currentGroupId ?? ''}
-              onChange={(event) => setCurrentGroupMutation.mutate(event.target.value || null)}
-              aria-label="Current group"
-              className={TOOLBAR_SELECT}
-            >
-              <option value="">No group</option>
-              {groupOptions.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-
             {filterChips.length > 0 ? (
               <>
                 {filterChips.map((chip) => (
@@ -1114,6 +1219,7 @@ export default function ArticlesPage() {
                   isSelecting={bulkMutation.isPending}
                   isCreating={createTagMutation.isPending}
                   allowCreate
+                  countsByTagId={userTagCounts}
                   onSelectTag={handleTagPickerApply}
                   onCreateTag={handleTagPickerCreate}
                   onClose={() => setTagPickerMode(null)}
@@ -1137,6 +1243,7 @@ export default function ArticlesPage() {
                   selectedCount={selectedIds.size}
                   isSelecting={bulkMutation.isPending}
                   allowCreate={false}
+                  countsByTagId={userTagCounts}
                   onSelectTag={handleTagPickerApply}
                   onCreateTag={() => undefined}
                   onClose={() => setTagPickerMode(null)}

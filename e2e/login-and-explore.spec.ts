@@ -324,33 +324,55 @@ test.describe('Workflow #1 + #2 — login, land on Articles, explore (Risk & Com
 test.describe('Workflow #1 — group default query on landing (Executive Briefing)', () => {
   test.skip(!process.env.E2E_LIVE, 'Set E2E_LIVE=1 against a running API+web stack');
 
-  // FINDING: Executive Briefing's "All Financial Coverage" saved search is configured as the
-  // group's default query for the Financial Markets Watch project (confirmed live: that saved
-  // search exists, is scoped to that group, and its filters are `projectIds: [<Financial
-  // Markets Watch id>]`). But nothing in the web app currently *applies* it on landing:
-  //   - ArticlesPage never fetches or applies any GroupDefaultQuery (grepped the whole page —
-  //     no reference at all; only groups-api.ts/saved-searches-api.ts expose SET/CLEAR).
-  //   - There isn't even a GET endpoint to read a group's configured default query back — the
-  //     admin Data Access modal's own Default Query tab says so explicitly: "There is
-  //     currently no way to look up an existing default from here; the note under each
-  //     project reflects only changes made in this session."
-  //   - Login itself leaves currentProjectId as null (verified via POST /api/auth/login for
-  //     analyst.exec@meridian.dev), so the "project context" workflow #1 describes isn't
-  //     switched automatically either.
-  // This test asserts the CORRECT/expected behavior and is marked test.fail() so it documents
-  // the gap without silently working around it or failing the suite — if this ever starts
-  // passing, Playwright will flag it as an unexpected pass, which is the signal to remove the
-  // annotation.
-  test.fail();
-
   test('logging in as an Executive Briefing member auto-lands on the Financial Markets Watch project via its default query', async ({
     page,
   }) => {
     await loginViaUi(page, ANALYST_EXEC.email, ANALYST_EXEC.password);
-    await expect(page).toHaveURL(/\/articles$/);
+    await expect(page).toHaveURL(/\/articles/);
 
     const projectSelect = page.getByLabel('Current project');
     await expect(selectedOptionText(projectSelect)).resolves.toBe('Financial Markets Watch');
+    await expect(page.getByText('Project: Financial Markets Watch')).toBeVisible();
+  });
+
+  test('News and Documents tabs change the result count', async ({ page }) => {
+    await loginViaUi(page, ANALYST_EXEC.email, ANALYST_EXEC.password);
+    await expect(page.getByRole('tab', { name: 'All Articles' })).toBeVisible();
+
+    const count = page.getByText(/\d+ results?/);
+    await expect(count).toBeVisible();
+    const allText = await count.textContent();
+
+    await page.getByRole('tab', { name: 'News' }).click();
+    await expect(count).toBeVisible();
+    const newsText = await count.textContent();
+
+    await page.getByRole('tab', { name: 'Documents' }).click();
+    await expect(count).toBeVisible();
+    const documentsText = await count.textContent();
+
+    expect(newsText).not.toBe(documentsText);
+    expect(allText).not.toBe(documentsText);
+  });
+});
+
+test.describe('Article notes', () => {
+  test.skip(!process.env.E2E_LIVE, 'Set E2E_LIVE=1 against a running API+web stack');
+
+  test('an analyst can add a private note on article detail', async ({ page }) => {
+    await loginViaUi(page, ANALYST_EXEC.email, ANALYST_EXEC.password);
+    await expect(page.locator('[data-testid="article-card"]').first()).toBeVisible({ timeout: 20_000 });
+    const articleId = await page.locator('[data-testid="article-card"]').first().getAttribute('data-article-id');
+    expect(articleId).toBeTruthy();
+
+    await page.goto(`/articles/${articleId}`);
+    await expect(page.getByRole('heading', { name: 'Notes' })).toBeVisible({ timeout: 15_000 });
+
+    const noteText = `Private note ${Date.now()}`;
+    await page.getByLabel('Note body').fill(noteText);
+    await page.getByLabel('Note visibility').selectOption('private');
+    await page.getByRole('button', { name: 'Add note' }).click();
+    await expect(page.getByText(noteText)).toBeVisible();
   });
 });
 

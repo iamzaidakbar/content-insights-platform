@@ -43,6 +43,7 @@ const auditLogSchema = new mongoose.Schema<IAuditLog>(
         'dashboard',
         'entity-mapping',
         'search',
+        'article-note',
       ],
       required: true,
     },

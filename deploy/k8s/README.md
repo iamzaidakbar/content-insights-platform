@@ -17,7 +17,8 @@ Browser → Vercel (web) → K8s cip-api → Atlas / Elastic Cloud / Upstash
 - Kustomize base + `overlays/kind`
 - This README + `scripts/kind-up.sh`
 - CI image build/push to GHCR on `main`
-- `pnpm --filter @content-insights/api reindex-es` script
+- `pnpm --filter @content-insights/api reindex-es` (wipe + rebuild index)
+- `pnpm --filter @content-insights/api sync-tag-ids-es` (in-place upsert, including tagIds)
 
 ### You do manually
 
@@ -92,13 +93,25 @@ Expect mongo / elasticsearch / redis `"ok"`.
 
 **Ingress host:** map `cip-api.localhost` to the kind node IP (or use `127.0.0.1` with kind's port mappings if configured). Prefer port-forward for the first smoke test.
 
-### 5. Reindex Elastic (only if Articles are empty)
+### 5. Reindex Elastic
 
-If Mongo has data but Elastic Cloud is empty:
+**Empty index** (Mongo has articles, Articles search returns nothing):
 
 ```bash
 # from repo root, with prod env
 DOTENV_CONFIG_PATH=.env.prod pnpm --filter @content-insights/api reindex-es
+```
+
+**Tags missing from search** (Articles exist, but user-tag filters/counts disagree with Mongo). Prefer this after deploying the tag-sync fix — it upserts in place and does not wipe the index:
+
+```bash
+DOTENV_CONFIG_PATH=.env.prod pnpm --filter @content-insights/api sync-tag-ids-es
+```
+
+From a running API pod (ConfigMap/Secret already injected):
+
+```bash
+kubectl -n cip exec deploy/cip-api -- node dist/scripts/sync-tag-ids-es.js
 ```
 
 ---

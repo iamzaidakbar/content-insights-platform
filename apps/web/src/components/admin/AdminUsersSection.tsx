@@ -13,14 +13,18 @@ import {
   createUser,
   deleteUser,
   fetchOrgUsers,
+  inviteUser,
+  resetUserPassword,
   setUserActive,
   type CreateUserInput,
 } from '../../lib/users-api';
+import { fetchRoles } from '../../lib/roles-api';
 import EmptyState from '../EmptyState';
 import Pagination from '../Pagination';
 import Alert from '../ui/Alert';
 import Button from '../ui/Button';
 import { Card, CardBody, CardHeader, CardTitle } from '../ui/Card';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { Input } from '../ui/Input';
 import Modal from '../ui/Modal';
 import Skeleton from '../ui/Skeleton';
@@ -31,25 +35,27 @@ const SKELETON_ROW_COUNT = 5;
 
 // ---------------------------------------------------------------------------------------
 // Create user — POST /api/users (users:manage) has no outbound email/SMTP integration, so
-// the server-generated temporary password is returned exactly once in the create response.
+// a one-time invite URL is returned exactly once in the create response.
 // Splitting this into two dialogs (form, then a dedicated copyable password reveal) means
 // that one-time value can't be lost by a stray re-render/close of the form itself.
 // ---------------------------------------------------------------------------------------
 
-function TemporaryPasswordDialog({
-  email,
-  password,
+function CopyLinkDialog({
+  title,
+  description,
+  url,
   onClose,
 }: {
-  email: string;
-  password: string;
+  title: string;
+  description: string;
+  url: string;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(password);
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       toast.success('Copied to clipboard.');
       setTimeout(() => setCopied(false), 2000);
@@ -59,27 +65,22 @@ function TemporaryPasswordDialog({
   }
 
   return (
-    <Modal open onClose={onClose} title="Account created" size="sm">
-      <p className="text-sm text-[var(--text-secondary)]">
-        A temporary password was generated for <span className="text-[var(--text-primary)]">{email}</span>. It is
-        shown only this once — copy it now and share it with them out of band. It cannot be retrieved again.
-      </p>
-
+    <Modal open onClose={onClose} title={title} size="sm">
+      <p className="text-sm text-[var(--text-secondary)]">{description}</p>
       <div className="mt-4 flex items-center gap-2">
         <code className="flex-1 truncate rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)]">
-          {password}
+          {url}
         </code>
         <Button
           variant="outline"
           size="sm"
-          aria-label="Copy temporary password"
+          aria-label="Copy link"
           onClick={() => void handleCopy()}
           className="h-9 w-9 shrink-0 px-0"
         >
           {copied ? <Check size={16} className="text-[var(--green)]" /> : <Copy size={16} />}
         </Button>
       </div>
-
       <div className="mt-5 flex justify-end">
         <Button onClick={onClose}>Done</Button>
       </div>
@@ -92,7 +93,7 @@ function CreateUserModal({
   onCreated,
 }: {
   onClose: () => void;
-  onCreated: (email: string, temporaryPassword: string) => void;
+  onCreated: (email: string, inviteUrl: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
@@ -109,7 +110,7 @@ function CreateUserModal({
     },
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['org-users'] });
-      onCreated(result.user.email, result.temporaryPassword);
+      onCreated(result.user.email, result.inviteUrl);
     },
     onError: (err) => setError(getApiErrorMessage(err, 'Unable to create user.')),
     meta: { skipToast: true },
@@ -225,12 +226,21 @@ function DeleteUserDialog({ target, onClose }: { target: User; onClose: () => vo
 
 function StatusToggle({ target, disabledReason }: { target: User; disabledReason?: string }) {
   const queryClient = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const nextActive = !target.isActive;
 
   const statusMutation = useMutation({
-    mutationFn: (isActive: boolean) => setUserActive(target.id, isActive),
+    mutationFn: (isActive: boolean) => setUserActive(target.id, isActive, reason.trim() || undefined),
     onSuccess: (_user, isActive) => {
       void queryClient.invalidateQueries({ queryKey: ['org-users'] });
       toast.success(isActive ? `${target.email} activated.` : `${target.email} deactivated.`);
+      setConfirmOpen(false);
+      setReason('');
+    },
+    onError: (err: unknown) => {
+      toast.error(getApiErrorMessage(err, 'Unable to change account status.'));
     },
   });
 
@@ -239,23 +249,55 @@ function StatusToggle({ target, disabledReason }: { target: User; disabledReason
   const disabled = Boolean(disabledReason) || statusMutation.isPending;
 
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={target.isActive}
-      title={title}
-      disabled={disabled}
-      onClick={() => statusMutation.mutate(!target.isActive)}
-      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed ${
-        target.isActive ? 'bg-[var(--green)]' : 'bg-[var(--border)]'
-      } ${disabled ? 'opacity-60' : ''}`}
-    >
-      <span
-        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-          target.isActive ? 'translate-x-[18px]' : 'translate-x-[3px]'
-        }`}
-      />
-    </button>
+    <>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={target.isActive}
+        title={title}
+        disabled={disabled}
+        onClick={() => setConfirmOpen(true)}
+        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed ${
+          target.isActive ? 'bg-[var(--green)]' : 'bg-[var(--border)]'
+        } ${disabled ? 'opacity-60' : ''}`}
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+            target.isActive ? 'translate-x-[18px]' : 'translate-x-[3px]'
+          }`}
+        />
+      </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => {
+          if (!statusMutation.isPending) {
+            setConfirmOpen(false);
+            setReason('');
+          }
+        }}
+        onConfirm={() => statusMutation.mutate(nextActive)}
+        title={nextActive ? `Activate ${target.email}?` : `Deactivate ${target.email}?`}
+        description={
+          nextActive
+            ? 'They will be able to sign in again.'
+            : 'They will be signed out on every device and cannot sign in until reactivated.'
+        }
+        confirmLabel={nextActive ? 'Activate' : 'Deactivate'}
+        destructive={!nextActive}
+        loading={statusMutation.isPending}
+      >
+        <label className="block text-xs font-medium text-[var(--text-secondary)]">
+          Reason (optional)
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            maxLength={500}
+            rows={2}
+            className="mt-1 w-full rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-primary)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
+          />
+        </label>
+      </ConfirmDialog>
+    </>
   );
 }
 
@@ -265,15 +307,27 @@ export default function AdminUsersSection() {
   const [rawQuery, setRawQuery] = useState('');
   const debouncedQuery = useDebouncedValue(rawQuery, DEBOUNCE_MS);
   const [isCreating, setIsCreating] = useState(false);
-  const [passwordReveal, setPasswordReveal] = useState<{ email: string; password: string } | null>(null);
   const [deleting, setDeleting] = useState<User | null>(null);
+  const [linkReveal, setLinkReveal] = useState<{ title: string; description: string; url: string } | null>(
+    null,
+  );
+  const [roleId, setRoleId] = useState('');
+  const [sort, setSort] = useState<'email' | 'createdAt' | 'lastLoginAt'>('email');
 
   const canManage = permissions.includes('users:manage') || permissions.includes('*');
   const canDelete = permissions.includes('users:delete') || permissions.includes('*');
 
+  const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles, staleTime: 60_000 });
+
   const usersQuery = useQuery({
-    queryKey: ['org-users', page, debouncedQuery],
-    queryFn: () => fetchOrgUsers(page, debouncedQuery.trim() || undefined),
+    queryKey: ['org-users', page, debouncedQuery, roleId, sort],
+    queryFn: () =>
+      fetchOrgUsers(page, {
+        ...(debouncedQuery.trim() ? { email: debouncedQuery.trim() } : {}),
+        ...(roleId ? { roleId } : {}),
+        sort,
+        order: sort === 'email' ? 'asc' : 'desc',
+      }),
   });
 
   const users = usersQuery.data?.items ?? [];
@@ -286,6 +340,7 @@ export default function AdminUsersSection() {
         <CardTitle className="text-base">Users</CardTitle>
         <p className="mt-0.5 text-sm text-[var(--text-secondary)]">
           Every account in your organization. Role assignments are managed from Role Assignments.
+          Only an Application Admin can activate or deactivate accounts.
         </p>
       </CardHeader>
       <CardBody className="space-y-4">
@@ -301,6 +356,32 @@ export default function AdminUsersSection() {
             className="max-w-xs"
             aria-label="Search users by email"
           />
+          <select
+            value={roleId}
+            onChange={(event) => {
+              setRoleId(event.target.value);
+              setPage(1);
+            }}
+            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm"
+            aria-label="Filter by role"
+          >
+            <option value="">All roles</option>
+            {(rolesQuery.data ?? []).map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as typeof sort)}
+            className="h-9 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-sm"
+            aria-label="Sort users"
+          >
+            <option value="email">Sort: email</option>
+            <option value="createdAt">Sort: created</option>
+            <option value="lastLoginAt">Sort: last login</option>
+          </select>
           {canManage ? (
             <Button size="sm" leftIcon={<UserPlus size={15} />} onClick={() => setIsCreating(true)}>
               New user
@@ -317,8 +398,11 @@ export default function AdminUsersSection() {
             <TR className="hover:bg-transparent">
               <TH>Email</TH>
               <TH>Status</TH>
+              <TH>Provisioning</TH>
+              <TH>Roles</TH>
+              <TH>Last login</TH>
               <TH>Created</TH>
-              {canDelete ? <TH>Actions</TH> : null}
+              {canManage || canDelete ? <TH>Actions</TH> : null}
             </TR>
           </THead>
           <TBody>
@@ -368,18 +452,78 @@ export default function AdminUsersSection() {
                           </span>
                         </div>
                       </TD>
+                      <TD className="text-[var(--text-secondary)]">
+                        {orgUser.provisioning === 'invite_pending'
+                          ? 'Invited'
+                          : orgUser.provisioning === 'sso'
+                            ? 'SSO'
+                            : 'Local'}
+                      </TD>
+                      <TD>
+                        <div className="flex flex-wrap gap-1">
+                          {orgUser.roleAssignments.slice(0, 3).map((assignment) => (
+                            <span
+                              key={assignment.id}
+                              className="rounded-full bg-[var(--bg-hover)] px-2 py-0.5 text-[11px] text-[var(--text-secondary)]"
+                            >
+                              {assignment.roleName}
+                            </span>
+                          ))}
+                        </div>
+                      </TD>
+                      <TD className="text-[var(--text-secondary)]">
+                        {orgUser.lastLoginAt ? formatDate(orgUser.lastLoginAt) : 'Never'}
+                      </TD>
                       <TD className="text-[var(--text-secondary)]">{formatDate(orgUser.createdAt)}</TD>
-                      {canDelete ? (
+                      {canManage || canDelete ? (
                         <TD>
-                          <button
-                            type="button"
-                            onClick={() => setDeleting(orgUser)}
-                            disabled={isSelf}
-                            title={isSelf ? "You can't delete your own account" : 'Delete this user'}
-                            className="text-xs text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
-                          >
-                            Delete
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            {canManage ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="text-xs text-[var(--accent)] hover:underline"
+                                  onClick={() => {
+                                    void inviteUser(orgUser.id).then((result) =>
+                                      setLinkReveal({
+                                        title: 'Invite link',
+                                        description: `Share this link with ${orgUser.email}. It expires in 7 days.`,
+                                        url: result.inviteUrl,
+                                      }),
+                                    );
+                                  }}
+                                >
+                                  Invite
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs text-[var(--accent)] hover:underline"
+                                  onClick={() => {
+                                    void resetUserPassword(orgUser.id).then((result) =>
+                                      setLinkReveal({
+                                        title: 'Password reset link',
+                                        description: `Share this link with ${orgUser.email}. It expires in 24 hours.`,
+                                        url: result.resetUrl,
+                                      }),
+                                    );
+                                  }}
+                                >
+                                  Reset
+                                </button>
+                              </>
+                            ) : null}
+                            {canDelete ? (
+                              <button
+                                type="button"
+                                onClick={() => setDeleting(orgUser)}
+                                disabled={isSelf}
+                                title={isSelf ? "You can't delete your own account" : 'Delete this user'}
+                                className="text-xs text-[var(--error)] hover:underline disabled:cursor-not-allowed disabled:opacity-40 disabled:no-underline"
+                              >
+                                Delete
+                              </button>
+                            ) : null}
+                          </div>
                         </TD>
                       ) : null}
                     </TR>
@@ -405,17 +549,22 @@ export default function AdminUsersSection() {
         {isCreating ? (
           <CreateUserModal
             onClose={() => setIsCreating(false)}
-            onCreated={(email, password) => {
+            onCreated={(email, inviteUrl) => {
               setIsCreating(false);
-              setPasswordReveal({ email, password });
+              setLinkReveal({
+                title: 'Account created',
+                description: `Copy this invite link for ${email}. It is shown only this once and expires in 7 days.`,
+                url: inviteUrl,
+              });
             }}
           />
         ) : null}
-        {passwordReveal ? (
-          <TemporaryPasswordDialog
-            email={passwordReveal.email}
-            password={passwordReveal.password}
-            onClose={() => setPasswordReveal(null)}
+        {linkReveal ? (
+          <CopyLinkDialog
+            title={linkReveal.title}
+            description={linkReveal.description}
+            url={linkReveal.url}
+            onClose={() => setLinkReveal(null)}
           />
         ) : null}
         {deleting ? <DeleteUserDialog target={deleting} onClose={() => setDeleting(null)} /> : null}

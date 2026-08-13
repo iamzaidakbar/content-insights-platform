@@ -10,10 +10,48 @@ export const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60; // keep in sync with 
 const tokenKey = (jti: string): string => `refresh:${jti}`;
 const userSetKey = (userId: string): string => `refresh_user:${userId}`;
 
-export async function registerRefreshToken(jti: string, userId: string): Promise<void> {
+export interface RefreshSessionRecord {
+  userId: string;
+  createdAt: string;
+  userAgent?: string;
+  ip?: string;
+}
+
+function parseSessionRecord(raw: string | null, fallbackUserId?: string): RefreshSessionRecord | null {
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as RefreshSessionRecord;
+    if (parsed && typeof parsed.userId === 'string') {
+      return parsed;
+    }
+  } catch {
+    // Pre-migration values were a bare userId string.
+    if (fallbackUserId && raw === fallbackUserId) {
+      return { userId: raw, createdAt: new Date().toISOString() };
+    }
+    if (!raw.startsWith('{')) {
+      return { userId: raw, createdAt: new Date().toISOString() };
+    }
+  }
+  return null;
+}
+
+export async function registerRefreshToken(
+  jti: string,
+  userId: string,
+  meta?: { userAgent?: string; ip?: string },
+): Promise<void> {
+  const record: RefreshSessionRecord = {
+    userId,
+    createdAt: new Date().toISOString(),
+    ...(meta?.userAgent ? { userAgent: meta.userAgent } : {}),
+    ...(meta?.ip ? { ip: meta.ip } : {}),
+  };
   await redisConnection
     .multi()
-    .set(tokenKey(jti), userId, 'EX', REFRESH_TOKEN_TTL_SECONDS)
+    .set(tokenKey(jti), JSON.stringify(record), 'EX', REFRESH_TOKEN_TTL_SECONDS)
     .sadd(userSetKey(userId), jti)
     .expire(userSetKey(userId), REFRESH_TOKEN_TTL_SECONDS)
     .exec();
@@ -24,7 +62,39 @@ export async function registerRefreshToken(jti: string, userId: string): Promise
 export async function consumeRefreshToken(jti: string, userId: string): Promise<boolean> {
   const stored = await redisConnection.getdel(tokenKey(jti));
   await redisConnection.srem(userSetKey(userId), jti);
-  return stored === userId;
+  const record = parseSessionRecord(stored, userId);
+  return record?.userId === userId;
+}
+
+export async function listRefreshSessions(
+  userId: string,
+): Promise<Array<RefreshSessionRecord & { jti: string }>> {
+  const jtis = await redisConnection.smembers(userSetKey(userId));
+  if (jtis.length === 0) {
+    return [];
+  }
+  const values = await redisConnection.mget(jtis.map(tokenKey));
+  const sessions: Array<RefreshSessionRecord & { jti: string }> = [];
+  for (let i = 0; i < jtis.length; i += 1) {
+    const jti = jtis[i];
+    if (!jti) continue;
+    const record = parseSessionRecord(values[i] ?? null, userId);
+    if (record?.userId === userId) {
+      sessions.push({ ...record, jti });
+    }
+  }
+  sessions.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return sessions;
+}
+
+export async function revokeRefreshToken(jti: string, userId: string): Promise<boolean> {
+  const stored = await redisConnection.get(tokenKey(jti));
+  const record = parseSessionRecord(stored, userId);
+  if (!record || record.userId !== userId) {
+    return false;
+  }
+  await redisConnection.multi().del(tokenKey(jti)).srem(userSetKey(userId), jti).exec();
+  return true;
 }
 
 export async function revokeAllRefreshTokensForUser(userId: string): Promise<void> {

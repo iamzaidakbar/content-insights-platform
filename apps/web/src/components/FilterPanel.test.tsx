@@ -61,6 +61,7 @@ const FACETS = {
     { key: 'US', count: 10 },
     { key: 'APAC', count: 1 },
   ],
+  userTags: [{ key: 't1', count: 3 }],
 };
 
 type BaseProps = Omit<FilterPanelProps, 'value' | 'onChange'>;
@@ -194,9 +195,26 @@ describe('FilterPanel', () => {
     render(<FilterPanel {...BASE_PROPS} value={EMPTY_FILTER_PANEL_STATE} onChange={onChange} />);
 
     await openSection(user, 'User Tags');
-    await user.click(screen.getByLabelText('compliance'));
+    await user.click(screen.getByLabelText(/^compliance/));
 
     expect(onChange).toHaveBeenCalledWith({ ...EMPTY_FILTER_PANEL_STATE, userTagIds: ['t1'] });
+  });
+
+  it('shows live facet counts for User Tags, not the org-wide articleCount', async () => {
+    const user = userEvent.setup();
+    render(
+      <FilterPanel
+        {...BASE_PROPS}
+        facets={{ ...FACETS, userTags: [{ key: 't1', count: 7 }] }}
+        value={EMPTY_FILTER_PANEL_STATE}
+        onChange={vi.fn()}
+      />,
+    );
+
+    await openSection(user, 'User Tags');
+    const row = screen.getByLabelText(/^compliance/).closest('label');
+    expect(row).toHaveTextContent('7');
+    expect(row).not.toHaveTextContent('3');
   });
 
   it('ORs selections within one concept and ANDs across different concepts', async () => {
